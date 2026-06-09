@@ -1,0 +1,148 @@
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 30px var(--space-page) calc(var(--nav-h) + 40px);
+}
+
+/* ── header ──────────────────────────────────────────────── */
+.head {
+  margin-bottom: 8px;
+}
+
+.title {
+  font-size: 30px;
+  font-weight: 400;
+}
+
+.sub {
+  margin-top: 8px;
+  font-size: 14.5px;
+  color: var(--ink-muted);
+}
+
+/* ── day group ───────────────────────────────────────────── */
+.day {
+  margin-top: 30px;
+}
+
+.dayHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.dayWord {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.dayDate {
+  font-size: 13.5px;
+  color: var(--ink-muted);
+}
+
+/* ── timeline ────────────────────────────────────────────── */
+.timeline {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 24px;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 8px;
+  bottom: 10px;
+  width: 2px;
+  background: var(--hairline);
+  border-radius: 1px;
+}
+
+.item {
+  position: relative;
+  padding-bottom: 26px;
+}
+
+.item:last-child {
+  padding-bottom: 4px;
+}
+
+.dot {
+  position: absolute;
+  left: -24px;
+  top: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--hairline);
+}
+
+/* elapsed moments recede */
+.past {
+  opacity: 0.52;
+}
+
+.past .dot {
+  background: var(--hairline);
+}
+
+/* the next moment leads */
+.next .dot {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-tint);
+}
+
+.itemMeta {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.time {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.nextTag {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-tint);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.itemTitle {
+  margin-top: 6px;
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.itemDesc {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.itemLoc {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--ink-faint);
+}

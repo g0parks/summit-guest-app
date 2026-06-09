@@ -1,0 +1,62 @@
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 22px var(--space-page) calc(var(--nav-h) + 40px);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: -4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  transition: color 0.2s var(--ease);
+}
+
+.back:hover {
+  color: var(--ink);
+}
+
+.head {
+  margin-top: 24px;
+}
+
+.title {
+  margin-top: 10px;
+  font-size: 32px;
+  line-height: 1.08;
+  font-weight: 400;
+}
+
+.price {
+  margin-top: 14px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.body {
+  margin-top: 22px;
+}
+
+.desc {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.lead {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+  font-size: 13.5px;
+  color: var(--ink-faint);
+}
+
+.formWrap {
+  margin-top: 26px;
+}

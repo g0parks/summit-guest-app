@@ -1,0 +1,156 @@
+.wrap {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── card on file ────────────────────────────────────────── */
+.cardRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cardInfo {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.cardGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunk);
+  color: var(--ink-muted);
+  flex-shrink: 0;
+}
+
+.cardBrand {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+.cardExp {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.linkBtn {
+  background: none;
+  border: none;
+  padding: 6px 2px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ── add-card form ───────────────────────────────────────── */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.formHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.formTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 12px 13px;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 11px;
+}
+
+.addBtn,
+.settleBtn {
+  height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  font-size: 15.5px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  transition: background 0.22s var(--ease), transform 0.22s var(--ease),
+    box-shadow 0.22s var(--ease);
+}
+
+.addBtn {
+  margin-top: 2px;
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.settleBtn {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.settleBtn:active:not(:disabled),
+.addBtn:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.settleBtn:disabled,
+.addBtn:disabled {
+  opacity: 0.6;
+}
+
+.stub {
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.settleNote {
+  font-size: 13.5px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.err {
+  font-size: 13.5px;
+  color: #9a4a3c;
+}

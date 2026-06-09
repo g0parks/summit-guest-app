@@ -1,0 +1,222 @@
+// Summit Guest App — data model
+// Token → Stay (the trip) → { Guest, Property, Itinerary, Requests, Tab, Cards }
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // Supabase pooled (pgbouncer, :6543)
+  directUrl = env("DIRECT_URL") // Supabase direct (:5432), for migrations
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ServiceCategory {
+  DINING
+  TRANSPORT
+  ACTIVITY
+  WELLNESS
+  HOUSEHOLD
+  PROVISIONING
+  OTHER
+}
+
+enum PriceUnit {
+  FLAT
+  PER_HOUR
+  PER_DAY
+  PER_PERSON
+  QUOTE
+}
+
+enum ItineraryCategory {
+  ARRIVAL
+  DINING
+  ACTIVITY
+  TRANSPORT
+  WELLNESS
+  DEPARTURE
+  NOTE
+}
+
+enum RequestStatus {
+  REQUESTED
+  CONFIRMED
+  SCHEDULED
+  COMPLETED
+  DECLINED
+  CANCELLED
+}
+
+enum TabItemStatus {
+  PENDING
+  CHARGED
+  REFUNDED
+  VOID
+}
+
+enum PaymentProviderType {
+  MOCK
+  STRIPE
+}
+
+model Property {
+  id           String   @id @default(cuid())
+  name         String
+  partnerName  String? // PM company, display-only (no multi-tenancy)
+  addressLine1 String?
+  city         String?
+  region       String?
+  postalCode   String?
+  timezone     String   @default("America/Denver")
+  checkInTime  String? // "16:00"
+  checkOutTime String? // "10:00"
+  wifiNetwork  String?
+  wifiPassword String?
+  heroImage    String?
+  description  String?
+  stays        Stay[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Guest {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String?
+  email     String? // optional re-entry binding
+  phone     String?
+  notes     String? // VIP prefs
+  stays     Stay[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// The trip; what a token unlocks.
+model Stay {
+  id              String           @id @default(cuid())
+  guestId         String
+  guest           Guest            @relation(fields: [guestId], references: [id])
+  propertyId      String
+  property        Property         @relation(fields: [propertyId], references: [id])
+  arrivalDate     DateTime
+  departureDate   DateTime
+  partySize       Int?
+  currency        String           @default("usd")
+  status          String           @default("upcoming") // upcoming | active | completed (display)
+  accessTokens    AccessToken[]
+  itineraryItems  ItineraryItem[]
+  serviceRequests ServiceRequest[]
+  tabLineItems    TabLineItem[]
+  paymentMethods  PaymentMethod[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+/// id is generated in app code (high-entropy); URL token = "<id>.<hmac>".
+/// DB stores only the id — never the secret or the signature.
+model AccessToken {
+  id             String    @id // crypto.randomBytes(16).base64url
+  stayId         String
+  stay           Stay      @relation(fields: [stayId], references: [id])
+  label          String? // "pre-arrival email"
+  utmJson        Json? // attribution only, never access
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  lastAccessedAt DateTime?
+  createdAt      DateTime  @default(now())
+}
+
+/// Global catalog, seeded.
+model Service {
+  id                String           @id @default(cuid())
+  slug              String           @unique
+  name              String
+  category          ServiceCategory
+  shortDesc         String
+  longDesc          String?
+  heroImage         String?
+  priceAmount       Int? // cents; null for pure QUOTE
+  priceUnit         PriceUnit        @default(FLAT)
+  priceNote         String? // "from", "per night", etc.
+  leadTimeHours     Int              @default(24)
+  requiresDate      Boolean          @default(true)
+  requiresTime      Boolean          @default(false)
+  requiresPartySize Boolean          @default(false)
+  isActive          Boolean          @default(true)
+  sortOrder         Int              @default(0)
+  requests          ServiceRequest[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model ServiceRequest {
+  id            String         @id @default(cuid())
+  stayId        String
+  stay          Stay           @relation(fields: [stayId], references: [id])
+  serviceId     String?
+  service       Service?       @relation(fields: [serviceId], references: [id])
+  customTitle   String? // free-form "ask the concierge" request
+  status        RequestStatus  @default(REQUESTED)
+  requestedFor  DateTime?
+  partySize     Int?
+  notes         String?
+  quotedAmount  Int? // cents, for QUOTE services once priced
+  operatorNote  String?
+  tabLineItems  TabLineItem[]
+  itineraryItem ItineraryItem?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+/// Running-tab source of truth.
+model TabLineItem {
+  id               String          @id @default(cuid())
+  stayId           String
+  stay             Stay            @relation(fields: [stayId], references: [id])
+  serviceRequestId String?
+  serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id])
+  description      String
+  amount           Int // cents; +charge / -credit
+  currency         String          @default("usd")
+  status           TabItemStatus   @default(PENDING)
+  paymentMethodId  String?
+  paymentMethod    PaymentMethod?  @relation(fields: [paymentMethodId], references: [id])
+  externalRef      String? // future Stripe PaymentIntent id
+  occurredAt       DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+}
+
+/// Card on file (mock now, Stripe later).
+model PaymentMethod {
+  id           String              @id @default(cuid())
+  stayId       String
+  stay         Stay                @relation(fields: [stayId], references: [id])
+  provider     PaymentProviderType @default(MOCK)
+  brand        String
+  last4        String
+  expMonth     Int
+  expYear      Int
+  isDefault    Boolean             @default(true)
+  externalRef  String? // future Stripe PaymentMethod/Customer id
+  tabLineItems TabLineItem[]
+  createdAt    DateTime            @default(now())
+}
+
+model ItineraryItem {
+  id               String            @id @default(cuid())
+  stayId           String
+  stay             Stay              @relation(fields: [stayId], references: [id])
+  serviceRequestId String?           @unique // a confirmed request can surface here
+  serviceRequest   ServiceRequest?   @relation(fields: [serviceRequestId], references: [id])
+  title            String
+  description      String?
+  location         String?
+  category         ItineraryCategory @default(NOTE)
+  startsAt         DateTime
+  endsAt           DateTime?
+  allDay           Boolean           @default(false)
+  sortOrder        Int               @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}

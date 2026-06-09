@@ -1,0 +1,163 @@
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 22px var(--space-page) calc(var(--nav-h) + 40px);
+}
+
+/* ── top bar ─────────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  height: 36px;
+}
+
+.wordmark {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: var(--ink-muted);
+}
+
+/* ── welcome ─────────────────────────────────────────────── */
+.welcome {
+  margin-top: 44px;
+}
+
+.greeting {
+  font-size: 38px;
+  line-height: 1.06;
+  font-weight: 400;
+  color: var(--ink);
+}
+
+.name {
+  font-style: italic;
+  font-weight: 500;
+}
+
+.property {
+  margin-top: 22px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.trip {
+  margin-top: 3px;
+  font-size: 14.5px;
+  color: var(--ink-muted);
+}
+
+/* ── next-up card ────────────────────────────────────────── */
+.card {
+  margin-top: 34px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 22px 22px 24px;
+}
+
+.cardTitle {
+  margin-top: 12px;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.cardMeta {
+  margin-top: 9px;
+  font-size: 14.5px;
+  color: var(--ink-muted);
+}
+
+.when {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.dot {
+  margin: 0 7px;
+  color: var(--ink-faint);
+}
+
+/* ── running tab ─────────────────────────────────────────── */
+.tab {
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.tabAmount {
+  margin-top: 7px;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.tabLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  padding: 6px 2px 6px 8px;
+  transition: color 0.2s var(--ease);
+}
+
+.tabLink:hover {
+  color: var(--ink);
+}
+
+/* ── actions ─────────────────────────────────────────────── */
+.actions {
+  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.cta {
+  width: 100%;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.22s var(--ease), transform 0.22s var(--ease),
+    box-shadow 0.22s var(--ease);
+}
+
+.cta:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.cta:active {
+  background: var(--accent-pressed);
+  transform: scale(0.985);
+}
+
+.secondary {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  transition: color 0.2s var(--ease);
+}
+
+.secondary:hover {
+  color: var(--ink);
+}

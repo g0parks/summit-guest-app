@@ -1,0 +1,118 @@
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 30px var(--space-page) calc(var(--nav-h) + 40px);
+}
+
+/* ── header / total ──────────────────────────────────────── */
+.head {
+  margin-bottom: 8px;
+}
+
+.total {
+  margin-top: 8px;
+  font-size: 42px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.totalSub {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+
+/* ── wallet ──────────────────────────────────────────────── */
+.walletWrap {
+  margin-top: 26px;
+}
+
+/* ── line items ──────────────────────────────────────────── */
+.items {
+  margin-top: 30px;
+}
+
+.empty {
+  font-size: 15px;
+  color: var(--ink-faint);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.row:first-child {
+  border-top: none;
+}
+
+.rowMain {
+  min-width: 0;
+}
+
+.rowDesc {
+  display: block;
+  font-size: 15.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.rowDate {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.rowRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.rowAmount {
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.settled,
+.pendingPill {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.settled {
+  color: var(--ink-faint);
+}
+
+.pendingPill {
+  color: var(--accent);
+}
+
+/* ── reassurance ─────────────────────────────────────────── */
+.reassure {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hairline);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
