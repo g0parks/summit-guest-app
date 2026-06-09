@@ -34,7 +34,7 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 3. Running tab — "you never pull out your wallet" feel
 
 ## Out of scope (do NOT build yet — flag if tempted)
-- PM dashboard / admin panel
+- PM-**facing** dashboard (internal operator console `/ops` exists as of 2026-06-09)
 - Multi-tenancy
 - PMS API integration
 - Real payments / Stripe Connect
@@ -56,10 +56,12 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 - `npm run db:seed` — wipe + reseed demo data; prints a fresh demo link
 - `npm run db:migrate` — apply Prisma migrations · `npm run db:studio` — DB browser
 - `npm run token` — mint a new demo access token (`scripts/new-demo-token.ts`)
+- `npm run ops:link` — print the operator entry link for `/ops` (`scripts/ops-link.ts`)
 
 ## Deploy
 - Hosted on **Vercel** (project `summit-guest-app`), GitHub-connected → **auto-deploys on push to `main`**. Live (token-gated): https://summit-guest-app.vercel.app
 - Env vars live in the Vercel dashboard (paste `.env`; don't use `vercel env add` from PowerShell — it appends a stray `\r`). `vercel --prod` from this machine fails (UNKNOWN) — **deploy via git push, not the CLI.**
+- Env vars (see `.env.example`): `RESEND_API_KEY` + `OPERATOR_EMAIL` (operator emails; unset → console fallback), `APP_BASE_URL` (email deep links + link scripts), `OPS_KEY` (gates `/ops`) — set locally in `.env` and in the Vercel dashboard.
 
 ## Notes
 - This file is living. When you correct me on something that should persist, remind me to add it here.
