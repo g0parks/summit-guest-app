@@ -13,6 +13,16 @@ export function formatMoney(cents: number, currency = "usd"): string {
 }
 
 /**
+ * Parse an operator-typed dollar amount ("380", "1,250.50", "$95") to integer
+ * cents. Returns null on anything unparseable. Negative allowed (credits).
+ */
+export function parseMoneyCents(raw: string): number | null {
+  const cleaned = raw.trim().replace(/[$,\s]/g, "");
+  if (!/^-?\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+  return Math.round(Number.parseFloat(cleaned) * 100);
+}
+
+/**
  * Catalog price label, e.g. "from $850", "$120 / hour", "Quoted on request".
  * Mirrors the Service.priceUnit + priceNote shape.
  */

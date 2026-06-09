@@ -6,8 +6,8 @@ import { getActiveStay } from "@/lib/session";
 import { notifyOperator } from "@/lib/notify";
 import {
   computeChargeCents,
+  confirmedRequestItineraryData,
   isFixedPrice,
-  serviceToItineraryCategory,
 } from "@/lib/catalog";
 
 export type RequestResult =
@@ -94,15 +94,13 @@ export async function createServiceRequest(
     // Confirmed + scheduled → it belongs on the trip timeline.
     if (requestedFor) {
       await prisma.itineraryItem.create({
-        data: {
+        data: confirmedRequestItineraryData({
           stayId: stay.id,
-          serviceRequestId: request.id,
-          title: service.name,
-          description: notes ?? service.shortDesc,
-          location: "In-residence",
-          category: serviceToItineraryCategory(service.category),
+          requestId: request.id,
+          service,
+          notes,
           startsAt: requestedFor,
-        },
+        }),
       });
     }
   }

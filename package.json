@@ -13,6 +13,7 @@
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
     "token": "tsx scripts/new-demo-token.ts",
+    "ops:link": "tsx scripts/ops-link.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
