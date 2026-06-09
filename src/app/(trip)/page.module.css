@@ -10,7 +10,7 @@
 .topbar {
   display: flex;
   align-items: center;
-  height: 36px;
+  min-height: 36px;
 }
 
 .wordmark {
@@ -18,6 +18,35 @@
   font-weight: 600;
   letter-spacing: 0.28em;
   color: var(--ink-muted);
+}
+
+/* co-brand lockup — partner primary, Summit quiet beneath */
+.lockup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.brandLabel {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.brandLogo {
+  height: 22px;
+  width: auto;
+  align-self: flex-start;
+}
+
+.poweredBy {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
 }
 
 /* ── welcome ─────────────────────────────────────────────── */

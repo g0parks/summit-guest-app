@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireStay } from "@/lib/session";
+import { resolveBrand } from "@/lib/branding";
 import { getTripHome } from "@/lib/queries";
 import { formatMoney } from "@/lib/money";
 import { formatDateRange, formatTime, relativeDayWord } from "@/lib/dates";
@@ -11,12 +12,25 @@ export default async function TripHome() {
   const { stay } = await requireStay();
   const { guest, property } = stay;
   const tz = property.timezone;
+  const brand = resolveBrand(property);
   const { nextUp, tabTotalCents } = await getTripHome(stay.id);
 
   return (
     <main className={styles.page}>
       <header className={`${styles.topbar} reveal reveal-1`}>
-        <span className={styles.wordmark}>SUMMIT</span>
+        {brand.poweredBy ? (
+          <div className={styles.lockup}>
+            {brand.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={brand.logoUrl} alt={brand.label} className={styles.brandLogo} />
+            ) : (
+              <span className={styles.brandLabel}>{brand.label}</span>
+            )}
+            <span className={styles.poweredBy}>powered by Summit</span>
+          </div>
+        ) : (
+          <span className={styles.wordmark}>SUMMIT</span>
+        )}
       </header>
 
       <section className={`${styles.welcome} reveal reveal-2`}>

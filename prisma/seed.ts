@@ -32,6 +32,7 @@ async function reset() {
   await prisma.guest.deleteMany();
   await prisma.service.deleteMany();
   await prisma.property.deleteMany();
+  await prisma.partner.deleteMany();
 }
 
 const CATALOG = [
@@ -202,10 +203,27 @@ const CATALOG = [
 async function main() {
   await reset();
 
+  // Demo partner — the co-brand sales weapon. Default is FICTIONAL on purpose
+  // (the deploy is live; never ship a real PM's brand uninvited). For a real
+  // pitch, hot-swap via env and reseed:
+  //   $env:DEMO_PARTNER_NAME = "Luxury Park City Rentals"; npm run db:seed
+  const partnerName = process.env.DEMO_PARTNER_NAME ?? "Alpine Crest Collection";
+  const partner = await prisma.partner.create({
+    data: {
+      slug: partnerName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, ""),
+      name: partnerName,
+      accentColor: process.env.DEMO_PARTNER_ACCENT ?? "#7a6248", // warm bronze
+      logoUrl: process.env.DEMO_PARTNER_LOGO_URL ?? null,
+    },
+  });
+
   const property = await prisma.property.create({
     data: {
       name: "Empire Pass Chalet",
-      partnerName: "Deer Valley Signature Properties",
+      partnerId: partner.id,
       addressLine1: "12 Red Cloud Trail",
       city: "Park City",
       region: "UT",
@@ -361,6 +379,7 @@ async function main() {
   console.log("\n  Seeded Summit demo.");
   console.log(`  Guest:    ${guest.firstName} ${guest.lastName ?? ""}`.trimEnd());
   console.log(`  Property: ${property.name}`);
+  console.log(`  Partner:  ${partner.name} (accent ${partner.accentColor})`);
   console.log(`  Services: ${CATALOG.length}`);
   console.log("\n  ── Demo link ──────────────────────────────────────────");
   console.log(`  ${link}`);

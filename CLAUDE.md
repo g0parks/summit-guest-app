@@ -10,7 +10,7 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 - **Catalog leads with L1 essentials** (airport transfer, ski/bike rental, local experiences, grocery) — the demand-router core where margin + frequency live. Chef / heli / sommelier are **L2 "Elevated,"** sorted below the fold. Don't let splashy one-offs lead.
 - **Lift tickets are NOT an exclusive moat** — just easy acquisition at a markup (CAC). Don't build "exclusive/gated access" UI around them.
 - **Perk Bank (coming):** a "claim your complimentary perk → leave your contact" flow = first-party lead capture + the pre-arrival opt-in. Treat as a core pillar alongside itinerary / catalog / tab. Pre-arrival cadence to build around: at booking · ~2 wks post-booking · ~2 wks pre-arrival.
-- **Co-brand, hot-swappable (coming):** the experience renders as "[PM] Concierge, powered by Summit" — PM brand primary, Summit quiet. Branding = per-partner theme tokens (name, logo, colors) resolved at the property/partner level, hot-swappable — build it as a theming layer, not hard-coded.
+- **Co-brand, hot-swappable (shipped 2026-06-09):** the experience renders as "[PM] Concierge, powered by Summit" — PM brand primary, Summit quiet. `Partner` is the theming resolution point (`src/lib/branding.ts` — ALL co-brand display logic goes through `resolveBrand()`); tokens stay minimal (name, logo, one accent) until a real partner forces more. Never surface rev-share language in partner-facing copy.
 - **Rev-share is internal-only.** The data model will carry per-line economics (vendor cost / PM share / net; net target 15–20%), but **never surface rev-share in any guest- or PM-facing copy.** The PM-facing pitch stays "free / PM pays nothing."
 
 ## Stack
@@ -53,7 +53,7 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 - `npm run dev` — start dev server (localhost:3000)
 - `npm run build` / `npm run start` — production build / serve
 - `npm run lint` · `npm run typecheck` — lint / type-check (run before committing)
-- `npm run db:seed` — wipe + reseed demo data; prints a fresh demo link
+- `npm run db:seed` — wipe + reseed demo data; prints a fresh demo link. Co-brand hot-swap for a pitch: `$env:DEMO_PARTNER_NAME = "Luxury Park City Rentals"; $env:DEMO_PARTNER_ACCENT = "#335577"; npm run db:seed` (default partner is fictional on purpose — never ship a real PM's brand uninvited)
 - `npm run db:migrate` — apply Prisma migrations · `npm run db:studio` — DB browser
 - `npm run token` — mint a new demo access token (`scripts/new-demo-token.ts`)
 - `npm run ops:link` — print the operator entry link for `/ops` (`scripts/ops-link.ts`)

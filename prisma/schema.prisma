@@ -60,10 +60,28 @@ enum PaymentProviderType {
   STRIPE
 }
 
+/// Partner PM brand — the theming resolution point. Co-brand renders
+/// "<name> Concierge, powered by Summit": PM primary, Summit quiet.
+/// Tokens stay minimal (name + logo + one accent) until a real partner
+/// forces more. No multi-tenancy — display theming only.
+model Partner {
+  id             String     @id @default(cuid())
+  slug           String     @unique
+  name           String // "Luxury Park City Rentals"
+  conciergeLabel String? // optional override; default co-brand = "<name> Concierge"
+  logoUrl        String? // optional; text wordmark fallback when null
+  accentColor    String? // hex, e.g. "#7A6248"; null = Summit default accent
+  isActive       Boolean    @default(true)
+  properties     Property[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
 model Property {
   id           String   @id @default(cuid())
   name         String
-  partnerName  String? // PM company, display-only (no multi-tenancy)
+  partnerId    String?
+  partner      Partner? @relation(fields: [partnerId], references: [id])
   addressLine1 String?
   city         String?
   region       String?
