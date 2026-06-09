@@ -58,7 +58,7 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 - `npm run token` — mint a new demo access token (`scripts/new-demo-token.ts`)
 
 ## Deploy
-- Hosted on **Vercel** (project `summit-guest-app-pkbv`), GitHub-connected → **auto-deploys on push to `main`**. Live (token-gated): https://summit-guest-app-pkbv.vercel.app
+- Hosted on **Vercel** (project `summit-guest-app`), GitHub-connected → **auto-deploys on push to `main`**. Live (token-gated): https://summit-guest-app.vercel.app
 - Env vars live in the Vercel dashboard (paste `.env`; don't use `vercel env add` from PowerShell — it appends a stray `\r`). `vercel --prod` from this machine fails (UNKNOWN) — **deploy via git push, not the CLI.**
 
 ## Notes

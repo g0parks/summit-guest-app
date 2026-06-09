@@ -73,11 +73,11 @@ real Stripe drops in cleanly.
 
 ## Deploy
 
-Hosted on **Vercel** (project `summit-guest-app-pkbv`), connected to this GitHub repo:
+Hosted on **Vercel** (project `summit-guest-app`), connected to this GitHub repo:
 **every push to `main` auto-deploys** (server-side build; `prisma generate` runs via the
 `postinstall` script).
 
-- **Live URL:** https://summit-guest-app-pkbv.vercel.app — token-gated, so the bare URL shows
+- **Live URL:** https://summit-guest-app.vercel.app — token-gated, so the bare URL shows
   `/invalid`; open a `/t/<token>` link to see a trip. `npm run token` mints one that works
   against the live domain.
 - **Env vars** live in the Vercel project (Production): `DATABASE_URL`, `DIRECT_URL`,
