@@ -9,8 +9,8 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 ## Positioning & roadmap (decided — do not regress)
 - **Catalog leads with L1 essentials** (airport transfer, ski/bike rental, local experiences, grocery) — the demand-router core where margin + frequency live. Chef / heli / sommelier are **L2 "Elevated,"** sorted below the fold. Don't let splashy one-offs lead.
 - **Lift tickets are NOT an exclusive moat** — just easy acquisition at a markup (CAC). Don't build "exclusive/gated access" UI around them.
-- **Perk Bank (coming):** a "claim your complimentary perk → leave your contact" flow = first-party lead capture + the pre-arrival opt-in. Treat as a core pillar alongside itinerary / catalog / tab.
-- **Co-brand, hot-swappable (coming):** the experience renders as "[PM] Concierge, powered by Summit" — PM brand primary, Summit quiet. Build branding to swap per partner.
+- **Perk Bank (coming):** a "claim your complimentary perk → leave your contact" flow = first-party lead capture + the pre-arrival opt-in. Treat as a core pillar alongside itinerary / catalog / tab. Pre-arrival cadence to build around: at booking · ~2 wks post-booking · ~2 wks pre-arrival.
+- **Co-brand, hot-swappable (coming):** the experience renders as "[PM] Concierge, powered by Summit" — PM brand primary, Summit quiet. Branding = per-partner theme tokens (name, logo, colors) resolved at the property/partner level, hot-swappable — build it as a theming layer, not hard-coded.
 - **Rev-share is internal-only.** The data model will carry per-line economics (vendor cost / PM share / net; net target 15–20%), but **never surface rev-share in any guest- or PM-facing copy.** The PM-facing pitch stays "free / PM pays nothing."
 
 ## Stack
@@ -23,9 +23,10 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 ## Architecture (decided — do not deviate without flagging)
 - **Access = signed, unguessable per-guest token** in the link, server-resolved to the guest record. The token IS identity. NOT a UTM/analytics param, NOT a guessable/sequential ID. UTM params may ride alongside for attribution analytics only — never as the access key.
 - **Passwordless.** No login screen, no account creation. Token resolves the guest. First visit may optionally bind token→email/phone for re-entry; keep minimal.
-- **Payments are STUBBED for now** — mock card-on-file + mock per-service charges, real-feeling running-tab state. But ARCHITECT for real Stripe later: SetupIntent (save card once) + off-session PaymentIntent (charge per service). Leave clean seams/interfaces where Stripe drops in. No real keys, no real money.
+- **Payments are STUBBED for now** — mock card-on-file + mock per-service charges, real-feeling running-tab state. But ARCHITECT for real Stripe later: SetupIntent (save card once) + off-session PaymentIntent (charge per service). Leave clean seams/interfaces where Stripe drops in. No real keys, no real money. Big-ticket items (e.g. transport reservations) pre-authorize a hold and capture the actual amount after — the `PaymentProvider` interface reserves a hold/capture path.
 - **Provider fulfillment is manual** — a guest request registers in the system (and ideally notifies the operator). No provider integration, no automated dispatch.
 - **Single guest-facing app.** Catalog can be seeded data.
+- **Reserve internal per-line economics** — tab lines can carry `vendorCostCents` / `pmShareCents` / `netCents` (net target 15–20%); computed + stored internally, NEVER surfaced to guest or PM.
 
 ## The three things the experience must nail (equal priority, one connected flow)
 1. Itinerary view — their trip in one place

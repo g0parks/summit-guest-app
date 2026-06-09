@@ -12,7 +12,8 @@
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
-    "token": "tsx scripts/new-demo-token.ts"
+    "token": "tsx scripts/new-demo-token.ts",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
