@@ -71,6 +71,24 @@ real Stripe drops in cleanly.
 | `npm run token` | Mint a fresh demo link |
 | `npm run lint` / `npm run typecheck` | Lint / strict typecheck |
 
+## Deploy
+
+Hosted on **Vercel** (project `summit-guest-app-pkbv`), connected to this GitHub repo:
+**every push to `main` auto-deploys** (server-side build; `prisma generate` runs via the
+`postinstall` script).
+
+- **Live URL:** https://summit-guest-app-pkbv.vercel.app — token-gated, so the bare URL shows
+  `/invalid`; open a `/t/<token>` link to see a trip. `npm run token` mints one that works
+  against the live domain.
+- **Env vars** live in the Vercel project (Production): `DATABASE_URL`, `DIRECT_URL`,
+  `SUMMIT_TOKEN_SECRET`, `APP_BASE_URL`, `PAYMENTS_PROVIDER`. Set them by **pasting `.env` in the
+  Vercel dashboard** — do *not* pipe values through `vercel env add` from PowerShell (it appends a
+  stray `\r` that corrupts the secret/URLs).
+- **Migrations** don't run on Vercel — apply them from your machine: `npx prisma migrate deploy`
+  against Supabase.
+- **Don't** `vercel --prod` from this Windows machine — CLI deploys land in an UNKNOWN/canceled
+  state here. Deploy by pushing to `main`.
+
 ## Architecture notes
 
 - **Access = signed, unguessable token.** The link carries `"<id>.<hmac>"`; the DB stores only
