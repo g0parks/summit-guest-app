@@ -37,6 +37,29 @@ export function computeChargeCents(
   return unit === "PER_PERSON" ? amountCents * Math.max(1, partySize) : amountCents;
 }
 
+/**
+ * Itinerary payload for a confirmed, dated request — shared by the guest
+ * auto-confirm path (requests.ts) and the ops quote path (ops.ts) so a
+ * concierge-priced request surfaces exactly like an auto-confirmed one.
+ */
+export function confirmedRequestItineraryData(input: {
+  stayId: string;
+  requestId: string;
+  service: { name: string; shortDesc: string; category: ServiceCategory };
+  notes: string | null;
+  startsAt: Date;
+}) {
+  return {
+    stayId: input.stayId,
+    serviceRequestId: input.requestId,
+    title: input.service.name,
+    description: input.notes ?? input.service.shortDesc,
+    location: "In-residence",
+    category: serviceToItineraryCategory(input.service.category),
+    startsAt: input.startsAt,
+  };
+}
+
 /** When a request is confirmed, surface it on the itinerary under this category. */
 export function serviceToItineraryCategory(c: ServiceCategory): ItineraryCategory {
   switch (c) {

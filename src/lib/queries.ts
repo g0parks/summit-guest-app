@@ -41,7 +41,8 @@ export async function getServiceBySlug(slug: string) {
 export async function getTab(stayId: string) {
   const [items, cards] = await Promise.all([
     prisma.tabLineItem.findMany({
-      where: { stayId },
+      // VOID = declined/cancelled before charge — never guest-visible.
+      where: { stayId, status: { not: "VOID" } },
       orderBy: { occurredAt: "desc" },
     }),
     prisma.paymentMethod.findMany({
