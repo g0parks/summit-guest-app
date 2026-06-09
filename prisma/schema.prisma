@@ -183,6 +183,10 @@ model TabLineItem {
   paymentMethodId  String?
   paymentMethod    PaymentMethod?  @relation(fields: [paymentMethodId], references: [id])
   externalRef      String? // future Stripe PaymentIntent id
+  // Per-line internal economics — NEVER guest- or PM-facing (ops console only).
+  vendorCostCents  Int? // internal: what the vendor charges us
+  pmShareCents     Int? // internal: PM rev-share (Phase-2; 0/null today)
+  netCents         Int? // internal: amount - vendorCost - pmShare, computed on write
   occurredAt       DateTime        @default(now())
   createdAt        DateTime        @default(now())
 }
