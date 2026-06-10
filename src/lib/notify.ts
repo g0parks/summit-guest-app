@@ -14,8 +14,14 @@ import { formatMoney } from "./money";
  * Everything past the console line is wrapped — this function never throws.
  */
 
+/** Demo-sandbox marker: tags subjects and doubles as the PM-engagement signal. */
+type DemoContext = {
+  isDemo?: boolean;
+  partnerName?: string | null;
+};
+
 export type OperatorEvent =
-  | {
+  | (DemoContext & {
       type: "service_requested";
       stayId: string;
       guestName: string;
@@ -24,15 +30,15 @@ export type OperatorEvent =
       requestId: string;
       requestedFor?: string | null;
       notes?: string | null;
-    }
-  | {
+    })
+  | (DemoContext & {
       type: "card_added";
       stayId: string;
       guestName: string;
       brand: string;
       last4: string;
-    }
-  | {
+    })
+  | (DemoContext & {
       type: "perk_claimed";
       stayId: string;
       guestName: string;
@@ -41,7 +47,7 @@ export type OperatorEvent =
       email?: string | null;
       phone?: string | null;
       optIn: boolean;
-    };
+    });
 
 // onboarding@resend.dev works out of the box but only delivers to the Resend
 // account owner — fine for single-operator MVP. Verified domain = upgrade path.
@@ -79,14 +85,24 @@ export async function notifyOperator(event: OperatorEvent): Promise<void> {
  * timezone are pulled from the DB here (the event payload and its call sites
  * stay unchanged); if the lookup fails we still send the basics from the event.
  */
+/**
+ * Subject prefix. Demo sandboxes are tagged loudly — and carry the partner
+ * name, so post-pitch leave-behind activity says WHICH PM is engaging.
+ */
+function subjectTag(event: OperatorEvent): string {
+  if (!event.isDemo) return "[Summit]";
+  return event.partnerName ? `[Summit DEMO · ${event.partnerName}]` : "[Summit DEMO]";
+}
+
 async function buildEmail(
   event: OperatorEvent,
 ): Promise<{ subject: string; text: string }> {
   const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
+  const tag = subjectTag(event);
 
   if (event.type === "card_added") {
     return {
-      subject: `[Summit] Card added — ${event.guestName}`,
+      subject: `${tag} Card added — ${event.guestName}`,
       text: [
         `${event.guestName} added a card on file (${event.brand} •••• ${event.last4}).`,
         `An engaged guest — tab is live.`,
@@ -98,7 +114,7 @@ async function buildEmail(
 
   if (event.type === "perk_claimed") {
     return {
-      subject: `[Summit] Perk claimed — ${event.perkName} — ${event.guestName}`,
+      subject: `${tag} Perk claimed — ${event.perkName} — ${event.guestName}`,
       text: [
         `Guest:    ${event.guestName}`,
         `Property: ${event.property}`,
@@ -147,7 +163,7 @@ async function buildEmail(
   ].filter((l): l is string => l !== null);
 
   return {
-    subject: `[Summit] ${event.serviceName} — ${event.guestName} @ ${event.property}`,
+    subject: `${tag} ${event.serviceName} — ${event.guestName} @ ${event.property}`,
     text: lines.join("\n"),
   };
 }

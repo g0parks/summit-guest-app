@@ -168,6 +168,7 @@ model Stay {
   partySize       Int?
   currency        String           @default("usd")
   status          String           @default("upcoming") // upcoming | active | completed (display)
+  isDemo          Boolean          @default(false) // /demo sandbox — cleanup-eligible, [DEMO]-tagged notifications
   accessTokens    AccessToken[]
   itineraryItems  ItineraryItem[]
   serviceRequests ServiceRequest[]

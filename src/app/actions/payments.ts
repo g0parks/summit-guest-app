@@ -66,6 +66,8 @@ export async function addPaymentMethod(
     guestName: `${stay.guest.firstName} ${stay.guest.lastName ?? ""}`.trim(),
     brand: saved.brand,
     last4: saved.last4,
+    isDemo: stay.isDemo,
+    partnerName: stay.property.partner?.name ?? null,
   });
 
   revalidatePath("/tab");
