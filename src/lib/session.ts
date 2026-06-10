@@ -13,7 +13,11 @@ import { verifyToken } from "./tokens";
 export const SESSION_COOKIE = "summit_stay";
 
 export type ActiveStay = Prisma.AccessTokenGetPayload<{
-  include: { stay: { include: { guest: true; property: true } } };
+  include: {
+    stay: {
+      include: { guest: true; property: { include: { partner: true } } };
+    };
+  };
 }>;
 
 export function sessionCookieOptions(until?: Date) {
@@ -38,7 +42,13 @@ export async function resolveToken(
 
   const at = await prisma.accessToken.findUnique({
     where: { id },
-    include: { stay: { include: { guest: true, property: true } } },
+    // partner rides along on the one session query — token → stay →
+    // property → partner is the whole co-brand resolution chain
+    include: {
+      stay: {
+        include: { guest: true, property: { include: { partner: true } } },
+      },
+    },
   });
   if (!at) return null;
   if (at.revokedAt) return null;
