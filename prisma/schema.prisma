@@ -287,6 +287,7 @@ model ItineraryItem {
   startsAt         DateTime
   endsAt           DateTime?
   allDay           Boolean           @default(false)
+  changePending    Boolean           @default(false) // operator-set: guest sees a quiet "Being rearranged" chip
   sortOrder        Int               @default(0)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt

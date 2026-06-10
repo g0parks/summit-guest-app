@@ -230,6 +230,67 @@
   margin: 0 0 10px;
 }
 
+/* stacked multi-row forms (itinerary create/edit) */
+.stackForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.fieldRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #666;
+}
+
+.inputMid {
+  width: 140px;
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #444;
+}
+
+/* collapsed edit/add forms — summary doubles as a ghost button */
+.editDetails {
+  margin-top: 8px;
+}
+
+.editDetails summary {
+  display: inline-block;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  font: inherit;
+  padding: 3px 10px;
+  border: 1px solid #999;
+  border-radius: 3px;
+  background: #fff;
+  color: #333;
+}
+
+.editDetails summary::-webkit-details-marker {
+  display: none;
+}
+
+.editDetails[open] summary {
+  background: #f1f1f1;
+}
+
 .requestHead {
   display: flex;
   align-items: baseline;

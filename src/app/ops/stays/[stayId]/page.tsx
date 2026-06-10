@@ -3,14 +3,25 @@ import type { PerkClaimStatus, RequestStatus, TabItemStatus } from "@prisma/clie
 import { getOpsStayDetail } from "@/lib/opsQueries";
 import {
   addManualTabLine,
+  createItineraryItem,
   setLineEconomics,
   setPerkClaimStatus,
   setRequestStatus,
+  updateItineraryItem,
 } from "@/app/actions/ops";
 import QuoteForm from "@/components/ops/QuoteForm";
 import ChargeButton from "@/components/ops/ChargeButton";
+import ItineraryItemForm from "@/components/ops/ItineraryItemForm";
+import DeleteItineraryItemButton from "@/components/ops/DeleteItineraryItemButton";
 import { formatMoney } from "@/lib/money";
-import { formatDateRange, formatDayLabel, formatTime } from "@/lib/dates";
+import {
+  dayKey,
+  formatDateRange,
+  formatDayLabel,
+  formatTime,
+  timeValue,
+  tzAbbr,
+} from "@/lib/dates";
 import { parseRequestDetails } from "@/lib/serviceForm";
 import styles from "../../ops.module.css";
 
@@ -376,35 +387,114 @@ export default async function OpsStayPage({
       </section>
 
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Itinerary (read-only)</h2>
+        <h2 className={styles.sectionTitle}>Itinerary — times are property-local</h2>
         {stay.itineraryItems.length === 0 ? (
           <p className={styles.empty}>Nothing scheduled.</p>
         ) : (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Title</th>
-                <th>Category</th>
-                <th>Location</th>
-                <th>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stay.itineraryItems.map((it) => (
-                <tr key={it.id}>
-                  <td className={styles.small} style={{ whiteSpace: "nowrap" }}>
-                    {it.allDay ? formatDayLabel(it.startsAt, tz) : when(it.startsAt)}
-                  </td>
-                  <td>{it.title}</td>
-                  <td className={styles.small}>{it.category}</td>
-                  <td className={styles.small}>{it.location ?? "—"}</td>
-                  <td className={styles.small}>{it.description ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          stay.itineraryItems.map((it) => (
+            <div key={it.id} className={styles.requestCard}>
+              <div className={styles.requestHead}>
+                <span className={styles.requestTitle}>{it.title}</span>
+                <span className={`${styles.badge} ${styles.badgeNeutral}`}>
+                  {it.category}
+                </span>
+                {it.changePending && (
+                  <span className={`${styles.badge} ${styles.badgeAction}`}>
+                    REARRANGING
+                  </span>
+                )}
+                {it.serviceRequestId && (
+                  <span className={`${styles.muted} ${styles.small}`}>
+                    linked to a request — deleting here won&rsquo;t touch it
+                  </span>
+                )}
+              </div>
+              <p className={styles.small}>
+                {it.allDay
+                  ? `${formatDayLabel(it.startsAt, tz)} · All day`
+                  : `${formatDayLabel(it.startsAt, tz)} · ${formatTime(it.startsAt, tz)}${
+                      it.endsAt ? `–${formatTime(it.endsAt, tz)}` : ""
+                    } ${tzAbbr(it.startsAt, tz)}`}
+                {it.location && ` · ${it.location}`}
+              </p>
+              {it.description && (
+                <p className={`${styles.small} ${styles.muted}`}>{it.description}</p>
+              )}
+
+              <div className={styles.actionsRow}>
+                {/* One-click changePending flip — posts the full current state
+                    (wall-clock, property tz) through updateItineraryItem. */}
+                <form action={updateItineraryItem}>
+                  <input type="hidden" name="itemId" value={it.id} />
+                  <input type="hidden" name="title" value={it.title} />
+                  <input type="hidden" name="category" value={it.category} />
+                  <input type="hidden" name="date" value={dayKey(it.startsAt, tz)} />
+                  <input
+                    type="hidden"
+                    name="time"
+                    value={it.allDay ? "" : timeValue(it.startsAt, tz)}
+                  />
+                  <input
+                    type="hidden"
+                    name="endsAtTime"
+                    value={it.endsAt ? timeValue(it.endsAt, tz) : ""}
+                  />
+                  <input type="hidden" name="location" value={it.location ?? ""} />
+                  <input type="hidden" name="description" value={it.description ?? ""} />
+                  <input type="hidden" name="sortOrder" value={String(it.sortOrder)} />
+                  {!it.changePending && (
+                    <input type="hidden" name="changePending" value="on" />
+                  )}
+                  <button type="submit" className={styles.btnGhost}>
+                    {it.changePending
+                      ? "Clear “being rearranged”"
+                      : "Mark “being rearranged”"}
+                  </button>
+                </form>
+                <DeleteItineraryItemButton
+                  itemId={it.id}
+                  title={it.title}
+                  linked={it.serviceRequestId != null}
+                />
+              </div>
+
+              <details className={styles.editDetails}>
+                <summary>Edit</summary>
+                <ItineraryItemForm
+                  action={updateItineraryItem}
+                  hidden={{ itemId: it.id }}
+                  defaults={{
+                    title: it.title,
+                    category: it.category,
+                    date: dayKey(it.startsAt, tz),
+                    time: it.allDay ? "" : timeValue(it.startsAt, tz),
+                    endsAtTime: it.endsAt ? timeValue(it.endsAt, tz) : "",
+                    location: it.location ?? "",
+                    description: it.description ?? "",
+                    sortOrder: it.sortOrder,
+                    changePending: it.changePending,
+                  }}
+                  tzLabel={tzAbbr(it.startsAt, tz)}
+                  withChangePending
+                  submitLabel="Save changes"
+                />
+              </details>
+            </div>
+          ))
         )}
+
+        <div className={styles.requestCard} style={{ marginTop: 10 }}>
+          <details className={styles.editDetails}>
+            <summary>Add item</summary>
+            <ItineraryItemForm
+              action={createItineraryItem}
+              hidden={{ stayId: stay.id }}
+              defaults={{ date: dayKey(stay.arrivalDate, tz) }}
+              tzLabel={tzAbbr(new Date(), tz)}
+              submitLabel="Add to itinerary"
+            />
+          </details>
+        </div>
       </section>
     </main>
   );
