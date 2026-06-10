@@ -5,6 +5,8 @@ import { getServiceBySlug } from "@/lib/queries";
 import { formatPriceLabel } from "@/lib/money";
 import { CATEGORY_LABEL } from "@/lib/catalog";
 import { serviceFormConfig } from "@/lib/serviceForm";
+import { generalMessage, getConciergeContact } from "@/lib/concierge";
+import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import RequestForm from "@/components/services/RequestForm";
 import styles from "./page.module.css";
 
@@ -19,6 +21,8 @@ export default async function ServiceDetail({
   const { stay } = await requireStay();
   const service = await getServiceBySlug(slug);
   if (!service || !service.isActive) notFound();
+
+  const concierge = getConciergeContact();
 
   const leadDays = Math.round(service.leadTimeHours / 24);
   const leadLabel =
@@ -70,6 +74,23 @@ export default async function ServiceDetail({
           currency={stay.currency}
         />
       </section>
+
+      {(concierge.phone || concierge.email) && (
+        <p className={`${styles.askFirst} reveal reveal-5`}>
+          Prefer to ask first?{" "}
+          <ConciergeLinks
+            phone={concierge.phone}
+            email={concierge.email}
+            message={generalMessage({
+              guestFirstName: stay.guest.firstName,
+              propertyName: stay.property.name,
+            })}
+            variant="inline"
+            smsLabel="Text your concierge"
+            emailLabel="Email your concierge"
+          />
+        </p>
+      )}
     </main>
   );
 }

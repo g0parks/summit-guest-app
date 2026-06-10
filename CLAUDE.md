@@ -28,6 +28,7 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 - **Payments are STUBBED for now** — mock card-on-file + mock per-service charges, real-feeling running-tab state. But ARCHITECT for real Stripe later: SetupIntent (save card once) + off-session PaymentIntent (charge per service). Leave clean seams/interfaces where Stripe drops in. No real keys, no real money. Big-ticket items (e.g. transport reservations) pre-authorize a hold and capture the actual amount after — the `PaymentProvider` interface reserves a hold/capture path.
 - **Provider fulfillment is manual** — a guest request registers in the system (and ideally notifies the operator). No provider integration, no automated dispatch. Per-service request fields (flight number, massage style, grocery list…) are **demo-level config** in `src/lib/serviceForm.ts` (slug-keyed; answers land in `ServiceRequest.detailsJson`) — real fulfillment params will be vendor-driven and reshape this.
 - **Single guest-facing app.** Catalog can be seeded data.
+- **Support = the concierge texting line** (`sms:` deep links with stay context prefilled, `src/lib/concierge.ts`); no in-app chat, no guest-facing bot — decided 2026-06-10.
 - **Reserve internal per-line economics** — tab lines can carry `vendorCostCents` / `pmShareCents` / `netCents` (net target 15–20%); computed + stored internally, NEVER surfaced to guest or PM.
 
 ## The three things the experience must nail (equal priority, one connected flow)
@@ -64,7 +65,7 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 ## Deploy
 - Hosted on **Vercel** (project `summit-guest-app`), GitHub-connected → **auto-deploys on push to `main`**. Live (token-gated): https://summit-guest-app.vercel.app
 - Env vars live in the Vercel dashboard (paste `.env`; don't use `vercel env add` from PowerShell — it appends a stray `\r`). `vercel --prod` from this machine fails (UNKNOWN) — **deploy via git push, not the CLI.**
-- Env vars (see `.env.example`): `RESEND_API_KEY` + `OPERATOR_EMAIL` (operator emails; unset → console fallback), `APP_BASE_URL` (email deep links + link scripts), `OPS_KEY` (gates `/ops`) — set locally in `.env` and in the Vercel dashboard.
+- Env vars (see `.env.example`): `RESEND_API_KEY` + `OPERATOR_EMAIL` (operator emails; unset → console fallback), `APP_BASE_URL` (email deep links + link scripts), `OPS_KEY` (gates `/ops`), `CONCIERGE_PHONE` (E.164) + `CONCIERGE_EMAIL` (the Concierge Line; phone unset → text/call CTAs quietly absent, email-only; both unset → concierge surfaces absent) — set locally in `.env` and in the Vercel dashboard.
 
 ## Notes
 - This file is living. When you correct me on something that should persist, remind me to add it here.
