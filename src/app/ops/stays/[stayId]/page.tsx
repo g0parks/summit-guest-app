@@ -90,6 +90,12 @@ export default async function OpsStayPage({
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>
           {stay.guest.firstName} {stay.guest.lastName ?? ""} — {stay.property.name}
+          {stay.isDemo && (
+            <>
+              {" "}
+              <span className={`${styles.badge} ${styles.badgeNeutral}`}>DEMO</span>
+            </>
+          )}
         </h2>
         <dl className={styles.kv}>
           <dt>Dates</dt>

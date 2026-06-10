@@ -22,6 +22,7 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 
 ## Architecture (decided — do not deviate without flagging)
 - **Access = signed, unguessable per-guest token** in the link, server-resolved to the guest record. The token IS identity. NOT a UTM/analytics param, NOT a guessable/sequential ID. UTM params may ride alongside for attribution analytics only — never as the access key.
+- **`/demo` is the ONE sanctioned self-serve mint:** creates a fresh per-visitor sandbox (guest+property+stay, `Stay.isDemo`) with a real signed token — pitch URL + post-pitch PM leave-behind. `?partner=<slug>` renders a pre-created partner's co-brand (never URL-driven free text). 30-day lazy GC on each hit; notifications tagged `[Summit DEMO · <partner>]`; ops shows DEMO badges. Token model otherwise unchanged.
 - **Passwordless.** No login screen, no account creation. Token resolves the guest. First visit may optionally bind token→email/phone for re-entry; keep minimal.
 - **Payments are STUBBED for now** — mock card-on-file + mock per-service charges, real-feeling running-tab state. But ARCHITECT for real Stripe later: SetupIntent (save card once) + off-session PaymentIntent (charge per service). Leave clean seams/interfaces where Stripe drops in. No real keys, no real money. Big-ticket items (e.g. transport reservations) pre-authorize a hold and capture the actual amount after — the `PaymentProvider` interface reserves a hold/capture path.
 - **Provider fulfillment is manual** — a guest request registers in the system (and ideally notifies the operator). No provider integration, no automated dispatch.
@@ -57,6 +58,7 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 - `npm run db:migrate` — apply Prisma migrations · `npm run db:studio` — DB browser
 - `npm run token` — mint a new demo access token (`scripts/new-demo-token.ts`)
 - `npm run ops:link` — print the operator entry link for `/ops` (`scripts/ops-link.ts`)
+- `npm run partner:add` — pre-create a partner + print its pitch URL (`/demo?partner=<slug>`): `$env:PARTNER_NAME = "Luxury Park City Rentals"; $env:PARTNER_ACCENT = "#335577"; npm run partner:add`. Reseeding wipes partners — re-run after `db:seed`.
 
 ## Deploy
 - Hosted on **Vercel** (project `summit-guest-app`), GitHub-connected → **auto-deploys on push to `main`**. Live (token-gated): https://summit-guest-app.vercel.app

@@ -42,6 +42,12 @@ export default async function OpsOverviewPage() {
                   <td>{r.service?.name ?? r.customTitle ?? "Custom request"}</td>
                   <td>
                     {r.stay.guest.firstName} {r.stay.guest.lastName ?? ""}
+                    {r.stay.isDemo && (
+                      <>
+                        {" "}
+                        <span className={`${styles.badge} ${styles.badgeNeutral}`}>DEMO</span>
+                      </>
+                    )}
                     <span className={styles.muted}> @ {r.stay.property.name}</span>
                   </td>
                   <td className={styles.small}>
@@ -67,6 +73,12 @@ export default async function OpsOverviewPage() {
                   <td>{c.perk.name}</td>
                   <td>
                     {c.stay.guest.firstName} {c.stay.guest.lastName ?? ""}
+                    {c.stay.isDemo && (
+                      <>
+                        {" "}
+                        <span className={`${styles.badge} ${styles.badgeNeutral}`}>DEMO</span>
+                      </>
+                    )}
                     <span className={styles.muted}> @ {c.stay.property.name}</span>
                   </td>
                   <td className={styles.small}>
@@ -94,6 +106,12 @@ export default async function OpsOverviewPage() {
                   <td>{r.service?.name ?? r.customTitle ?? "Custom request"}</td>
                   <td>
                     {r.stay.guest.firstName} {r.stay.guest.lastName ?? ""}
+                    {r.stay.isDemo && (
+                      <>
+                        {" "}
+                        <span className={`${styles.badge} ${styles.badgeNeutral}`}>DEMO</span>
+                      </>
+                    )}
                     <span className={styles.muted}> @ {r.stay.property.name}</span>
                   </td>
                   <td className={styles.small}>
@@ -137,6 +155,12 @@ export default async function OpsOverviewPage() {
                 <tr key={s.id}>
                   <td>
                     {s.guest.firstName} {s.guest.lastName ?? ""}
+                    {s.isDemo && (
+                      <>
+                        {" "}
+                        <span className={`${styles.badge} ${styles.badgeNeutral}`}>DEMO</span>
+                      </>
+                    )}
                   </td>
                   <td>{s.property.name}</td>
                   <td className={styles.small}>

@@ -82,6 +82,8 @@ export async function claimPerk(
     email,
     phone,
     optIn,
+    isDemo: stay.isDemo,
+    partnerName: stay.property.partner?.name ?? null,
   });
 
   revalidatePath("/perks");

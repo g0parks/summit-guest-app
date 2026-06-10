@@ -114,6 +114,8 @@ export async function createServiceRequest(
     requestId: request.id,
     requestedFor: requestedFor?.toISOString() ?? null,
     notes,
+    isDemo: stay.isDemo,
+    partnerName: stay.property.partner?.name ?? null,
   });
 
   // Refresh the surfaces this touched.

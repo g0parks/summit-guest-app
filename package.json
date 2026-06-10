@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "token": "tsx scripts/new-demo-token.ts",
     "ops:link": "tsx scripts/ops-link.ts",
+    "partner:add": "tsx scripts/add-partner.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
