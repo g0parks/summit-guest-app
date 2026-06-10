@@ -11,6 +11,7 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 - **Lift tickets are NOT an exclusive moat** — just easy acquisition at a markup (CAC). Don't build "exclusive/gated access" UI around them.
 - **Perk Bank (v1 shipped 2026-06-09):** "claim your complimentary perk → leave your contact" = first-party lead capture + opt-in. Guest register is gift, not lead-gen ("with our compliments" — never "exclusive"/"FREE!"); `Perk.costCents` is internal qualified-CAC, ops-only. Claims never touch the tab. Pre-arrival cadence still to build: at booking · ~2 wks post-booking · ~2 wks pre-arrival.
 - **Co-brand, hot-swappable (shipped 2026-06-09):** the experience renders as "[PM] Concierge, powered by Summit" — PM brand primary, Summit quiet. `Partner` is the theming resolution point (`src/lib/branding.ts` — ALL co-brand display logic goes through `resolveBrand()`); tokens stay minimal (name, logo, one accent) until a real partner forces more. Never surface rev-share language in partner-facing copy.
+- **Landing page (next step, post-demo — not built):** pre-trip landing with concierge opt-in + charge/service-fee agreement (card-on-file consent moment). Placement TBD — may fold into the token landing or the pre-arrival email flow rather than stand alone. Don't start without a plan.
 - **Rev-share is internal-only.** The data model will carry per-line economics (vendor cost / PM share / net; net target 15–20%), but **never surface rev-share in any guest- or PM-facing copy.** The PM-facing pitch stays "free / PM pays nothing."
 
 ## Stack
