@@ -94,7 +94,7 @@ model Perk {
   vendorName String? // "Avanto"
   shortDesc  String
   longDesc   String?
-  valueLabel String? // guest-facing: "$65 value" — generosity framing, optional
+  valueLabel String? // UNRENDERED since 2026-06-10 — dollar-value framing stripped from guest UI; column kept in case value framing returns
   heroImage  String?
   costCents  Int? // INTERNAL qualified-CAC — NEVER guest- or PM-facing
   partnerId  String? // null = available across all partners
