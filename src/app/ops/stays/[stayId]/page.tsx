@@ -1,7 +1,12 @@
 import { notFound } from "next/navigation";
-import type { RequestStatus, TabItemStatus } from "@prisma/client";
+import type { PerkClaimStatus, RequestStatus, TabItemStatus } from "@prisma/client";
 import { getOpsStayDetail } from "@/lib/opsQueries";
-import { addManualTabLine, setLineEconomics, setRequestStatus } from "@/app/actions/ops";
+import {
+  addManualTabLine,
+  setLineEconomics,
+  setPerkClaimStatus,
+  setRequestStatus,
+} from "@/app/actions/ops";
 import QuoteForm from "@/components/ops/QuoteForm";
 import ChargeButton from "@/components/ops/ChargeButton";
 import { formatMoney } from "@/lib/money";
@@ -38,6 +43,12 @@ const LINE_BADGE: Record<TabItemStatus, string> = {
   CHARGED: styles.badgeOk!,
   REFUNDED: styles.badgeNeutral!,
   VOID: styles.badgeVoid!,
+};
+
+const CLAIM_BADGE: Record<PerkClaimStatus, string> = {
+  CLAIMED: styles.badgeAction!,
+  FULFILLED: styles.badgeOk!,
+  CANCELLED: styles.badgeVoid!,
 };
 
 /** "$x (17.5%)" — net as a share of the line amount; drift outside 15–20% flagged. */
@@ -158,6 +169,82 @@ export default async function OpsStayPage({
               </div>
             </div>
           ))
+        )}
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Perk claims — internal cost never leaves /ops</h2>
+        {stay.perkClaims.length === 0 ? (
+          <p className={styles.empty}>No perks claimed.</p>
+        ) : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Perk</th>
+                <th>Claimed</th>
+                <th>Contact left</th>
+                <th>Opt-in</th>
+                <th className={styles.num}>Cost (CAC)</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {stay.perkClaims.map((c) => (
+                <tr key={c.id}>
+                  <td>
+                    {c.perk.name}
+                    {c.perk.vendorName && (
+                      <span className={styles.muted}> · {c.perk.vendorName}</span>
+                    )}
+                  </td>
+                  <td className={styles.small}>{when(c.createdAt)}</td>
+                  <td className={styles.small}>
+                    {[c.email, c.phone].filter(Boolean).join(" · ") || "—"}
+                  </td>
+                  <td>
+                    {c.marketingOptIn ? (
+                      <span className={`${styles.badge} ${styles.badgeOk}`}>OPT-IN</span>
+                    ) : (
+                      <span className={styles.muted}>no</span>
+                    )}
+                  </td>
+                  <td className={styles.num}>
+                    {c.perk.costCents != null ? (
+                      formatMoney(c.perk.costCents, stay.currency)
+                    ) : (
+                      <span className={styles.muted}>—</span>
+                    )}
+                  </td>
+                  <td>
+                    <span className={`${styles.badge} ${CLAIM_BADGE[c.status]}`}>
+                      {c.status}
+                    </span>
+                  </td>
+                  <td>
+                    {c.status === "CLAIMED" && (
+                      <div className={styles.actionsRow}>
+                        <form action={setPerkClaimStatus}>
+                          <input type="hidden" name="perkClaimId" value={c.id} />
+                          <input type="hidden" name="status" value="FULFILLED" />
+                          <button type="submit" className={styles.btnGhost}>
+                            Mark fulfilled
+                          </button>
+                        </form>
+                        <form action={setPerkClaimStatus}>
+                          <input type="hidden" name="perkClaimId" value={c.id} />
+                          <input type="hidden" name="status" value="CANCELLED" />
+                          <button type="submit" className={styles.btnDanger}>
+                            Cancel
+                          </button>
+                        </form>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </section>
 

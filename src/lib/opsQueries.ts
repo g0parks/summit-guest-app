@@ -12,7 +12,8 @@ const HOUR = 60 * 60 * 1000;
 
 /**
  * "Needs action" queue: unquoted requests first (price them), then confirmed
- * requests being delivered in the next 48h (make sure they happen).
+ * requests being delivered in the next 48h, then perk claims waiting to be
+ * arranged (status CLAIMED).
  */
 export async function getNeedsAction() {
   const now = new Date();
@@ -21,7 +22,7 @@ export async function getNeedsAction() {
     stay: { include: { guest: true, property: true } },
   } as const;
 
-  const [needsQuote, upcoming] = await Promise.all([
+  const [needsQuote, upcoming, perkClaims] = await Promise.all([
     prisma.serviceRequest.findMany({
       where: { status: "REQUESTED" },
       include,
@@ -35,9 +36,14 @@ export async function getNeedsAction() {
       include,
       orderBy: { requestedFor: "asc" },
     }),
+    prisma.perkClaim.findMany({
+      where: { status: "CLAIMED" },
+      include: { perk: true, stay: { include: { guest: true, property: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
-  return { needsQuote, upcoming };
+  return { needsQuote, upcoming, perkClaims };
 }
 
 /** Upcoming + in-house stays with tab totals and the engagement signal. */
@@ -126,6 +132,10 @@ export async function getOpsStayDetail(stayId: string) {
         orderBy: { createdAt: "desc" },
       },
       tabLineItems: { orderBy: { occurredAt: "desc" } },
+      perkClaims: {
+        include: { perk: true },
+        orderBy: { createdAt: "desc" },
+      },
       itineraryItems: { orderBy: [{ startsAt: "asc" }, { sortOrder: "asc" }] },
     },
   });

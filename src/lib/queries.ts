@@ -1,10 +1,21 @@
 import "server-only";
 import { prisma } from "./db";
 
-/** Data for the trip-home hub: the next upcoming itinerary item + tab total. */
-export async function getTripHome(stayId: string) {
+/** Perks visible to a stay: active, global or scoped to its property's partner. */
+function perkVisibilityWhere(partnerId: string | null) {
+  return {
+    isActive: true,
+    OR: [{ partnerId: null }, ...(partnerId ? [{ partnerId }] : [])],
+  };
+}
+
+/**
+ * Data for the trip-home hub: next itinerary item, tab total, and the first
+ * perk this stay hasn't claimed yet (the pre-arrival gift-card hook).
+ */
+export async function getTripHome(stayId: string, partnerId: string | null) {
   const now = new Date();
-  const [nextUp, tab] = await Promise.all([
+  const [nextUp, tab, unclaimedPerk] = await Promise.all([
     prisma.itineraryItem.findFirst({
       where: { stayId, startsAt: { gte: now } },
       orderBy: { startsAt: "asc" },
@@ -13,8 +24,29 @@ export async function getTripHome(stayId: string) {
       where: { stayId, status: { in: ["PENDING", "CHARGED"] } },
       _sum: { amount: true },
     }),
+    prisma.perk.findFirst({
+      where: { ...perkVisibilityWhere(partnerId), claims: { none: { stayId } } },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    }),
   ]);
-  return { nextUp, tabTotalCents: tab._sum.amount ?? 0 };
+  return { nextUp, tabTotalCents: tab._sum.amount ?? 0, unclaimedPerk };
+}
+
+/** Perk Bank list: visible perks + this stay's claim (for the quiet "Claimed" state). */
+export async function getPerksForStay(stayId: string, partnerId: string | null) {
+  return prisma.perk.findMany({
+    where: perkVisibilityWhere(partnerId),
+    include: { claims: { where: { stayId } } },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
+}
+
+/** One perk by slug, with this stay's claim if any. */
+export async function getPerkBySlug(slug: string, stayId: string) {
+  return prisma.perk.findUnique({
+    where: { slug },
+    include: { claims: { where: { stayId } } },
+  });
 }
 
 /** All itinerary items for a stay, in chronological order. */

@@ -31,6 +31,16 @@ export type OperatorEvent =
       guestName: string;
       brand: string;
       last4: string;
+    }
+  | {
+      type: "perk_claimed";
+      stayId: string;
+      guestName: string;
+      property: string;
+      perkName: string;
+      email?: string | null;
+      phone?: string | null;
+      optIn: boolean;
     };
 
 // onboarding@resend.dev works out of the box but only delivers to the Resend
@@ -80,6 +90,24 @@ async function buildEmail(
       text: [
         `${event.guestName} added a card on file (${event.brand} •••• ${event.last4}).`,
         `An engaged guest — tab is live.`,
+        ``,
+        `Stay: ${base}/ops/stays/${event.stayId}`,
+      ].join("\n"),
+    };
+  }
+
+  if (event.type === "perk_claimed") {
+    return {
+      subject: `[Summit] Perk claimed — ${event.perkName} — ${event.guestName}`,
+      text: [
+        `Guest:    ${event.guestName}`,
+        `Property: ${event.property}`,
+        `Perk:     ${event.perkName}`,
+        `Email:    ${event.email ?? "—"}`,
+        `Phone:    ${event.phone ?? "—"}`,
+        `Opt-in:   ${event.optIn ? "YES — future-stays contact" : "no"}`,
+        ``,
+        `ACTION: arrange the perk, then mark it fulfilled in ops.`,
         ``,
         `Stay: ${base}/ops/stays/${event.stayId}`,
       ].join("\n"),
