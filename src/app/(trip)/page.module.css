@@ -79,6 +79,46 @@
   color: var(--ink-muted);
 }
 
+/* ── gift card (Perk Bank hook) ──────────────────────────── */
+.gift {
+  margin-top: 34px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--accent-tint);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 20px 22px;
+  transition: box-shadow 0.22s var(--ease), transform 0.22s var(--ease);
+}
+
+.gift:active {
+  transform: scale(0.99);
+}
+
+.giftBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.giftTitle {
+  margin-top: 8px;
+  font-size: 21px;
+  font-weight: 500;
+}
+
+.giftMeta {
+  margin-top: 5px;
+  font-size: 13.5px;
+  color: var(--ink-muted);
+}
+
+.giftChevron {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
 /* ── next-up card ────────────────────────────────────────── */
 .card {
   margin-top: 34px;

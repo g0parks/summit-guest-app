@@ -60,6 +60,12 @@ enum PaymentProviderType {
   STRIPE
 }
 
+enum PerkClaimStatus {
+  CLAIMED
+  FULFILLED
+  CANCELLED
+}
+
 /// Partner PM brand — the theming resolution point. Co-brand renders
 /// "<name> Concierge, powered by Summit": PM primary, Summit quiet.
 /// Tokens stay minimal (name + logo + one accent) until a real partner
@@ -73,8 +79,48 @@ model Partner {
   accentColor    String? // hex, e.g. "#7A6248"; null = Summit default accent
   isActive       Boolean    @default(true)
   properties     Property[]
+  perks          Perk[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
+}
+
+/// Perk Bank — complimentary gifts that double as first-party capture.
+/// Guest-facing register is "with our compliments"; NEVER "exclusive",
+/// rev-share, or vendor-funded language anywhere a guest or PM sees.
+model Perk {
+  id         String      @id @default(cuid())
+  slug       String      @unique
+  name       String // "Recovery Lounge Session"
+  vendorName String? // "Avanto"
+  shortDesc  String
+  longDesc   String?
+  valueLabel String? // guest-facing: "$65 value" — generosity framing, optional
+  heroImage  String?
+  costCents  Int? // INTERNAL qualified-CAC — NEVER guest- or PM-facing
+  partnerId  String? // null = available across all partners
+  partner    Partner?    @relation(fields: [partnerId], references: [id])
+  isActive   Boolean     @default(true)
+  sortOrder  Int         @default(0)
+  claims     PerkClaim[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+/// A claim = the gift moment + the contact/opt-in left behind.
+model PerkClaim {
+  id             String          @id @default(cuid())
+  perkId         String
+  perk           Perk            @relation(fields: [perkId], references: [id])
+  stayId         String
+  stay           Stay            @relation(fields: [stayId], references: [id])
+  email          String?
+  phone          String?
+  marketingOptIn Boolean         @default(false)
+  status         PerkClaimStatus @default(CLAIMED)
+  operatorNote   String?
+  createdAt      DateTime        @default(now())
+
+  @@unique([stayId, perkId]) // one claim per perk per stay
 }
 
 model Property {
@@ -127,6 +173,7 @@ model Stay {
   serviceRequests ServiceRequest[]
   tabLineItems    TabLineItem[]
   paymentMethods  PaymentMethod[]
+  perkClaims      PerkClaim[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }

@@ -11,6 +11,8 @@ import type { Partner } from "@prisma/client";
 export type Brand = {
   /** Wordmark text: "<partner> Concierge" or "SUMMIT". */
   label: string;
+  /** Conversational brand name for prose ("A gift from <shortName>"). */
+  shortName: string;
   /** True when co-branded — render the quiet "powered by Summit" line. */
   poweredBy: boolean;
   accentColor: string | null;
@@ -19,6 +21,7 @@ export type Brand = {
 
 const SUMMIT: Brand = {
   label: "SUMMIT",
+  shortName: "Summit",
   poweredBy: false,
   accentColor: null,
   logoUrl: null,
@@ -31,6 +34,7 @@ export function resolveBrand(
   if (!partner || !partner.isActive) return SUMMIT;
   return {
     label: partner.conciergeLabel ?? `${partner.name} Concierge`,
+    shortName: partner.name,
     poweredBy: true,
     accentColor: partner.accentColor,
     logoUrl: partner.logoUrl,

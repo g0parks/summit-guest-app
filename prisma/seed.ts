@@ -23,6 +23,7 @@ const at = (dayOffset: number, hour: number, minute = 0) => {
 
 async function reset() {
   // Child → parent order (FK-safe). Dev seed: clean slate each run.
+  await prisma.perkClaim.deleteMany();
   await prisma.tabLineItem.deleteMany();
   await prisma.itineraryItem.deleteMany();
   await prisma.serviceRequest.deleteMany();
@@ -32,6 +33,7 @@ async function reset() {
   await prisma.guest.deleteMany();
   await prisma.service.deleteMany();
   await prisma.property.deleteMany();
+  await prisma.perk.deleteMany();
   await prisma.partner.deleteMany();
 }
 
@@ -242,11 +244,58 @@ async function main() {
     data: CATALOG.map((s) => ({ ...s })),
   });
 
+  // Perk Bank — gifts that double as first-party capture. Recovery/wellness
+  // leads (the whale filter). costCents is INTERNAL qualified-CAC, never
+  // guest- or PM-facing. Register: "with our compliments", never "exclusive".
+  await prisma.perk.createMany({
+    data: [
+      {
+        slug: "recovery-lounge-session",
+        name: "Recovery Lounge Session",
+        vendorName: "Avanto",
+        shortDesc:
+          "A contrast-therapy session — cedar sauna, cold plunge, guided breathwork — on us.",
+        longDesc:
+          "Avanto's recovery lounge sits ten minutes from the slopes: cedar sauna, cold plunge, and a guided contrast circuit that undoes a ski day better than anything we know. Your first session is with our compliments — just tell us how to reach you and we'll arrange a time that fits your week.",
+        valueLabel: "$65 value",
+        costCents: 3500, // internal qualified-CAC
+        partnerId: null, // available across all partners
+        sortOrder: 10,
+      },
+      {
+        slug: "welcome-provisioning-basket",
+        name: "Welcome Provisioning Basket",
+        shortDesc:
+          "Local roast coffee, fresh pastries, and alpine spring water — on the counter when you walk in.",
+        longDesc:
+          "A small welcome from the house: locally roasted coffee, morning pastries from a Park City bakery, and alpine spring water, set out before you arrive. Claim it and we'll have it waiting.",
+        valueLabel: "$40 value",
+        costCents: 2200, // internal qualified-CAC
+        partnerId: partner.id, // partner-scoped perk — exercises the visibility branch
+        sortOrder: 20,
+      },
+      {
+        slug: "private-sauna-half-off",
+        name: "Private Sauna Hour — Half Off",
+        vendorName: "Avanto",
+        shortDesc:
+          "A private sauna hour for your group at half the usual rate, any evening of your stay.",
+        longDesc:
+          "Book a private sauna hour for your whole group at half the usual rate — any evening during your stay, towels and cold rinse included. Claim it and we'll hold the slot until you pick a night.",
+        valueLabel: "50% off",
+        costCents: 1500, // internal qualified-CAC
+        partnerId: null,
+        sortOrder: 30,
+      },
+    ],
+  });
+
   const guest = await prisma.guest.create({
     data: {
       firstName: "Parker",
       lastName: "Bell",
-      email: "parker@example.com",
+      // email/phone deliberately empty: the Perk Bank claim flow is the
+      // first-party capture moment — the demo should show it landing.
       notes: "Prefers still water, early riser, loves a good cabernet.",
     },
   });

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./BottomNav.module.css";
 
-type NavKey = "trip" | "itinerary" | "services" | "tab";
+type NavKey = "trip" | "itinerary" | "services" | "perks" | "tab";
 
 const ITEMS: { key: NavKey; label: string; href: string; icon: React.ReactNode }[] = [
   {
@@ -36,6 +36,18 @@ const ITEMS: { key: NavKey; label: string; href: string; icon: React.ReactNode }
     ),
   },
   {
+    key: "perks",
+    label: "Perks",
+    href: "/perks",
+    icon: (
+      <>
+        <rect x="4" y="8.5" width="16" height="4" rx="1" />
+        <path d="M5.75 12.5v6.75a1.5 1.5 0 0 0 1.5 1.5h9.5a1.5 1.5 0 0 0 1.5-1.5V12.5M12 8.5v12.25" />
+        <path d="M12 8.5s-3.9.2-4.9-1.8c-.6-1.4.5-2.7 1.9-2.4 1.8.5 3 4.2 3 4.2zM12 8.5s3.9.2 4.9-1.8c.6-1.4-.5-2.7-1.9-2.4-1.8.5-3 4.2-3 4.2z" />
+      </>
+    ),
+  },
+  {
     key: "tab",
     label: "Tab",
     href: "/tab",
@@ -51,6 +63,7 @@ const ITEMS: { key: NavKey; label: string; href: string; icon: React.ReactNode }
 function activeKey(pathname: string): NavKey {
   if (pathname.startsWith("/services")) return "services";
   if (pathname.startsWith("/itinerary")) return "itinerary";
+  if (pathname.startsWith("/perks")) return "perks";
   if (pathname.startsWith("/tab")) return "tab";
   return "trip";
 }

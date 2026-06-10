@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { RequestStatus } from "@prisma/client";
+import type { PerkClaimStatus, RequestStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireOperator } from "@/lib/opsSession";
 import { getPaymentProvider } from "@/lib/payments";
@@ -22,6 +22,7 @@ function revalidateSurfaces(stayId: string) {
   revalidatePath("/");
   revalidatePath("/tab");
   revalidatePath("/itinerary");
+  revalidatePath("/perks");
 }
 
 /** amount - vendorCost - pmShare; net target 15–20% (drift shown in the UI). */
@@ -210,6 +211,25 @@ export async function setLineEconomics(formData: FormData): Promise<void> {
   });
 
   revalidateSurfaces(line.stayId);
+}
+
+/**
+ * Resolve a perk claim: FULFILLED (arranged + delivered) or CANCELLED.
+ * Perks never touch the tab, so there's nothing to void either way.
+ */
+export async function setPerkClaimStatus(formData: FormData): Promise<void> {
+  await requireOperator();
+
+  const claimId = String(formData.get("perkClaimId") ?? "");
+  const status = String(formData.get("status") ?? "") as PerkClaimStatus;
+  if (status !== "FULFILLED" && status !== "CANCELLED") return;
+
+  const claim = await prisma.perkClaim.findUnique({ where: { id: claimId } });
+  if (!claim || claim.status !== "CLAIMED") return;
+
+  await prisma.perkClaim.update({ where: { id: claim.id }, data: { status } });
+
+  revalidateSurfaces(claim.stayId);
 }
 
 /** Off-catalog item straight onto the tab — PENDING, no request linked. */

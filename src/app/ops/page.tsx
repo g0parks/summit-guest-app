@@ -7,7 +7,7 @@ import styles from "./ops.module.css";
 export const dynamic = "force-dynamic";
 
 export default async function OpsOverviewPage() {
-  const [{ needsQuote, upcoming }, stays, activity] = await Promise.all([
+  const [{ needsQuote, upcoming, perkClaims }, stays, activity] = await Promise.all([
     getNeedsAction(),
     getOpsStays(),
     getRecentActivity(),
@@ -17,7 +17,7 @@ export default async function OpsOverviewPage() {
     <main>
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Needs action</h2>
-        {needsQuote.length === 0 && upcoming.length === 0 ? (
+        {needsQuote.length === 0 && upcoming.length === 0 && perkClaims.length === 0 ? (
           <p className={styles.empty}>Nothing waiting on you.</p>
         ) : (
           <table className={styles.table}>
@@ -52,6 +52,33 @@ export default async function OpsOverviewPage() {
                   <td className={styles.small}>{r.notes ?? "—"}</td>
                   <td>
                     <Link href={`/ops/stays/${r.stayId}`} className={styles.link}>
+                      open
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+              {perkClaims.map((c) => (
+                <tr key={c.id}>
+                  <td>
+                    <span className={`${styles.badge} ${styles.badgeAction}`}>
+                      PERK CLAIM
+                    </span>
+                  </td>
+                  <td>{c.perk.name}</td>
+                  <td>
+                    {c.stay.guest.firstName} {c.stay.guest.lastName ?? ""}
+                    <span className={styles.muted}> @ {c.stay.property.name}</span>
+                  </td>
+                  <td className={styles.small}>
+                    {formatDayLabel(c.createdAt, c.stay.property.timezone)} ·{" "}
+                    {formatTime(c.createdAt, c.stay.property.timezone)}
+                  </td>
+                  <td className={styles.small}>
+                    {c.email ?? c.phone ?? "—"}
+                    {c.marketingOptIn ? " · opt-in" : ""}
+                  </td>
+                  <td>
+                    <Link href={`/ops/stays/${c.stayId}`} className={styles.link}>
                       open
                     </Link>
                   </td>

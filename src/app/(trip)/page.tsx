@@ -13,7 +13,10 @@ export default async function TripHome() {
   const { guest, property } = stay;
   const tz = property.timezone;
   const brand = resolveBrand(property);
-  const { nextUp, tabTotalCents } = await getTripHome(stay.id);
+  const { nextUp, tabTotalCents, unclaimedPerk } = await getTripHome(
+    stay.id,
+    property.partnerId,
+  );
 
   return (
     <main className={styles.page}>
@@ -45,6 +48,23 @@ export default async function TripHome() {
           {stay.partySize ? ` · ${stay.partySize} guests` : ""}
         </p>
       </section>
+
+      {unclaimedPerk && (
+        <Link href="/perks" className={`${styles.gift} reveal reveal-3`}>
+          <div className={styles.giftBody}>
+            <span className="eyebrow">
+              {brand.poweredBy
+                ? `A gift from ${brand.shortName}`
+                : "With our compliments"}
+            </span>
+            <h2 className={styles.giftTitle}>{unclaimedPerk.name}</h2>
+            <p className={styles.giftMeta}>Complimentary — tap to claim</p>
+          </div>
+          <svg className={styles.giftChevron} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </Link>
+      )}
 
       <section className={`${styles.card} reveal reveal-3`}>
         <span className="eyebrow">Next up</span>
