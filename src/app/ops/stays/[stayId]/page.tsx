@@ -11,6 +11,7 @@ import QuoteForm from "@/components/ops/QuoteForm";
 import ChargeButton from "@/components/ops/ChargeButton";
 import { formatMoney } from "@/lib/money";
 import { formatDateRange, formatDayLabel, formatTime } from "@/lib/dates";
+import { parseRequestDetails } from "@/lib/serviceForm";
 import styles from "../../ops.module.css";
 
 export const dynamic = "force-dynamic";
@@ -149,6 +150,11 @@ export default async function OpsStayPage({
                 {r.partySize ?? "—"} · Quoted:{" "}
                 {r.quotedAmount != null ? formatMoney(r.quotedAmount, stay.currency) : "—"}
               </p>
+              {parseRequestDetails(r.detailsJson).map((d) => (
+                <p key={d.label} className={styles.small}>
+                  {d.label}: {d.value}
+                </p>
+              ))}
               {r.notes && <p className={styles.small}>Notes: {r.notes}</p>}
               {r.operatorNote && (
                 <p className={`${styles.small} ${styles.muted}`}>Op note: {r.operatorNote}</p>

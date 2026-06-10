@@ -3,6 +3,7 @@ import { prisma } from "./db";
 import { isFixedPrice } from "./catalog";
 import { formatDayLabel, formatTime } from "./dates";
 import { formatMoney } from "./money";
+import { parseRequestDetails } from "./serviceForm";
 
 /**
  * Operator notification seam. Fulfillment is manual: when a guest acts, the
@@ -144,12 +145,14 @@ async function buildEmail(
     : false;
 
   const when = event.requestedFor ? new Date(event.requestedFor) : null;
+  const details = parseRequestDetails(request?.detailsJson);
   const lines = [
     `Guest:    ${event.guestName}`,
     `Property: ${event.property}`,
     `Service:  ${event.serviceName}`,
     when ? `When:     ${formatDayLabel(when, tz)} · ${formatTime(when, tz)}` : null,
     request?.partySize != null ? `Party:    ${request.partySize}` : null,
+    ...details.map((d) => `${d.label}: ${d.value}`),
     request?.service && isFixedPrice(request.service.priceUnit, request.service.priceAmount)
       ? `Price:    ${formatMoney(request.service.priceAmount, request.stay.currency)} (${request.service.priceUnit.toLowerCase()})`
       : null,

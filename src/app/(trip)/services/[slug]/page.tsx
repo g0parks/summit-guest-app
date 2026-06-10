@@ -4,6 +4,7 @@ import { requireStay } from "@/lib/session";
 import { getServiceBySlug } from "@/lib/queries";
 import { formatPriceLabel } from "@/lib/money";
 import { CATEGORY_LABEL } from "@/lib/catalog";
+import { serviceFormConfig } from "@/lib/serviceForm";
 import RequestForm from "@/components/services/RequestForm";
 import styles from "./page.module.css";
 
@@ -63,6 +64,8 @@ export default async function ServiceDetail({
             requiresTime: service.requiresTime,
             requiresPartySize: service.requiresPartySize,
           }}
+          fields={serviceFormConfig(service.slug).fields}
+          notesPlaceholder={serviceFormConfig(service.slug).notesPlaceholder}
           defaultPartySize={stay.partySize ?? 2}
           currency={stay.currency}
         />

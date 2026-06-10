@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import type { PriceUnit } from "@prisma/client";
 import { createServiceRequest, type RequestResult } from "@/app/actions/requests";
+import type { ServiceField } from "@/lib/serviceForm";
 import { formatMoney } from "@/lib/money";
 import styles from "./RequestForm.module.css";
 
@@ -21,10 +22,14 @@ const isQuote = (u: PriceUnit, amt: number | null) => u === "QUOTE" || amt == nu
 
 export default function RequestForm({
   service,
+  fields,
+  notesPlaceholder,
   defaultPartySize,
   currency,
 }: {
   service: ServiceProps;
+  fields: ServiceField[];
+  notesPlaceholder?: string;
   defaultPartySize: number;
   currency: string;
 }) {
@@ -107,6 +112,49 @@ export default function RequestForm({
         </label>
       )}
 
+      {/* per-service fulfillment details (src/lib/serviceForm.ts) */}
+      {fields.map((f) => (
+        <label key={f.name} className={styles.field}>
+          <span className={styles.label}>
+            {f.label}
+            {!f.required && <span className={styles.optional}> optional</span>}
+          </span>
+          {f.kind === "select" ? (
+            <select
+              name={`detail_${f.name}`}
+              required={f.required}
+              defaultValue=""
+              className={styles.select}
+            >
+              <option value="" disabled>
+                Choose…
+              </option>
+              {f.options.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          ) : f.kind === "textarea" ? (
+            <textarea
+              name={`detail_${f.name}`}
+              rows={3}
+              required={f.required}
+              className={styles.textarea}
+              placeholder={f.placeholder}
+            />
+          ) : (
+            <input
+              type="text"
+              name={`detail_${f.name}`}
+              required={f.required}
+              className={styles.input}
+              placeholder={f.placeholder}
+            />
+          )}
+        </label>
+      ))}
+
       <label className={styles.field}>
         <span className={styles.label}>
           Anything we should know? <span className={styles.optional}>optional</span>
@@ -115,7 +163,7 @@ export default function RequestForm({
           name="notes"
           rows={3}
           className={styles.textarea}
-          placeholder="Allergies, preferences, timing…"
+          placeholder={notesPlaceholder ?? "Allergies, preferences, timing…"}
         />
       </label>
 

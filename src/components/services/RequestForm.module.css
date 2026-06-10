@@ -47,6 +47,25 @@
   box-shadow: 0 0 0 3px var(--accent-tint);
 }
 
+/* selects keep the native arrow (appearance: none above would hide it) */
+.select {
+  width: 100%;
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 13px 14px;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
 .error {
   font-size: 14px;
   color: #9a4a3c;
