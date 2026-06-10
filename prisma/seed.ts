@@ -217,44 +217,43 @@ async function main() {
 
   // Perk Bank — gifts that double as first-party capture. Recovery/wellness
   // leads (the whale filter). costCents is INTERNAL qualified-CAC, never
-  // guest- or PM-facing. Register: "with our compliments", never "exclusive".
+  // guest- or PM-facing. Register: "with our compliments" — never "exclusive",
+  // never "FREE!", and no dollar-value framing on anything guest-facing.
   await prisma.perk.createMany({
     data: [
       {
-        slug: "recovery-lounge-session",
-        name: "Recovery Lounge Session",
+        slug: "private-sauna-hour",
+        name: "Private Sauna Hour",
         vendorName: "Avanto",
         shortDesc:
-          "A contrast-therapy session — cedar sauna, cold plunge, guided breathwork — on us.",
+          "A private sauna hour for your group — cedar heat and cold plunge, any evening of your stay.",
         longDesc:
-          "Avanto's recovery lounge sits ten minutes from the slopes: cedar sauna, cold plunge, and a guided contrast circuit that undoes a ski day better than anything we know. Your first session is with our compliments — just tell us how to reach you and we'll arrange a time that fits your week.",
-        valueLabel: "$65 value",
-        costCents: 3500, // internal qualified-CAC
+          "An hour of private sauna for your whole group at Avanto — cedar heat, cold plunge, towels and cold rinse included — any evening during your stay. Claim it and we'll hold the slot until you pick a night.",
+        costCents: null, // internal qualified-CAC — unknown until vendor terms are set
         partnerId: null, // available across all partners
         sortOrder: 10,
       },
       {
-        slug: "welcome-provisioning-basket",
-        name: "Welcome Provisioning Basket",
+        slug: "silver-mountain-day-pass",
+        name: "Silver Mountain Sports Club Day Pass",
+        vendorName: "Silver Mountain Sports Club & Spa",
         shortDesc:
-          "Local roast coffee, fresh pastries, and alpine spring water — on the counter when you walk in.",
+          "A full day at Park City's club in Prospector — lap pools, hot tubs, weight room, classes, steam, and sauna.",
         longDesc:
-          "A small welcome from the house: locally roasted coffee, morning pastries from a Park City bakery, and alpine spring water, set out before you arrive. Claim it and we'll have it waiting.",
-        valueLabel: "$40 value",
-        costCents: 2200, // internal qualified-CAC
-        partnerId: partner.id, // partner-scoped perk — exercises the visibility branch
+          "A day to yourselves at Silver Mountain Sports Club & Spa, minutes away in Prospector: heated lap pools, indoor and outdoor hot tubs, a 5,000-square-foot weight room, yoga, Pilates, and spin classes, steam rooms and a dry sauna — and a waterslide and lazy river if the kids are along. Your passes are with our compliments; claim them and we'll have the front desk expecting you.",
+        costCents: null, // internal qualified-CAC — unknown until vendor terms are set
+        partnerId: null,
         sortOrder: 20,
       },
       {
-        slug: "private-sauna-half-off",
-        name: "Private Sauna Hour — Half Off",
-        vendorName: "Avanto",
+        slug: "upgrade-labs-recovery",
+        name: "Upgrade Labs Recovery Session",
+        vendorName: "Upgrade Labs",
         shortDesc:
-          "A private sauna hour for your group at half the usual rate, any evening of your stay.",
+          "One session at Park City's performance-recovery lab — whole-body cryotherapy, red light, or compression, your pick.",
         longDesc:
-          "Book a private sauna hour for your whole group at half the usual rate — any evening during your stay, towels and cold rinse included. Claim it and we'll hold the slot until you pick a night.",
-        valueLabel: "50% off",
-        costCents: 1500, // internal qualified-CAC
+          "Upgrade Labs in Kimball Junction puts professional-grade recovery in one room: three-minute whole-body cryotherapy, the REDcharger red-light bed, PEMF, and lymphatic compression — the fastest way we know to undo a ski day. Your first session is with our compliments; claim it, tell us which one sounds right, and we'll set the appointment.",
+        costCents: null, // internal qualified-CAC — unknown until vendor terms are set
         partnerId: null,
         sortOrder: 30,
       },

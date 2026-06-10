@@ -52,11 +52,8 @@ export default async function PerksPage() {
                           Claimed
                         </span>
                       ) : (
-                        perk.valueLabel && (
-                          <span className={styles.value}>
-                            {perk.valueLabel} · complimentary
-                          </span>
-                        )
+                        // generosity is the register — no dollar-value framing
+                        <span className={styles.value}>Complimentary</span>
                       )}
                     </div>
                     <svg className={styles.chevron} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

@@ -36,13 +36,7 @@ export default async function PerkDetail({
       <header className={`${styles.head} reveal reveal-2`}>
         <span className="eyebrow">With our compliments</span>
         <h1 className={styles.title}>{perk.name}</h1>
-        {(perk.vendorName || perk.valueLabel) && (
-          <p className={styles.meta}>
-            {perk.vendorName ? `with ${perk.vendorName}` : null}
-            {perk.vendorName && perk.valueLabel ? " · " : null}
-            {perk.valueLabel ?? null}
-          </p>
-        )}
+        {perk.vendorName && <p className={styles.meta}>with {perk.vendorName}</p>}
       </header>
 
       <section className={`${styles.body} reveal reveal-3`}>
