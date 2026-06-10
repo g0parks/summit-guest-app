@@ -2,7 +2,6 @@ import Link from "next/link";
 import { requireStay } from "@/lib/session";
 import { resolveBrand } from "@/lib/branding";
 import { getTripHome } from "@/lib/queries";
-import { formatMoney } from "@/lib/money";
 import { formatDateRange, formatTime, relativeDayWord } from "@/lib/dates";
 import styles from "./page.module.css";
 
@@ -13,10 +12,7 @@ export default async function TripHome() {
   const { guest, property } = stay;
   const tz = property.timezone;
   const brand = resolveBrand(property);
-  const { nextUp, tabTotalCents, unclaimedPerk } = await getTripHome(
-    stay.id,
-    property.partnerId,
-  );
+  const { nextUp, unclaimedPerk } = await getTripHome(stay.id, property.partnerId);
 
   return (
     <main className={styles.page}>
@@ -101,22 +97,8 @@ export default async function TripHome() {
         )}
       </section>
 
-      <section className={`${styles.tab} reveal reveal-4`}>
-        <div>
-          <span className="eyebrow">Your tab</span>
-          <p className={`${styles.tabAmount} tabular`}>
-            {formatMoney(tabTotalCents, stay.currency)}
-          </p>
-        </div>
-        <Link href="/tab" className={styles.tabLink}>
-          View
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M9 6l6 6-6 6" />
-          </svg>
-        </Link>
-      </section>
-
-      <div className={`${styles.actions} reveal reveal-5`}>
+      {/* tab lives on the tab page — the home CTA stays above the fold */}
+      <div className={`${styles.actions} reveal reveal-4`}>
         <Link href="/services" className={styles.cta}>
           Explore concierge
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

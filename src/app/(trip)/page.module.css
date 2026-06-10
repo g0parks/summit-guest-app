@@ -151,39 +151,6 @@
   color: var(--ink-faint);
 }
 
-/* ── running tab ─────────────────────────────────────────── */
-.tab {
-  margin-top: 30px;
-  padding-top: 24px;
-  border-top: 1px solid var(--hairline);
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-}
-
-.tabAmount {
-  margin-top: 7px;
-  font-size: 28px;
-  font-weight: 600;
-  color: var(--accent);
-  line-height: 1;
-}
-
-.tabLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 14.5px;
-  font-weight: 500;
-  color: var(--ink-muted);
-  padding: 6px 2px 6px 8px;
-  transition: color 0.2s var(--ease);
-}
-
-.tabLink:hover {
-  color: var(--ink);
-}
-
 /* ── actions ─────────────────────────────────────────────── */
 .actions {
   margin-top: 40px;

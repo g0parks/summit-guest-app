@@ -10,26 +10,23 @@ function perkVisibilityWhere(partnerId: string | null) {
 }
 
 /**
- * Data for the trip-home hub: next itinerary item, tab total, and the first
- * perk this stay hasn't claimed yet (the pre-arrival gift-card hook).
+ * Data for the trip-home hub: next itinerary item and the first perk this
+ * stay hasn't claimed yet (the pre-arrival gift-card hook). Tab totals live
+ * on the tab page only.
  */
 export async function getTripHome(stayId: string, partnerId: string | null) {
   const now = new Date();
-  const [nextUp, tab, unclaimedPerk] = await Promise.all([
+  const [nextUp, unclaimedPerk] = await Promise.all([
     prisma.itineraryItem.findFirst({
       where: { stayId, startsAt: { gte: now } },
       orderBy: { startsAt: "asc" },
-    }),
-    prisma.tabLineItem.aggregate({
-      where: { stayId, status: { in: ["PENDING", "CHARGED"] } },
-      _sum: { amount: true },
     }),
     prisma.perk.findFirst({
       where: { ...perkVisibilityWhere(partnerId), claims: { none: { stayId } } },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     }),
   ]);
-  return { nextUp, tabTotalCents: tab._sum.amount ?? 0, unclaimedPerk };
+  return { nextUp, unclaimedPerk };
 }
 
 /** Perk Bank list: visible perks + this stay's claim (for the quiet "Claimed" state). */

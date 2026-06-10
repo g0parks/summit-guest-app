@@ -29,6 +29,38 @@ export const SANDBOX_GUEST: DemoGuest = {
   notes: "First time in Park City — keen to ski Empire Pass.",
 };
 
+const MT = "America/Denver";
+
+/**
+ * A Date for the given wall-clock time IN MOUNTAIN TIME, `dayOffset` days
+ * from `base`. The naive `setHours()` uses the SERVER's timezone — on Vercel
+ * that's UTC, which stored "4 PM" as 10 AM Mountain. The demo property lives
+ * in Park City; its itinerary must too, wherever the code runs.
+ */
+function mountainAt(base: Date, dayOffset: number, hour: number, minute = 0): Date {
+  const day = new Date(base.getTime() + dayOffset * DAY);
+  const ymd = new Intl.DateTimeFormat("en-CA", {
+    timeZone: MT,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(day)
+    .split("-")
+    .map(Number);
+  // First pass assumes UTC-7 (MST); one correction handles DST (UTC-6).
+  let ts = Date.UTC(ymd[0] ?? 0, (ymd[1] ?? 1) - 1, ymd[2] ?? 1, hour + 7, minute);
+  const gotHour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: MT,
+      hour: "numeric",
+      hour12: false,
+    }).format(ts),
+  );
+  ts += (hour - gotHour) * HOUR;
+  return new Date(ts);
+}
+
 export async function createDemoStay(
   prisma: PrismaClient,
   opts: {
@@ -39,11 +71,8 @@ export async function createDemoStay(
   },
 ) {
   const now = new Date();
-  const at = (dayOffset: number, hour: number, minute = 0) => {
-    const d = new Date(now.getTime() + dayOffset * DAY);
-    d.setHours(hour, minute, 0, 0);
-    return d;
-  };
+  const at = (dayOffset: number, hour: number, minute = 0) =>
+    mountainAt(now, dayOffset, hour, minute);
 
   // Each sandbox gets its OWN property row so the partner co-brand resolves
   // per-visitor without touching anyone else's sandbox.
@@ -123,9 +152,11 @@ export async function createDemoStay(
         stayId: stay.id,
         title: "Private chef dinner",
         description: "Five courses, paired, served at the stone hearth.",
+        // pinned to a real dinner hour — NOT now+3h, which rendered at
+        // whatever odd time the sandbox happened to be created
+        startsAt: at(0, 18, 30),
         location: "In-residence",
         category: "DINING",
-        startsAt: new Date(now.getTime() + 3 * HOUR),
         sortOrder: 4,
       },
       {
