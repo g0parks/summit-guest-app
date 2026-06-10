@@ -1,5 +1,7 @@
 import { requireStay } from "@/lib/session";
 import { getItinerary } from "@/lib/queries";
+import { changeMessage, getConciergeContact } from "@/lib/concierge";
+import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import {
   dayKey,
   formatDateRange,
@@ -18,6 +20,8 @@ export default async function ItineraryPage() {
   const tz = stay.property.timezone;
   const items = await getItinerary(stay.id);
   const now = Date.now();
+  const concierge = getConciergeContact();
+  const conciergeLive = Boolean(concierge.phone || concierge.email);
 
   // First still-upcoming item — gets the accent treatment.
   const nextId = items.find((it) => it.startsAt.getTime() >= now)?.id;
@@ -69,6 +73,25 @@ export default async function ItineraryPage() {
                   <h2 className={styles.itemTitle}>{it.title}</h2>
                   {it.description && <p className={styles.itemDesc}>{it.description}</p>}
                   {it.location && <p className={styles.itemLoc}>{it.location}</p>}
+                  {conciergeLive && (
+                    <p className={styles.itemAsk}>
+                      <ConciergeLinks
+                        phone={concierge.phone}
+                        email={concierge.email}
+                        message={changeMessage({
+                          guestFirstName: stay.guest.firstName,
+                          propertyName: stay.property.name,
+                          itemTitle: it.title,
+                          whenLabel: it.allDay
+                            ? formatDayLabel(it.startsAt, tz)
+                            : `${formatDayLabel(it.startsAt, tz)} · ${formatTime(it.startsAt, tz)}`,
+                        })}
+                        variant="inline"
+                        smsLabel="Request a change"
+                        emailLabel="Request a change"
+                      />
+                    </p>
+                  )}
                 </li>
               );
             })}

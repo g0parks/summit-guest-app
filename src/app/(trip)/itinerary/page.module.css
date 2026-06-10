@@ -159,3 +159,9 @@
   font-size: 13px;
   color: var(--ink-faint);
 }
+
+/* quiet per-item concierge ask — meta weight, not a button */
+.itemAsk {
+  margin-top: 7px;
+  font-size: 13px;
+}

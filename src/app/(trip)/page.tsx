@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireStay } from "@/lib/session";
 import { resolveBrand } from "@/lib/branding";
 import { getTripHome } from "@/lib/queries";
+import { getConciergeContact, generalMessage } from "@/lib/concierge";
+import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import { formatDateRange, formatTime, relativeDayWord } from "@/lib/dates";
 import styles from "./page.module.css";
 
@@ -13,6 +15,7 @@ export default async function TripHome() {
   const tz = property.timezone;
   const brand = resolveBrand(property);
   const { nextUp, unclaimedPerk } = await getTripHome(stay.id, property.partnerId);
+  const concierge = getConciergeContact();
 
   return (
     <main className={styles.page}>
@@ -109,6 +112,28 @@ export default async function TripHome() {
           View today&rsquo;s itinerary
         </Link>
       </div>
+
+      {/* the Concierge Line — the thread is the interface, this is the door */}
+      {(concierge.phone || concierge.email) && (
+        <section className={`${styles.card} reveal reveal-5`}>
+          <span className="eyebrow">Your concierge</span>
+          <p className={styles.conciergeCopy}>
+            Anything at all — dinner moved, powder-day plans, a question.{" "}
+            {concierge.phone ? "Text us" : "Email us"} and consider it handled.
+          </p>
+          <ConciergeLinks
+            phone={concierge.phone}
+            email={concierge.email}
+            message={generalMessage({
+              guestFirstName: guest.firstName,
+              propertyName: property.name,
+            })}
+            variant="card"
+            smsLabel="Text your concierge"
+            emailLabel="Email your concierge"
+          />
+        </section>
+      )}
     </main>
   );
 }

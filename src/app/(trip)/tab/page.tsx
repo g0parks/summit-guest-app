@@ -2,6 +2,8 @@ import { requireStay } from "@/lib/session";
 import { getTab } from "@/lib/queries";
 import { formatMoney } from "@/lib/money";
 import { formatDayLabel } from "@/lib/dates";
+import { generalMessage, getConciergeContact } from "@/lib/concierge";
+import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import Wallet from "@/components/tab/Wallet";
 import styles from "./page.module.css";
 
@@ -11,6 +13,7 @@ export default async function TabPage() {
   const { stay } = await requireStay();
   const tz = stay.property.timezone;
   const { items, defaultCard, pending, charged, total } = await getTab(stay.id);
+  const concierge = getConciergeContact();
 
   return (
     <main className={styles.page}>
@@ -75,6 +78,23 @@ export default async function TabPage() {
         Everything you request lands here — no checkout, no wallet. Settle anytime,
         or we’ll quietly close it out at departure.
       </p>
+
+      {(concierge.phone || concierge.email) && (
+        <p className={`${styles.conciergeAsk} reveal reveal-4`}>
+          A question about a charge?{" "}
+          <ConciergeLinks
+            phone={concierge.phone}
+            email={concierge.email}
+            message={generalMessage({
+              guestFirstName: stay.guest.firstName,
+              propertyName: stay.property.name,
+            })}
+            variant="inline"
+            smsLabel="Text your concierge"
+            emailLabel="Email your concierge"
+          />
+        </p>
+      )}
     </main>
   );
 }
