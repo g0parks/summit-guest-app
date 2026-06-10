@@ -39,7 +39,7 @@ const CATALOG = [
     leadTimeHours: 12,
     requiresDate: true,
     requiresTime: true,
-    requiresPartySize: false,
+    requiresPartySize: true, // vehicle sizing
     sortOrder: 10,
   },
   {

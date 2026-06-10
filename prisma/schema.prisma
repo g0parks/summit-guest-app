@@ -228,6 +228,7 @@ model ServiceRequest {
   partySize     Int?
   notes         String?
   quotedAmount  Int? // cents, for QUOTE services once priced
+  detailsJson   Json? // fulfillment details [{label, value}] from the per-service form fields (demo-level shape)
   operatorNote  String?
   tabLineItems  TabLineItem[]
   itineraryItem ItineraryItem?

@@ -9,6 +9,7 @@ import {
   confirmedRequestItineraryData,
   isFixedPrice,
 } from "@/lib/catalog";
+import { serviceFormConfig, type RequestDetail } from "@/lib/serviceForm";
 
 export type RequestResult =
   | { ok: true; status: "CONFIRMED" | "REQUESTED"; serviceName: string; chargedCents: number | null }
@@ -57,6 +58,17 @@ export async function createServiceRequest(
   const parsedParty = partyRaw ? Number.parseInt(partyRaw, 10) : NaN;
   const partySize = Number.isFinite(parsedParty) ? parsedParty : stay.partySize ?? null;
 
+  // Per-service fulfillment details (src/lib/serviceForm.ts) — validated
+  // server-side, stored as a [{label, value}] bag on the request.
+  const details: RequestDetail[] = [];
+  for (const field of serviceFormConfig(service.slug).fields) {
+    const value = String(formData.get(`detail_${field.name}`) ?? "").trim();
+    if (!value && field.required) {
+      return { ok: false, error: `Please fill in “${field.label}”.` };
+    }
+    if (value) details.push({ label: field.label, value });
+  }
+
   const confirmed = isFixedPrice(service.priceUnit, service.priceAmount);
 
   const request = await prisma.serviceRequest.create({
@@ -67,6 +79,7 @@ export async function createServiceRequest(
       requestedFor,
       partySize: partySize ?? undefined,
       notes,
+      detailsJson: details.length > 0 ? details : undefined,
     },
   });
 
