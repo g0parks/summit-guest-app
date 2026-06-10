@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { PerkClaimStatus, RequestStatus } from "@prisma/client";
+import { ItineraryCategory, type PerkClaimStatus, type RequestStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireOperator } from "@/lib/opsSession";
 import { getPaymentProvider } from "@/lib/payments";
 import { confirmedRequestItineraryData } from "@/lib/catalog";
 import { parseMoneyCents } from "@/lib/money";
+import { zonedDateTime } from "@/lib/dates";
 
 /**
  * Operator fulfillment actions. Every action gates on requireOperator() and,
@@ -230,6 +231,100 @@ export async function setPerkClaimStatus(formData: FormData): Promise<void> {
   await prisma.perkClaim.update({ where: { id: claim.id }, data: { status } });
 
   revalidateSurfaces(claim.stayId);
+}
+
+/* ── Itinerary CRUD ──────────────────────────────────────────────────────
+   Times are entered as wall-clock in the PROPERTY's timezone and converted
+   via zonedDateTime — never the server's tz (Vercel runs UTC). */
+
+const ITINERARY_CATEGORIES = Object.values(ItineraryCategory);
+
+/** Shared field parsing for create/update. Returns null on invalid input (silent no-op, matching the other void ops actions). */
+function parseItineraryFields(formData: FormData, timezone: string) {
+  const title = String(formData.get("title") ?? "").trim();
+  const categoryRaw = String(formData.get("category") ?? "") as ItineraryCategory;
+  const category = ITINERARY_CATEGORIES.includes(categoryRaw) ? categoryRaw : "NOTE";
+  const dateStr = String(formData.get("date") ?? "").trim();
+  const timeStr = String(formData.get("time") ?? "").trim();
+  const endTimeStr = String(formData.get("endsAtTime") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim() || null;
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const sortRaw = Number.parseInt(String(formData.get("sortOrder") ?? ""), 10);
+  const sortOrder = Number.isFinite(sortRaw) ? sortRaw : 0;
+
+  if (!title || !dateStr) return null;
+
+  // No time → all-day, anchored at noon property-local (existing pattern).
+  const allDay = !timeStr;
+  const startsAt = zonedDateTime(dateStr, timeStr || "12:00", timezone);
+  if (Number.isNaN(startsAt.getTime())) return null;
+
+  let endsAt: Date | null = null;
+  if (!allDay && endTimeStr) {
+    const e = zonedDateTime(dateStr, endTimeStr, timezone);
+    if (!Number.isNaN(e.getTime())) endsAt = e;
+  }
+
+  return { title, category, startsAt, endsAt, allDay, location, description, sortOrder };
+}
+
+export async function createItineraryItem(formData: FormData): Promise<void> {
+  await requireOperator();
+
+  const stayId = String(formData.get("stayId") ?? "");
+  const stay = await prisma.stay.findUnique({
+    where: { id: stayId },
+    include: { property: true },
+  });
+  if (!stay) return;
+
+  const fields = parseItineraryFields(formData, stay.property.timezone);
+  if (!fields) return;
+
+  await prisma.itineraryItem.create({ data: { stayId: stay.id, ...fields } });
+
+  revalidateSurfaces(stay.id);
+}
+
+export async function updateItineraryItem(formData: FormData): Promise<void> {
+  await requireOperator();
+
+  const itemId = String(formData.get("itemId") ?? "");
+  const item = await prisma.itineraryItem.findUnique({
+    where: { id: itemId },
+    include: { stay: { include: { property: true } } },
+  });
+  if (!item) return;
+
+  const fields = parseItineraryFields(formData, item.stay.property.timezone);
+  if (!fields) return;
+
+  // Checkbox semantics: absent = false, so unticking clears the guest chip.
+  const changePending = formData.get("changePending") === "on";
+
+  await prisma.itineraryItem.update({
+    where: { id: item.id },
+    data: { ...fields, changePending },
+  });
+
+  revalidateSurfaces(item.stayId);
+}
+
+/**
+ * Delete an itinerary item. Deleting one linked to a serviceRequest is
+ * allowed and leaves the request untouched — request lifecycle stays
+ * setRequestStatus's job (the UI shows a "linked" hint beforehand).
+ */
+export async function deleteItineraryItem(formData: FormData): Promise<void> {
+  await requireOperator();
+
+  const itemId = String(formData.get("itemId") ?? "");
+  const item = await prisma.itineraryItem.findUnique({ where: { id: itemId } });
+  if (!item) return;
+
+  await prisma.itineraryItem.delete({ where: { id: item.id } });
+
+  revalidateSurfaces(item.stayId);
 }
 
 /** Off-catalog item straight onto the tab — PENDING, no request linked. */

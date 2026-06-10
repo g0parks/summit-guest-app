@@ -125,6 +125,19 @@
   border-radius: var(--radius-pill);
 }
 
+/* operator is rearranging this — quiet, reassuring, not an error */
+.changeChip {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
 .itemTitle {
   margin-top: 6px;
   font-family: var(--font-sans);

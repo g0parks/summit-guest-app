@@ -81,3 +81,60 @@ export function relativeDayWord(d: Date, tz = DEFAULT_TZ): string {
 export function addDays(d: Date, n: number): Date {
   return new Date(d.getTime() + n * 24 * 60 * 60 * 1000);
 }
+
+/** The zone's UTC offset in ms at a given instant ("GMT-06:00" → -6h). */
+function tzOffsetMs(at: Date, timeZone: string): number {
+  const name =
+    new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" })
+      .formatToParts(at)
+      .find((p) => p.type === "timeZoneName")?.value ?? "GMT";
+  const m = name.match(/GMT([+-])(\d{2}):(\d{2})/);
+  if (!m) return 0; // bare "GMT" = UTC
+  const sign = m[1] === "-" ? -1 : 1;
+  return sign * (Number(m[2]) * 60 + Number(m[3])) * 60 * 1000;
+}
+
+/**
+ * Interpret a wall-clock date + time ("2026-01-15", "18:00") in an IANA
+ * timezone and return the UTC instant. Servers run UTC (Vercel), so a naive
+ * `new Date("YYYY-MM-DDTHH:mm")` stores the guest's "6:00 PM" as 18:00 UTC —
+ * this is the dependency-free fix: build the UTC guess, read the zone's
+ * offset at that instant, adjust, and re-check once for DST edges.
+ * Malformed input → Invalid Date (caller checks `Number.isNaN(d.getTime())`).
+ */
+export function zonedDateTime(dateStr: string, timeStr: string, timeZone: string): Date {
+  const dm = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const tm = timeStr.match(/^(\d{2}):(\d{2})$/);
+  if (!dm || !tm) return new Date(NaN);
+  const utcGuess = Date.UTC(
+    Number(dm[1]),
+    Number(dm[2]) - 1,
+    Number(dm[3]),
+    Number(tm[1]),
+    Number(tm[2]),
+  );
+  const offset = tzOffsetMs(new Date(utcGuess), timeZone);
+  const adjusted = utcGuess - offset;
+  // Offset may differ across a DST transition — trust the adjusted instant's.
+  const offsetAfter = tzOffsetMs(new Date(adjusted), timeZone);
+  return new Date(offsetAfter === offset ? adjusted : utcGuess - offsetAfter);
+}
+
+/** "18:00" in the given tz — value for <input type="time">. */
+export function timeValue(d: Date, tz = DEFAULT_TZ): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: tz,
+  }).format(d);
+}
+
+/** "MST" / "MDT" — short zone label so ops times read unambiguously. */
+export function tzAbbr(d: Date, tz = DEFAULT_TZ): string {
+  return (
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "short" })
+      .formatToParts(d)
+      .find((p) => p.type === "timeZoneName")?.value ?? tz
+  );
+}

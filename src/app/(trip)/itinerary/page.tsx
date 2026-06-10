@@ -62,6 +62,9 @@ export default async function ItineraryPage() {
                       {it.allDay ? "All day" : formatTime(it.startsAt, tz)}
                     </span>
                     {isNext && <span className={styles.nextTag}>Next</span>}
+                    {it.changePending && (
+                      <span className={styles.changeChip}>Being rearranged</span>
+                    )}
                   </div>
                   <h2 className={styles.itemTitle}>{it.title}</h2>
                   {it.description && <p className={styles.itemDesc}>{it.description}</p>}

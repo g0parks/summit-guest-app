@@ -10,6 +10,7 @@ import {
   isFixedPrice,
 } from "@/lib/catalog";
 import { serviceFormConfig, type RequestDetail } from "@/lib/serviceForm";
+import { zonedDateTime } from "@/lib/dates";
 
 export type RequestResult =
   | { ok: true; status: "CONFIRMED" | "REQUESTED"; serviceName: string; chargedCents: number | null }
@@ -49,9 +50,10 @@ export async function createServiceRequest(
     return { ok: false, error: "Please choose a date." };
   }
 
+  // Wall-clock in the property's tz — NOT the server's (Vercel runs UTC).
   let requestedFor: Date | null = null;
   if (dateStr) {
-    const d = new Date(`${dateStr}T${timeStr || "12:00"}`);
+    const d = zonedDateTime(dateStr, timeStr || "12:00", stay.property.timezone);
     if (!Number.isNaN(d.getTime())) requestedFor = d;
   }
 
