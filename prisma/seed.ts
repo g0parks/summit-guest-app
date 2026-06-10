@@ -229,7 +229,7 @@ async function main() {
           "A private sauna hour for your group — cedar heat and cold plunge, any evening of your stay.",
         longDesc:
           "An hour of private sauna for your whole group at Avanto — cedar heat, cold plunge, towels and cold rinse included — any evening during your stay. Claim it and we'll hold the slot until you pick a night.",
-        costCents: 6000, // internal qualified-CAC
+        costCents: null, // internal qualified-CAC — unknown until vendor terms are set
         partnerId: null, // available across all partners
         sortOrder: 10,
       },
@@ -241,7 +241,7 @@ async function main() {
           "A full day at Park City's club in Prospector — lap pools, hot tubs, weight room, classes, steam, and sauna.",
         longDesc:
           "A day to yourselves at Silver Mountain Sports Club & Spa, minutes away in Prospector: heated lap pools, indoor and outdoor hot tubs, a 5,000-square-foot weight room, yoga, Pilates, and spin classes, steam rooms and a dry sauna — and a waterslide and lazy river if the kids are along. Your passes are with our compliments; claim them and we'll have the front desk expecting you.",
-        costCents: 2500, // internal qualified-CAC
+        costCents: null, // internal qualified-CAC — unknown until vendor terms are set
         partnerId: null,
         sortOrder: 20,
       },
@@ -253,7 +253,7 @@ async function main() {
           "One session at Park City's performance-recovery lab — whole-body cryotherapy, red light, or compression, your pick.",
         longDesc:
           "Upgrade Labs in Kimball Junction puts professional-grade recovery in one room: three-minute whole-body cryotherapy, the REDcharger red-light bed, PEMF, and lymphatic compression — the fastest way we know to undo a ski day. Your first session is with our compliments; claim it, tell us which one sounds right, and we'll set the appointment.",
-        costCents: 4000, // internal qualified-CAC
+        costCents: null, // internal qualified-CAC — unknown until vendor terms are set
         partnerId: null,
         sortOrder: 30,
       },
