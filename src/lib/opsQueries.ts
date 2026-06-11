@@ -118,6 +118,17 @@ export async function getRecentActivity(limit = 20): Promise<ActivityEntry[]> {
     .slice(0, limit);
 }
 
+/** Recent /plan trip intakes — World-B leads, newest first. */
+export async function getRecentIntakes(limit = 25) {
+  return prisma.tripIntake.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      stay: { include: { guest: true, property: true } },
+    },
+  });
+}
+
 /** Everything the per-stay detail page renders, in one query. */
 export async function getOpsStayDetail(stayId: string) {
   return prisma.stay.findUnique({

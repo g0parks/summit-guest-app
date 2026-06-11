@@ -48,6 +48,19 @@ export type OperatorEvent =
       email?: string | null;
       phone?: string | null;
       optIn: boolean;
+    })
+  | (DemoContext & {
+      type: "trip_intake";
+      intakeId: string;
+      name: string | null;
+      email: string | null;
+      phone: string | null;
+      tripTiming: string | null;
+      interests: string[]; // resolved short labels
+      declined: string[];
+      note: string | null;
+      source: string | null;
+      stayId: string | null; // known-guest session, when present
     });
 
 // onboarding@resend.dev works out of the box but only delivers to the Resend
@@ -110,6 +123,40 @@ async function buildEmail(
         ``,
         `Stay: ${base}/ops/stays/${event.stayId}`,
       ].join("\n"),
+    };
+  }
+
+  if (event.type === "trip_intake") {
+    // First-party behavioral signal only: multiple interests or an open note
+    // = a lead worth jumping on. Make that legible in the subject.
+    const priority = event.interests.length >= 2 || Boolean(event.note);
+    const who = event.name || "Someone";
+    const hasContact = Boolean(event.email || event.phone);
+    const bits = [
+      `${event.interests.length} interest${event.interests.length === 1 ? "" : "s"}`,
+      event.note ? "note" : null,
+      hasContact ? null : "no contact left",
+    ].filter(Boolean);
+
+    return {
+      subject: `${tag} ${priority ? "★ PRIORITY trip intake" : "Trip intake"} — ${who} (${bits.join(" · ")})`,
+      text: [
+        `Name:      ${event.name ?? "—"}`,
+        `Email:     ${event.email ?? "—"}`,
+        `Phone:     ${event.phone ?? "—"}`,
+        `Timing:    ${event.tripTiming ?? "—"}`,
+        `Interested: ${event.interests.length ? event.interests.join(", ") : "—"}`,
+        `Passed on: ${event.declined.length ? event.declined.join(", ") : "—"}`,
+        event.note ? `` : null,
+        event.note ? `Note: ${event.note}` : null,
+        event.source ? `Source: ${event.source}` : null,
+        ``,
+        hasContact
+          ? `ACTION: send their trip plan — they're expecting to hear from you.`
+          : `No contact left — logged for the record; nothing to send.`,
+        ``,
+        event.stayId ? `Stay: ${base}/ops/stays/${event.stayId}` : `Ops: ${base}/ops`,
+      ].filter((l): l is string => l !== null).join("\n"),
     };
   }
 

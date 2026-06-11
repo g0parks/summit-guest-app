@@ -1,0 +1,308 @@
+/* The guided trip-intake — calm, serif-led, phone-tap-from-a-text.
+   One screen at a time; inactive screens stay mounted but hidden so the
+   single form submission carries every field. */
+
+.page {
+  position: relative;
+  z-index: 1;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+}
+
+.form {
+  width: 100%;
+  max-width: var(--page-max);
+  display: flex;
+}
+
+.screen {
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 22px var(--space-page) 36px;
+}
+
+.hidden {
+  display: none;
+}
+
+/* re-runs the gentle rise each time a screen becomes active */
+.active {
+  animation: rise 0.55s var(--ease) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .active {
+    animation: none;
+  }
+}
+
+.wordmark {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: var(--ink-muted);
+}
+
+/* ── top row: back + progress dots ───────────────────────── */
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-left: -9px;
+  border: none;
+  background: none;
+  color: var(--ink-muted);
+  border-radius: var(--radius-pill);
+}
+
+.backBtn:active {
+  background: var(--surface-sunk);
+}
+
+.dots {
+  display: inline-flex;
+  gap: 7px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hairline);
+  transition: background 0.3s var(--ease);
+}
+
+.dotOn {
+  background: var(--accent);
+}
+
+/* ── body: the host asking ────────────────────────────────── */
+.screenBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  padding: 36px 0;
+}
+
+.headline {
+  font-size: 34px;
+  line-height: 1.12;
+  font-weight: 400;
+}
+
+.question {
+  font-size: 29px;
+  line-height: 1.16;
+  font-weight: 400;
+}
+
+.detail {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+  max-width: 34ch;
+}
+
+/* ── actions ──────────────────────────────────────────────── */
+.screenActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.primaryBtn {
+  width: 100%;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: none;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.22s var(--ease), transform 0.22s var(--ease);
+}
+
+.primaryBtn:active {
+  background: var(--accent-pressed);
+  transform: scale(0.985);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.6;
+}
+
+/* answer cards — yes presupposes, pass is guilt-free and equally real */
+.answerBtn {
+  width: 100%;
+  min-height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 14px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.18s var(--ease), border-color 0.18s var(--ease),
+    background 0.18s var(--ease);
+}
+
+.answerBtn:active {
+  transform: scale(0.985);
+}
+
+.answerYes {
+  background: var(--accent-tint);
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--hairline));
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.answerChosen {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow-sm);
+}
+
+.skipBtn {
+  border: none;
+  background: none;
+  padding: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  transition: color 0.2s var(--ease);
+}
+
+.skipBtn:active,
+.skipBtn:hover {
+  color: var(--ink-muted);
+}
+
+/* ── capstone + contact fields ────────────────────────────── */
+.noteInput {
+  margin-top: 10px;
+  width: 100%;
+  font: inherit;
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  resize: vertical;
+}
+
+.noteInput::placeholder {
+  color: var(--ink-faint);
+}
+
+.noteInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.fields {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+
+.input {
+  width: 100%;
+  height: 50px;
+  font: inherit;
+  font-size: 16px; /* ≥16px — no iOS zoom-on-focus */
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 0 16px;
+}
+
+.input::placeholder {
+  color: var(--ink-faint);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.error {
+  font-size: 13.5px;
+  color: #9c4221;
+}
+
+/* ── the close ────────────────────────────────────────────── */
+.doneBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+}
+
+.doneConcierge {
+  margin-top: 18px;
+}
+
+.quietLink {
+  margin-top: 18px;
+  align-self: flex-start;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  text-decoration: underline;
+  text-decoration-color: var(--hairline);
+  text-underline-offset: 3px;
+}

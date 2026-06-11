@@ -68,3 +68,8 @@ export function generalMessage(input: {
 export function invalidLinkMessage(): string {
   return "Hi — my trip link isn't working. ";
 }
+
+/** Close of the /plan intake — World-B lead, no stay context yet. */
+export function intakeFollowupMessage(): string {
+  return "Hi — I just finished planning my trip with you. ";
+}
