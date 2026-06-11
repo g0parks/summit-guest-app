@@ -239,8 +239,26 @@ export async function setPerkClaimStatus(formData: FormData): Promise<void> {
 
 const ITINERARY_CATEGORIES = Object.values(ItineraryCategory);
 
-/** Shared field parsing for create/update. Returns null on invalid input (silent no-op, matching the other void ops actions). */
-function parseItineraryFields(formData: FormData, timezone: string) {
+type ItineraryFields = {
+  title: string;
+  category: ItineraryCategory;
+  startsAt: Date;
+  endsAt: Date | null;
+  allDay: boolean;
+  location: string | null;
+  description: string | null;
+  sortOrder: number;
+};
+
+/**
+ * Shared field parsing for create/update. Returns a named error instead of
+ * silently no-oping — the forms surface it via useActionState (review
+ * finding: an Add that silently does nothing reads as "it saved").
+ */
+function parseItineraryFields(
+  formData: FormData,
+  timezone: string,
+): { ok: true; fields: ItineraryFields } | { ok: false; error: string } {
   const title = String(formData.get("title") ?? "").trim();
   const categoryRaw = String(formData.get("category") ?? "") as ItineraryCategory;
   const category = ITINERARY_CATEGORIES.includes(categoryRaw) ? categoryRaw : "NOTE";
@@ -252,23 +270,35 @@ function parseItineraryFields(formData: FormData, timezone: string) {
   const sortRaw = Number.parseInt(String(formData.get("sortOrder") ?? ""), 10);
   const sortOrder = Number.isFinite(sortRaw) ? sortRaw : 0;
 
-  if (!title || !dateStr) return null;
+  if (!title) return { ok: false, error: "Title is required." };
+  if (!dateStr) return { ok: false, error: "Date is required." };
 
   // No time → all-day, anchored at noon property-local (existing pattern).
   const allDay = !timeStr;
   const startsAt = zonedDateTime(dateStr, timeStr || "12:00", timezone);
-  if (Number.isNaN(startsAt.getTime())) return null;
+  if (Number.isNaN(startsAt.getTime())) {
+    return { ok: false, error: "Couldn't read that date/time — use the date and time pickers." };
+  }
 
   let endsAt: Date | null = null;
   if (!allDay && endTimeStr) {
     const e = zonedDateTime(dateStr, endTimeStr, timezone);
-    if (!Number.isNaN(e.getTime())) endsAt = e;
+    if (Number.isNaN(e.getTime())) {
+      return { ok: false, error: "Couldn't read the end time." };
+    }
+    endsAt = e;
   }
 
-  return { title, category, startsAt, endsAt, allDay, location, description, sortOrder };
+  return {
+    ok: true,
+    fields: { title, category, startsAt, endsAt, allDay, location, description, sortOrder },
+  };
 }
 
-export async function createItineraryItem(formData: FormData): Promise<void> {
+export async function createItineraryItem(
+  _prev: OpsResult | null,
+  formData: FormData,
+): Promise<OpsResult> {
   await requireOperator();
 
   const stayId = String(formData.get("stayId") ?? "");
@@ -276,17 +306,21 @@ export async function createItineraryItem(formData: FormData): Promise<void> {
     where: { id: stayId },
     include: { property: true },
   });
-  if (!stay) return;
+  if (!stay) return { ok: false, error: "Stay not found." };
 
-  const fields = parseItineraryFields(formData, stay.property.timezone);
-  if (!fields) return;
+  const parsed = parseItineraryFields(formData, stay.property.timezone);
+  if (!parsed.ok) return parsed;
 
-  await prisma.itineraryItem.create({ data: { stayId: stay.id, ...fields } });
+  await prisma.itineraryItem.create({ data: { stayId: stay.id, ...parsed.fields } });
 
   revalidateSurfaces(stay.id);
+  return { ok: true };
 }
 
-export async function updateItineraryItem(formData: FormData): Promise<void> {
+export async function updateItineraryItem(
+  _prev: OpsResult | null,
+  formData: FormData,
+): Promise<OpsResult> {
   await requireOperator();
 
   const itemId = String(formData.get("itemId") ?? "");
@@ -294,18 +328,38 @@ export async function updateItineraryItem(formData: FormData): Promise<void> {
     where: { id: itemId },
     include: { stay: { include: { property: true } } },
   });
-  if (!item) return;
+  if (!item) return { ok: false, error: "Item not found." };
 
-  const fields = parseItineraryFields(formData, item.stay.property.timezone);
-  if (!fields) return;
+  const parsed = parseItineraryFields(formData, item.stay.property.timezone);
+  if (!parsed.ok) return parsed;
 
   // Checkbox semantics: absent = false, so unticking clears the guest chip.
   const changePending = formData.get("changePending") === "on";
 
   await prisma.itineraryItem.update({
     where: { id: item.id },
-    data: { ...fields, changePending },
+    data: { ...parsed.fields, changePending },
   });
+
+  revalidateSurfaces(item.stayId);
+  return { ok: true };
+}
+
+/**
+ * Flip ONLY changePending. A dedicated narrow action so the one-click toggle
+ * can't clobber a concurrent edit with stale mirrored state (review finding —
+ * the toggle previously re-posted the whole item from page-load values).
+ */
+export async function setItineraryChangePending(formData: FormData): Promise<void> {
+  await requireOperator();
+
+  const itemId = String(formData.get("itemId") ?? "");
+  const changePending = formData.get("changePending") === "on";
+
+  const item = await prisma.itineraryItem.findUnique({ where: { id: itemId } });
+  if (!item) return;
+
+  await prisma.itineraryItem.update({ where: { id: item.id }, data: { changePending } });
 
   revalidateSurfaces(item.stayId);
 }

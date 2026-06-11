@@ -1,4 +1,8 @@
+"use client";
+
+import { useActionState } from "react";
 import { ItineraryCategory } from "@prisma/client";
+import type { OpsResult } from "@/app/actions/ops";
 import styles from "@/app/ops/ops.module.css";
 
 type Defaults = {
@@ -14,9 +18,11 @@ type Defaults = {
 };
 
 /**
- * Shared create/edit fields for an itinerary item — server component, plain
- * form posting to the given ops action. All date/time inputs are wall-clock
- * in the PROPERTY's timezone (labelled), parsed server-side via zonedDateTime.
+ * Shared create/edit fields for an itinerary item. Client component so
+ * validation errors from the action surface inline (useActionState — the
+ * QuoteForm pattern) instead of a silent no-op. All date/time inputs are
+ * wall-clock in the PROPERTY's timezone (labelled), parsed server-side via
+ * zonedDateTime.
  */
 export default function ItineraryItemForm({
   action,
@@ -26,15 +32,20 @@ export default function ItineraryItemForm({
   withChangePending = false,
   submitLabel,
 }: {
-  action: (formData: FormData) => Promise<void>;
+  action: (prev: OpsResult | null, formData: FormData) => Promise<OpsResult>;
   hidden: Record<string, string>;
   defaults?: Defaults;
   tzLabel: string;
   withChangePending?: boolean;
   submitLabel: string;
 }) {
+  const [state, formAction, pending] = useActionState<OpsResult | null, FormData>(
+    action,
+    null,
+  );
+
   return (
-    <form action={action} className={styles.stackForm}>
+    <form action={formAction} className={styles.stackForm}>
       {Object.entries(hidden).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}
@@ -135,9 +146,11 @@ export default function ItineraryItemForm({
         </label>
       )}
 
+      {state && !state.ok && <p className={styles.error}>{state.error}</p>}
+
       <div className={styles.actionsRow}>
-        <button type="submit" className={styles.btn}>
-          {submitLabel}
+        <button type="submit" disabled={pending} className={styles.btn}>
+          {pending ? "Saving…" : submitLabel}
         </button>
       </div>
     </form>
