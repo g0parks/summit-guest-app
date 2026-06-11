@@ -11,9 +11,30 @@ import "server-only";
  * unset → surfaces absent entirely. Nothing may look broken without them.
  */
 
+/**
+ * Normalize CONCIERGE_PHONE to strict E.164 ("+14355550100"). Tolerates
+ * human formatting — "+1 (435) 555-0100" works pasted as-is. Anything that
+ * doesn't resolve to +<8–15 digits> (e.g. missing the +country prefix) is
+ * rejected LOUDLY in the server log and treated as unset, because a malformed
+ * value would otherwise ship dead sms:/tel: links on every surface with no
+ * error anywhere.
+ */
+function normalizePhone(raw: string | undefined): string | null {
+  const trimmed = raw?.trim();
+  if (!trimmed) return null;
+  const cleaned = (trimmed.startsWith("+") ? "+" : "") + trimmed.replace(/\D/g, "");
+  if (/^\+\d{8,15}$/.test(cleaned)) return cleaned;
+  console.error(
+    `[concierge] CONCIERGE_PHONE ${JSON.stringify(trimmed)} is not E.164 ` +
+      `(expected like "+14355550100", country code included) — ` +
+      `text/call CTAs are disabled until it's fixed.`,
+  );
+  return null;
+}
+
 export function getConciergeContact(): { phone: string | null; email: string | null } {
   return {
-    phone: process.env.CONCIERGE_PHONE?.trim() || null,
+    phone: normalizePhone(process.env.CONCIERGE_PHONE),
     email: process.env.CONCIERGE_EMAIL?.trim() || null,
   };
 }

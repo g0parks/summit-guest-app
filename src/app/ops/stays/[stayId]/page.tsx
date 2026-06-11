@@ -4,6 +4,7 @@ import { getOpsStayDetail } from "@/lib/opsQueries";
 import {
   addManualTabLine,
   createItineraryItem,
+  setItineraryChangePending,
   setLineEconomics,
   setPerkClaimStatus,
   setRequestStatus,
@@ -422,26 +423,10 @@ export default async function OpsStayPage({
               )}
 
               <div className={styles.actionsRow}>
-                {/* One-click changePending flip — posts the full current state
-                    (wall-clock, property tz) through updateItineraryItem. */}
-                <form action={updateItineraryItem}>
+                {/* One-click changePending flip — narrow action, touches ONLY
+                    the flag so it can't clobber a concurrent edit. */}
+                <form action={setItineraryChangePending}>
                   <input type="hidden" name="itemId" value={it.id} />
-                  <input type="hidden" name="title" value={it.title} />
-                  <input type="hidden" name="category" value={it.category} />
-                  <input type="hidden" name="date" value={dayKey(it.startsAt, tz)} />
-                  <input
-                    type="hidden"
-                    name="time"
-                    value={it.allDay ? "" : timeValue(it.startsAt, tz)}
-                  />
-                  <input
-                    type="hidden"
-                    name="endsAtTime"
-                    value={it.endsAt ? timeValue(it.endsAt, tz) : ""}
-                  />
-                  <input type="hidden" name="location" value={it.location ?? ""} />
-                  <input type="hidden" name="description" value={it.description ?? ""} />
-                  <input type="hidden" name="sortOrder" value={String(it.sortOrder)} />
                   {!it.changePending && (
                     <input type="hidden" name="changePending" value="on" />
                   )}

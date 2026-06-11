@@ -104,7 +104,9 @@ function tzOffsetMs(at: Date, timeZone: string): number {
  */
 export function zonedDateTime(dateStr: string, timeStr: string, timeZone: string): Date {
   const dm = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  const tm = timeStr.match(/^(\d{2}):(\d{2})$/);
+  // Time inputs legally submit "HH:mm:ss" when seconds are nonzero — accept
+  // and ignore the seconds rather than silently dropping the whole timestamp.
+  const tm = timeStr.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
   if (!dm || !tm) return new Date(NaN);
   const utcGuess = Date.UTC(
     Number(dm[1]),
