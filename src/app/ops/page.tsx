@@ -1,17 +1,25 @@
 import Link from "next/link";
-import { getNeedsAction, getOpsStays, getRecentActivity } from "@/lib/opsQueries";
+import {
+  getNeedsAction,
+  getOpsStays,
+  getRecentActivity,
+  getRecentIntakes,
+} from "@/lib/opsQueries";
 import { formatMoney } from "@/lib/money";
 import { formatDateRange, formatDayLabel, formatTime } from "@/lib/dates";
+import { interestedLabels, parseIntakeAnswers } from "@/lib/intakeFlow";
 import styles from "./ops.module.css";
 
 export const dynamic = "force-dynamic";
 
 export default async function OpsOverviewPage() {
-  const [{ needsQuote, upcoming, perkClaims }, stays, activity] = await Promise.all([
-    getNeedsAction(),
-    getOpsStays(),
-    getRecentActivity(),
-  ]);
+  const [{ needsQuote, upcoming, perkClaims }, stays, activity, intakes] =
+    await Promise.all([
+      getNeedsAction(),
+      getOpsStays(),
+      getRecentActivity(),
+      getRecentIntakes(),
+    ]);
 
   return (
     <main>
@@ -183,6 +191,78 @@ export default async function OpsOverviewPage() {
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Trip intakes — /plan leads</h2>
+        {intakes.length === 0 ? (
+          <p className={styles.empty}>No intakes yet.</p>
+        ) : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Who</th>
+                <th>Contact</th>
+                <th>Trip timing</th>
+                <th>Interested in</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {intakes.map((it) => {
+                const answers = parseIntakeAnswers(it.answersJson);
+                const interests = interestedLabels(answers);
+                const priority = interests.length >= 2 || Boolean(it.note);
+                return (
+                  <tr key={it.id}>
+                    <td className={styles.small} style={{ whiteSpace: "nowrap" }}>
+                      {formatDayLabel(it.createdAt)} · {formatTime(it.createdAt)}
+                      {priority && (
+                        <>
+                          {" "}
+                          <span className={`${styles.badge} ${styles.badgeAction}`}>
+                            PRIORITY
+                          </span>
+                        </>
+                      )}
+                    </td>
+                    <td>
+                      {it.name ?? <span className={styles.muted}>anonymous</span>}
+                      {it.stay && (
+                        <span className={styles.muted}>
+                          {" "}
+                          · {it.stay.guest.firstName} @ {it.stay.property.name}
+                          {it.stay.isDemo ? " (DEMO)" : ""}
+                        </span>
+                      )}
+                    </td>
+                    <td className={styles.small}>
+                      {[it.email, it.phone].filter(Boolean).join(" · ") || (
+                        <span className={styles.muted}>none left</span>
+                      )}
+                    </td>
+                    <td className={styles.small}>{it.tripTiming ?? "—"}</td>
+                    <td className={styles.small}>
+                      {interests.length > 0
+                        ? interests.map((label) => (
+                            <span
+                              key={label}
+                              className={`${styles.badge} ${styles.badgeOk}`}
+                              style={{ marginRight: 4 }}
+                            >
+                              {label}
+                            </span>
+                          ))
+                        : "—"}
+                    </td>
+                    <td className={styles.small}>{it.note ?? "—"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

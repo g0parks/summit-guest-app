@@ -145,15 +145,16 @@ model Property {
 }
 
 model Guest {
-  id        String   @id @default(cuid())
-  firstName String
-  lastName  String?
-  email     String? // optional re-entry binding
-  phone     String?
-  notes     String? // VIP prefs
-  stays     Stay[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String       @id @default(cuid())
+  firstName   String
+  lastName    String?
+  email       String? // optional re-entry binding
+  phone       String?
+  notes       String? // VIP prefs
+  stays       Stay[]
+  tripIntakes TripIntake[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 /// The trip; what a token unlocks.
@@ -175,6 +176,7 @@ model Stay {
   tabLineItems    TabLineItem[]
   paymentMethods  PaymentMethod[]
   perkClaims      PerkClaim[]
+  tripIntakes     TripIntake[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -272,6 +274,27 @@ model PaymentMethod {
   externalRef  String? // future Stripe PaymentMethod/Customer id
   tabLineItems TabLineItem[]
   createdAt    DateTime            @default(now())
+}
+
+/// World-B pre-arrival lead: the guided trip-intake at /plan. This IS the
+/// lead record — interest signals, the open note, contact, attribution.
+/// Nullable guest/stay links keep the convert-to-Guest/Stay path open
+/// (World A). One row per completed flow; no partial rows.
+model TripIntake {
+  id          String   @id @default(cuid())
+  name        String?
+  email       String?
+  phone       String?
+  tripTiming  String? // loose free text: "mid-February, presidents' week"
+  answersJson Json // [{ key, question, answer: "interested"|"declined", serviceSlug }]
+  note        String? // typed capstone — the high-signal open capture
+  utmJson     Json? // attribution only, never access (AccessToken.utmJson precedent)
+  source      String? // ?src= on the inbound link (sms | email | …)
+  stayId      String? // set when a known-guest session existed at intake time
+  stay        Stay?    @relation(fields: [stayId], references: [id])
+  guestId     String? // future World-A conversion
+  guest       Guest?   @relation(fields: [guestId], references: [id])
+  createdAt   DateTime @default(now())
 }
 
 model ItineraryItem {
