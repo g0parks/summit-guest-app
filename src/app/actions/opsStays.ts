@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireOperator } from "@/lib/opsSession";
 import {
@@ -194,9 +193,12 @@ export async function submitStayForm(
     emailLine = "Welcome email not sent (toggle off).";
   }
 
-  revalidatePath("/ops");
-  revalidatePath(`/ops/stays/${stay.id}`);
-  if (intakeId) revalidatePath(`/ops/intakes/${intakeId}`);
+  // Deliberately NO revalidatePath here: ANY revalidation re-renders the
+  // current page in the action response, and on the convert page that flips
+  // it into its CONVERTED branch — unmounting the form and dropping the fresh
+  // panel (with the one-time email status line). Every surface this touches
+  // is force-dynamic and Next 15 defaults staleTimes.dynamic to 0, so the
+  // next navigation renders fresh state anyway.
 
   return {
     ok: true,
