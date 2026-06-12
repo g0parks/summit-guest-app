@@ -117,6 +117,47 @@ export async function createStayWithToken(
   return { stay, guest, property, tokenId };
 }
 
+/**
+ * Enroll a set of interested service slugs as SIGNALED requests on a stay —
+ * the demand-broker spine's intake door (Product Doctrine 2026-06-12).
+ * World A calls this at /plan submission; World B at intake conversion.
+ * Dedupes against the stay's open requests so re-planning never stacks
+ * duplicates. Accepts a transaction client or the root client.
+ */
+export async function enrollIntakeSignals(
+  tx: Prisma.TransactionClient,
+  stay: { id: string; partySize: number | null },
+  interestedServiceSlugs: string[],
+): Promise<number> {
+  if (interestedServiceSlugs.length === 0) return 0;
+
+  const services = await tx.service.findMany({
+    where: { slug: { in: interestedServiceSlugs }, isActive: true },
+    select: { id: true },
+  });
+  if (services.length === 0) return 0;
+
+  const open = await tx.serviceRequest.findMany({
+    where: { stayId: stay.id, status: { in: ["SIGNALED", "READY", "QUOTED"] } },
+    select: { serviceId: true },
+  });
+  const openIds = new Set(open.map((o) => o.serviceId));
+
+  const toCreate = services.filter((s) => !openIds.has(s.id));
+  if (toCreate.length === 0) return 0;
+
+  await tx.serviceRequest.createMany({
+    data: toCreate.map((s) => ({
+      stayId: stay.id,
+      serviceId: s.id,
+      status: "SIGNALED" as const,
+      source: "intake",
+      partySize: stay.partySize ?? undefined,
+    })),
+  });
+  return toCreate.length;
+}
+
 /** Warm one-liner the operator can text the guest — the link does the rest. */
 export function guestLinkShareMessage(input: {
   guestFirstName: string;

@@ -63,7 +63,7 @@ export async function quoteRequest(
     include: { service: true, stay: true },
   });
   if (!request) return { ok: false, error: "Request not found." };
-  if (request.status !== "REQUESTED") {
+  if (request.status !== "READY") {
     return { ok: false, error: "Only un-quoted requests can be quoted." };
   }
 
@@ -105,9 +105,13 @@ export async function quoteRequest(
   return { ok: true };
 }
 
-/** Operator-driven lifecycle moves, simple allowlist — no resurrection paths. */
+/** Operator-driven lifecycle moves, simple allowlist — no resurrection paths.
+ *  EXPIRED is sweep-only (never operator-set); guest moves (complete, approve)
+ *  live in the guest actions, not here. */
 const TRANSITIONS: Partial<Record<RequestStatus, RequestStatus[]>> = {
-  REQUESTED: ["DECLINED", "CANCELLED"],
+  SIGNALED: ["DECLINED", "CANCELLED"],
+  READY: ["DECLINED", "CANCELLED"],
+  QUOTED: ["DECLINED", "CANCELLED"],
   CONFIRMED: ["SCHEDULED", "COMPLETED", "CANCELLED"],
   SCHEDULED: ["COMPLETED", "CANCELLED"],
 };

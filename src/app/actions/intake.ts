@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActiveStay } from "@/lib/session";
 import { notifyOperator } from "@/lib/notify";
 import { getStayPhase } from "@/lib/stayPhase";
+import { enrollIntakeSignals } from "@/lib/opsStay";
 import {
   INTAKE_QUESTIONS,
   interestedLabels,
@@ -96,6 +97,18 @@ export async function submitTripIntake(
       guestId: active?.stay.guestId ?? null,
     },
   });
+
+  // World A: interested answers enroll straight into the request lifecycle
+  // as SIGNALED rows — the home checklist becomes the resumption surface.
+  // World B has no stay yet; its signals enroll at conversion (opsStays.ts).
+  // No revalidatePath (the submitStayForm precedent): IntakeFlow's close
+  // screen must stay mounted, and every trip surface is force-dynamic.
+  if (active && !postStay) {
+    const interestedServiceSlugs = answers
+      .filter((a) => a.answer === "interested")
+      .map((a) => a.serviceSlug);
+    await enrollIntakeSignals(prisma, active.stay, interestedServiceSlugs);
+  }
 
   const interests = interestedLabels(answers);
   const declined = answers

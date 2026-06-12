@@ -1,6 +1,10 @@
 import "server-only";
+import type { Season } from "@prisma/client";
 import { prisma } from "./db";
 import { interestedSlugs, parseIntakeAnswers } from "./intakeFlow";
+
+/** Request statuses the guest still has a move on (wizard / approval). */
+export const OPEN_REQUEST_STATUSES = ["SIGNALED", "READY", "QUOTED"] as const;
 
 /** Perks visible to a stay: active, global or scoped to its property's partner. */
 function perkVisibilityWhere(partnerId: string | null) {
@@ -75,11 +79,40 @@ export async function getStayIntakeSignals(
   return { interestedSlugs: slugs, note: intake.note };
 }
 
-/** Active catalog services, in display order. */
-export async function getActiveServices() {
+/**
+ * Active catalog services for a stay, in display order. The stay's season
+ * picks the menu (Product Doctrine): off-season dishes are hidden entirely,
+ * never greyed out. No season → the full menu (ops/utility contexts).
+ */
+export async function getActiveServices(season?: Season) {
   return prisma.service.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      ...(season ? { season: { in: [season, "ALL_YEAR"] } } : {}),
+    },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
+}
+
+/** One request for the guided wizard — must belong to the stay. */
+export async function getRequestForWizard(stayId: string, requestId: string) {
+  const request = await prisma.serviceRequest.findUnique({
+    where: { id: requestId },
+    include: { service: true },
+  });
+  if (!request || request.stayId !== stayId) return null;
+  return request;
+}
+
+/**
+ * The stay's open requests — the pre-arrival checklist / resumption surface.
+ * SIGNALED resumes the wizard; READY/QUOTED show "being arranged" states.
+ */
+export async function getOpenRequests(stayId: string) {
+  return prisma.serviceRequest.findMany({
+    where: { stayId, status: { in: [...OPEN_REQUEST_STATUSES] } },
+    include: { service: true },
+    orderBy: { createdAt: "asc" },
   });
 }
 

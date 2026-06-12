@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { requireStay } from "@/lib/session";
-import { getActiveServices, getStayIntakeSignals } from "@/lib/queries";
+import { getActiveServices, getOpenRequests } from "@/lib/queries";
 import { formatPriceLabel } from "@/lib/money";
 import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/catalog";
-import { getStayPhase } from "@/lib/stayPhase";
+import { getStayPhase, staySeason } from "@/lib/stayPhase";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -35,17 +35,18 @@ function ServiceCard({ service, currency }: { service: Service; currency: string
 export default async function ServicesPage() {
   const { stay } = await requireStay();
   const postStay = getStayPhase(stay, stay.property.timezone) === "POST_STAY";
-  const [services, signals] = await Promise.all([
-    getActiveServices(),
-    postStay ? null : getStayIntakeSignals(stay.id),
+  // The stay's season picks the menu — off-season dishes hidden, not greyed.
+  const [services, openRequests] = await Promise.all([
+    getActiveServices(staySeason(stay, stay.property.timezone)),
+    postStay ? [] : getOpenRequests(stay.id),
   ]);
 
-  // Intake interests that map to live services — a suggestion, not an upsell.
-  // These ALSO remain in their normal category sections below. Post-stay the
-  // catalog is a brochure, so the suggestion section quietly retires.
-  const planned = signals
-    ? services.filter((s) => signals.interestedSlugs.includes(s.slug))
-    : [];
+  // Services already in motion (a signal exists) — a suggestion section, not
+  // an upsell; they ALSO remain in their category sections below. The detail
+  // page resumes the open request. Post-stay the catalog is a brochure, so
+  // the section quietly retires.
+  const openServiceIds = new Set(openRequests.map((r) => r.serviceId));
+  const planned = services.filter((s) => openServiceIds.has(s.id));
 
   const byCategory = CATEGORY_ORDER.map((cat) => ({
     cat,
@@ -65,9 +66,9 @@ export default async function ServicesPage() {
 
       {planned.length > 0 && (
         <section className={`${styles.section} reveal reveal-2`}>
-          <h2 className={styles.sectionLabel}>From planning your trip</h2>
+          <h2 className={styles.sectionLabel}>Already in motion</h2>
           <p className={styles.sectionNote}>
-            You mentioned these — say the word and they&rsquo;re arranged.
+            You started these — a few details and they&rsquo;re done.
           </p>
           <ul className={styles.list}>
             {planned.map((service) => (

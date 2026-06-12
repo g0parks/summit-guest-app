@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStay } from "@/lib/session";
-import { getServiceBySlug } from "@/lib/queries";
+import { getOpenRequests, getServiceBySlug } from "@/lib/queries";
 import { formatPriceLabel } from "@/lib/money";
 import { CATEGORY_LABEL } from "@/lib/catalog";
-import { serviceFormConfig } from "@/lib/serviceForm";
 import { generalMessage, getConciergeContact } from "@/lib/concierge";
 import { getStayPhase } from "@/lib/stayPhase";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
-import RequestForm from "@/components/services/RequestForm";
+import ArrangeButton from "@/components/services/ArrangeButton";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +24,12 @@ export default async function ServiceDetail({
 
   const concierge = getConciergeContact();
   const postStay = getStayPhase(stay, stay.property.timezone) === "POST_STAY";
+
+  // An open request for this service resumes instead of stacking a duplicate
+  // — the signal already exists; the wizard picks it back up.
+  const openRequest = postStay
+    ? null
+    : (await getOpenRequests(stay.id)).find((r) => r.serviceId === service.id) ?? null;
 
   const leadDays = Math.round(service.leadTimeHours / 24);
   const leadLabel =
@@ -86,21 +91,20 @@ export default async function ServiceDetail({
       ) : (
         <>
           <section className={`${styles.formWrap} reveal reveal-4`}>
-            <RequestForm
-              service={{
-                id: service.id,
-                name: service.name,
-                priceUnit: service.priceUnit,
-                priceAmount: service.priceAmount,
-                requiresDate: service.requiresDate,
-                requiresTime: service.requiresTime,
-                requiresPartySize: service.requiresPartySize,
-              }}
-              fields={serviceFormConfig(service.slug).fields}
-              notesPlaceholder={serviceFormConfig(service.slug).notesPlaceholder}
-              defaultPartySize={stay.partySize ?? 2}
-              currency={stay.currency}
-            />
+            {openRequest ? (
+              <div className={styles.resume}>
+                <p className={styles.resumeNote}>
+                  {openRequest.status === "SIGNALED"
+                    ? "You started arranging this — a few details and it's done."
+                    : "This one's with your concierge — being arranged."}
+                </p>
+                <Link href={`/requests/${openRequest.id}`} className={styles.resumeCta}>
+                  {openRequest.status === "SIGNALED" ? "Pick it back up" : "View it"}
+                </Link>
+              </div>
+            ) : (
+              <ArrangeButton serviceId={service.id} />
+            )}
           </section>
 
           {(concierge.phone || concierge.email) && (

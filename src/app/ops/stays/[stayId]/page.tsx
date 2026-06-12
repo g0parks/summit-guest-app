@@ -36,7 +36,9 @@ export const dynamic = "force-dynamic";
 
 /** Mirrors the action's transition allowlist — buttons we render per status. */
 const NEXT_MOVES: Partial<Record<RequestStatus, RequestStatus[]>> = {
-  REQUESTED: ["DECLINED", "CANCELLED"],
+  SIGNALED: ["DECLINED", "CANCELLED"],
+  READY: ["DECLINED", "CANCELLED"],
+  QUOTED: ["DECLINED", "CANCELLED"],
   CONFIRMED: ["SCHEDULED", "COMPLETED", "CANCELLED"],
   SCHEDULED: ["COMPLETED", "CANCELLED"],
 };
@@ -49,12 +51,15 @@ const MOVE_LABEL: Partial<Record<RequestStatus, string>> = {
 };
 
 const REQUEST_BADGE: Record<RequestStatus, string> = {
-  REQUESTED: styles.badgeAction!,
+  SIGNALED: styles.badgeNeutral!, // awaiting guest details — nudge, don't price
+  READY: styles.badgeAction!, // the operator's move: route / quote
+  QUOTED: styles.badgeAction!,
   CONFIRMED: styles.badgeOk!,
   SCHEDULED: styles.badgeNeutral!,
   COMPLETED: styles.badgeNeutral!,
   DECLINED: styles.badgeVoid!,
   CANCELLED: styles.badgeVoid!,
+  EXPIRED: styles.badgeVoid!,
 };
 
 const LINE_BADGE: Record<TabItemStatus, string> = {
@@ -240,7 +245,7 @@ export default async function OpsStayPage({
               )}
 
               <div className={styles.actionsRow}>
-                {r.status === "REQUESTED" && <QuoteForm requestId={r.id} />}
+                {r.status === "READY" && <QuoteForm requestId={r.id} />}
                 {(NEXT_MOVES[r.status] ?? []).map((next) => (
                   <form key={next} action={setRequestStatus}>
                     <input type="hidden" name="requestId" value={r.id} />

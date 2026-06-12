@@ -222,6 +222,54 @@
   font-weight: 500;
 }
 
+/* ── the pre-arrival checklist — open requests, one tap from done ── */
+.checklist {
+  margin-top: 14px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.checklist li + li {
+  border-top: 1px solid var(--hairline);
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 2px;
+  transition: opacity 0.2s var(--ease);
+}
+
+.checkRow:active {
+  opacity: 0.7;
+}
+
+.checkBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.checkName {
+  font-size: 15.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.checkState {
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.checkChevron {
+  flex: none;
+  color: var(--ink-faint);
+}
+
 /* post-stay brand-voice thank-you line */
 .thanks {
   margin-top: 16px;

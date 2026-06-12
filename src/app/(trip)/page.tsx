@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { requireStay, type ActiveStay } from "@/lib/session";
 import { resolveBrand, type Brand } from "@/lib/branding";
-import { getStayIntakeSignals, getTab, getTripHome } from "@/lib/queries";
+import { getOpenRequests, getTab, getTripHome } from "@/lib/queries";
 import { getConciergeContact, generalMessage } from "@/lib/concierge";
 import { getStayPhase, daysUntilArrival } from "@/lib/stayPhase";
-import { labelsForSlugs } from "@/lib/intakeFlow";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import NextTripForm from "@/components/trip/NextTripForm";
 import { formatDateRange, formatTime, relativeDayWord } from "@/lib/dates";
@@ -61,9 +60,9 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
   const { stay } = active;
   const { guest, property } = stay;
   const tz = property.timezone;
-  const [{ unclaimedPerk }, signals] = await Promise.all([
+  const [{ unclaimedPerk }, openRequests] = await Promise.all([
     getTripHome(stay.id, property.partnerId),
-    getStayIntakeSignals(stay.id),
+    getOpenRequests(stay.id),
   ]);
   const concierge = getConciergeContact();
 
@@ -74,8 +73,6 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
       : days === 1
         ? `Tomorrow — ${property.name}`
         : `${days} days until ${property.name}`;
-
-  const interestLabels = signals ? labelsForSlugs(signals.interestedSlugs) : [];
 
   return (
     <>
@@ -110,16 +107,35 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
         </Link>
       )}
 
+      {/* the resumption surface — every open signal, one tap from done */}
       <section className={`${styles.card} reveal reveal-3`}>
         <span className="eyebrow">Before you arrive</span>
-        {interestLabels.length > 0 ? (
-          <p className={styles.cardSolo}>
-            From planning your trip —{" "}
-            <Link href="/services" className={styles.interestLink}>
-              {interestLabels.slice(0, 3).join(", ")}
-            </Link>
-            . Say the word and they&rsquo;re arranged.
-          </p>
+        {openRequests.length > 0 ? (
+          <ul className={styles.checklist}>
+            {openRequests.map((req) => {
+              const label =
+                req.status === "SIGNALED"
+                  ? "A few details and it's done"
+                  : req.status === "QUOTED" && req.quotedAmount
+                    ? `Being arranged — ${formatMoney(req.quotedAmount, stay.currency)}`
+                    : "Being arranged";
+              return (
+                <li key={req.id}>
+                  <Link href={`/requests/${req.id}`} className={styles.checkRow}>
+                    <span className={styles.checkBody}>
+                      <span className={styles.checkName}>
+                        {req.service?.name ?? req.customTitle ?? "Your request"}
+                      </span>
+                      <span className={styles.checkState}>{label}</span>
+                    </span>
+                    <svg className={styles.checkChevron} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         ) : (
           <p className={styles.cardSolo}>
             A little planning now means a seamless arrival.

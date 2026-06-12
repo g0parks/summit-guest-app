@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getActiveStay } from "@/lib/session";
 import { notifyOperator } from "@/lib/notify";
@@ -9,40 +9,58 @@ import {
   confirmedRequestItineraryData,
   isFixedPrice,
 } from "@/lib/catalog";
-import { serviceFormConfig, type RequestDetail } from "@/lib/serviceForm";
+import {
+  clampParty,
+  isFlowComplete,
+  perPersonName,
+  serviceFlow,
+  type RequestDetail,
+} from "@/lib/serviceForm";
 import { zonedDateTime } from "@/lib/dates";
 import { getStayPhase } from "@/lib/stayPhase";
 
-export type RequestResult =
-  | { ok: true; status: "CONFIRMED" | "REQUESTED"; serviceName: string; chargedCents: number | null }
-  | { ok: false; error: string };
+/**
+ * The request lifecycle, guest side (Product Doctrine 2026-06-12):
+ *
+ *   createSignal        one tap — demand registered, nothing else asked
+ *   saveRequestDetails  the guided wizard saves; completeness decides what's next
+ *
+ * Two pricing paths — NEVER conflated: fixed-price completes straight to
+ * CONFIRMED (tab line + itinerary, no quote, no approval); QUOTE-priced
+ * parks at READY for the operator. The operator is emailed once, at the
+ * actionable transition — a tap alone is visible in /ops, not your inbox.
+ */
+
+/** Statuses where the guest can still edit details / resume the wizard. */
+const OPEN_FOR_EDITS = ["SIGNALED", "READY"] as const;
+
+function postStayError() {
+  return {
+    ok: false as const,
+    error:
+      "Your stay has wrapped — text your concierge and we'll take care of next time.",
+  };
+}
+
+export type SignalResult = { ok: false; error: string };
 
 /**
- * Guest requests a service.
- *  - Fixed-price → auto-confirm: drops a PENDING line on the tab (and, if dated,
- *    surfaces on the itinerary). The "watch it hit your tab" moment.
- *  - Quote-only → stays REQUESTED; the concierge prices it (out of scope here).
- * Either way the operator is notified.
+ * One tap on "Arrange this" — creates a SIGNALED request and lands the guest
+ * in the guided wizard. If an open request for this service already exists,
+ * resume it instead of stacking a duplicate.
  */
-export async function createServiceRequest(
-  _prev: RequestResult | null,
+export async function createSignal(
+  _prev: SignalResult | null,
   formData: FormData,
-): Promise<RequestResult> {
+): Promise<SignalResult> {
   const active = await getActiveStay();
   if (!active) {
     return { ok: false, error: "Your session has expired — please reopen your link." };
   }
   const { stay } = active;
 
-  // Warm close-down: no new requests on a departed stay (server is the
-  // source of truth; the UI mirrors). PRE_ARRIVAL stays allowed — that's
-  // the plan-ahead funnel.
   if (getStayPhase(stay, stay.property.timezone) === "POST_STAY") {
-    return {
-      ok: false,
-      error:
-        "Your stay has wrapped — text your concierge and we'll take care of next time.",
-    };
+    return postStayError();
   }
 
   const serviceId = String(formData.get("serviceId") ?? "");
@@ -53,16 +71,85 @@ export async function createServiceRequest(
     return { ok: false, error: "That service isn’t available right now." };
   }
 
+  const existing = await prisma.serviceRequest.findFirst({
+    where: {
+      stayId: stay.id,
+      serviceId: service.id,
+      status: { in: ["SIGNALED", "READY", "QUOTED"] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (existing) redirect(`/requests/${existing.id}`);
+
+  const request = await prisma.serviceRequest.create({
+    data: {
+      stayId: stay.id,
+      serviceId: service.id,
+      status: "SIGNALED",
+      source: "catalog",
+      partySize: stay.partySize ?? undefined,
+    },
+  });
+
+  redirect(`/requests/${request.id}`);
+}
+
+export type WizardResult =
+  | {
+      ok: true;
+      outcome: "confirmed" | "ready" | "saved";
+      serviceName: string;
+      chargedCents: number | null;
+    }
+  | { ok: false; error: string };
+
+/**
+ * The wizard's save. `mode=later` stores whatever's filled and keeps the
+ * request SIGNALED (graceful exit — the home checklist resumes it).
+ * `mode=complete` validates, stores, and advances:
+ *   fixed-price → CONFIRMED + tab line (+ itinerary when dated)
+ *   QUOTE       → READY (operator routes & prices)
+ */
+export async function saveRequestDetails(
+  _prev: WizardResult | null,
+  formData: FormData,
+): Promise<WizardResult> {
+  const active = await getActiveStay();
+  if (!active) {
+    return { ok: false, error: "Your session has expired — please reopen your link." };
+  }
+  const { stay } = active;
+
+  if (getStayPhase(stay, stay.property.timezone) === "POST_STAY") {
+    return postStayError();
+  }
+
+  const requestId = String(formData.get("requestId") ?? "");
+  const request = requestId
+    ? await prisma.serviceRequest.findUnique({
+        where: { id: requestId },
+        include: { service: true },
+      })
+    : null;
+  if (!request || request.stayId !== stay.id || !request.service) {
+    return { ok: false, error: "We couldn’t find that request — please reopen your link." };
+  }
+  if (!OPEN_FOR_EDITS.includes(request.status as (typeof OPEN_FOR_EDITS)[number])) {
+    return { ok: false, error: "This one’s already being arranged — your concierge has it." };
+  }
+  const service = request.service;
+  const finishLater = String(formData.get("mode") ?? "complete") === "later";
+
+  // ── Scheduling (wall-clock in the property tz, never the server's) ──
   const dateStr = String(formData.get("date") ?? "").trim();
   const timeStr = String(formData.get("time") ?? "").trim();
   const partyRaw = String(formData.get("partySize") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
-  if (service.requiresDate && !dateStr) {
+  if (!finishLater && service.requiresDate && !dateStr) {
     return { ok: false, error: "Please choose a date." };
   }
 
-  // Wall-clock in the property's tz — NOT the server's (Vercel runs UTC).
   let requestedFor: Date | null = null;
   if (dateStr) {
     const d = zonedDateTime(dateStr, timeStr || "12:00", stay.property.timezone);
@@ -70,36 +157,92 @@ export async function createServiceRequest(
   }
 
   const parsedParty = partyRaw ? Number.parseInt(partyRaw, 10) : NaN;
-  const partySize = Number.isFinite(parsedParty) ? parsedParty : stay.partySize ?? null;
+  const partySize = Number.isFinite(parsedParty)
+    ? parsedParty
+    : request.partySize ?? stay.partySize ?? null;
 
-  // Per-service fulfillment details (src/lib/serviceForm.ts) — validated
-  // server-side, stored as a [{label, value}] bag on the request.
+  // ── Execution details, config-driven (src/lib/serviceForm.ts) ──
+  const flow = serviceFlow(service.slug);
   const details: RequestDetail[] = [];
-  for (const field of serviceFormConfig(service.slug).fields) {
-    const value = String(formData.get(`detail_${field.name}`) ?? "").trim();
-    if (!value && field.required) {
-      return { ok: false, error: `Please fill in “${field.label}”.` };
+  for (const step of flow.steps) {
+    for (const field of step.fields) {
+      if (field.kind === "perPerson") {
+        for (let p = 1; p <= clampParty(partySize); p++) {
+          for (const sub of field.fields) {
+            const name = perPersonName(field.name, p, sub.name);
+            const value = String(formData.get(`detail_${name}`) ?? "").trim();
+            if (!value && sub.required && !finishLater) {
+              return {
+                ok: false,
+                error: `Please fill in “${sub.label}” for ${field.personNoun.toLowerCase()} ${p}.`,
+              };
+            }
+            if (value) {
+              details.push({
+                name,
+                label: `${field.personNoun} ${p} · ${sub.label}`,
+                value,
+              });
+            }
+          }
+        }
+      } else if (field.kind === "checkboxes") {
+        const picked = formData
+          .getAll(`detail_${field.name}`)
+          .map((v) => String(v).trim())
+          .filter(Boolean);
+        if (picked.length > 0) {
+          details.push({ name: field.name, label: field.label, value: picked.join("; ") });
+        }
+      } else {
+        const value = String(formData.get(`detail_${field.name}`) ?? "").trim();
+        if (!value && field.required && !finishLater) {
+          return { ok: false, error: `Please fill in “${field.label}”.` };
+        }
+        if (value) details.push({ name: field.name, label: field.label, value });
+      }
     }
-    if (value) details.push({ label: field.label, value });
   }
 
-  const confirmed = isFixedPrice(service.priceUnit, service.priceAmount);
+  const complete =
+    !finishLater &&
+    isFlowComplete(flow, details, clampParty(partySize)) &&
+    (!service.requiresDate || requestedFor !== null);
 
-  const request = await prisma.serviceRequest.create({
+  // ── Graceful exit: store progress, stay SIGNALED ──
+  if (!complete) {
+    await prisma.serviceRequest.update({
+      where: { id: request.id },
+      data: {
+        requestedFor,
+        partySize: partySize ?? undefined,
+        notes,
+        detailsJson: details.length > 0 ? details : undefined,
+      },
+    });
+    return { ok: true, outcome: "saved", serviceName: service.name, chargedCents: null };
+  }
+
+  // ── Complete: the two pricing paths ──
+  const confirmed = isFixedPrice(service.priceUnit, service.priceAmount);
+  let chargedCents: number | null = null;
+
+  // Guarded transition — a double submit can't stack tab lines: only one
+  // updateMany wins the move out of the open statuses.
+  const moved = await prisma.serviceRequest.updateMany({
+    where: { id: request.id, status: { in: [...OPEN_FOR_EDITS] } },
     data: {
-      stayId: stay.id,
-      serviceId: service.id,
-      status: confirmed ? "CONFIRMED" : "REQUESTED",
+      status: confirmed ? "CONFIRMED" : "READY",
       requestedFor,
       partySize: partySize ?? undefined,
       notes,
       detailsJson: details.length > 0 ? details : undefined,
     },
   });
+  if (moved.count === 0) {
+    return { ok: false, error: "This one’s already being arranged — your concierge has it." };
+  }
 
-  let chargedCents: number | null = null;
-
-  // Re-check inline so TS narrows priceAmount to a number in this block.
   if (isFixedPrice(service.priceUnit, service.priceAmount)) {
     chargedCents = computeChargeCents(
       service.priceUnit,
@@ -132,6 +275,7 @@ export async function createServiceRequest(
     }
   }
 
+  // One email, at the actionable moment — not at the tap.
   await notifyOperator({
     type: "service_requested",
     stayId: stay.id,
@@ -145,14 +289,15 @@ export async function createServiceRequest(
     partnerName: stay.property.partner?.name ?? null,
   });
 
-  // Refresh the surfaces this touched.
-  revalidatePath("/");
-  revalidatePath("/tab");
-  revalidatePath("/itinerary");
+  // Deliberately NO revalidatePath (the submitStayForm precedent, PR #12):
+  // revalidating re-renders the current page in the action response — the
+  // request is no longer SIGNALED, so /requests/[id] would flip to its
+  // status branch and unmount the wizard before its close screen renders.
+  // Every surface this touched is force-dynamic; navigation renders fresh.
 
   return {
     ok: true,
-    status: confirmed ? "CONFIRMED" : "REQUESTED",
+    outcome: confirmed ? "confirmed" : "ready",
     serviceName: service.name,
     chargedCents,
   };
