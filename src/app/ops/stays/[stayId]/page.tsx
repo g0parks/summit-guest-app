@@ -24,6 +24,11 @@ import {
   tzAbbr,
 } from "@/lib/dates";
 import { parseRequestDetails } from "@/lib/serviceForm";
+import {
+  INTAKE_QUESTIONS,
+  interestedLabels,
+  parseIntakeAnswers,
+} from "@/lib/intakeFlow";
 import styles from "../../ops.module.css";
 
 export const dynamic = "force-dynamic";
@@ -138,6 +143,52 @@ export default async function OpsStayPage({
           </dd>
         </dl>
       </section>
+
+      {stay.tripIntakes.length > 0 && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Trip intake</h2>
+          {stay.tripIntakes.map((it) => {
+            const answers = parseIntakeAnswers(it.answersJson);
+            const interests = interestedLabels(answers);
+            const declined = answers
+              .filter((a) => a.answer === "declined")
+              .map(
+                (a) =>
+                  INTAKE_QUESTIONS.find((q) => q.key === a.key)?.interestLabel ??
+                  a.key,
+              );
+            return (
+              <div key={it.id} className={styles.requestCard}>
+                <div className={styles.requestHead}>
+                  {interests.length > 0 ? (
+                    interests.map((label) => (
+                      <span key={label} className={`${styles.badge} ${styles.badgeOk}`}>
+                        {label}
+                      </span>
+                    ))
+                  ) : (
+                    <span className={styles.muted}>no interests flagged</span>
+                  )}
+                  {declined.length > 0 && (
+                    <span className={`${styles.muted} ${styles.small}`}>
+                      passed on: {declined.join(", ")}
+                    </span>
+                  )}
+                </div>
+                {it.note && <p className={styles.small}>Note: {it.note}</p>}
+                {it.tripTiming && (
+                  <p className={styles.small}>Timing: {it.tripTiming}</p>
+                )}
+                <p className={`${styles.small} ${styles.muted}`}>
+                  taken {when(it.createdAt)}
+                  {it.convertedAt ? ` · converted ${when(it.convertedAt)}` : ""}
+                  {it.source ? ` · via ${it.source}` : ""}
+                </p>
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Requests</h2>

@@ -113,3 +113,17 @@ export function interestedLabels(answers: IntakeAnswer[]): string[] {
       (a) => INTAKE_QUESTIONS.find((q) => q.key === a.key)?.interestLabel ?? a.key,
     );
 }
+
+/** Catalog slugs for the questions answered "interested" — service matching. */
+export function interestedSlugs(answers: IntakeAnswer[]): string[] {
+  return answers
+    .filter((a) => a.answer === "interested" && typeof a.serviceSlug === "string")
+    .map((a) => a.serviceSlug);
+}
+
+/** Interest labels for a set of catalog slugs (trip-home "Before you arrive"). */
+export function labelsForSlugs(slugs: string[]): string[] {
+  return INTAKE_QUESTIONS.filter((q) => slugs.includes(q.serviceSlug)).map(
+    (q) => q.interestLabel,
+  );
+}

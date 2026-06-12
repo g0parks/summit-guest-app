@@ -178,6 +178,7 @@ export async function getOpsStayDetail(stayId: string) {
         orderBy: { createdAt: "desc" },
       },
       itineraryItems: { orderBy: [{ startsAt: "asc" }, { sortOrder: "asc" }] },
+      tripIntakes: { orderBy: { createdAt: "desc" } },
     },
   });
 }
