@@ -18,6 +18,7 @@ async function reset() {
   await prisma.serviceRequest.deleteMany();
   await prisma.paymentMethod.deleteMany();
   await prisma.accessToken.deleteMany();
+  await prisma.tripIntake.deleteMany();
   await prisma.stay.deleteMany();
   await prisma.guest.deleteMany();
   await prisma.service.deleteMany();
@@ -271,6 +272,40 @@ async function main() {
       notes: "Prefers still water, early riser, loves a good cabernet.",
     },
     tokenLabel: "pre-arrival email",
+  });
+
+  // One sample World-B intake (anonymous /plan lead) so the ops convert flow
+  // is testable immediately after a reseed.
+  await prisma.tripIntake.create({
+    data: {
+      name: "Jordan Whitfield",
+      email: "jordan.whitfield@example.com",
+      phone: "+1 (310) 555-0148",
+      tripTiming: "mid-February, presidents' week",
+      answersJson: [
+        {
+          key: "airport-car",
+          question: "Should we have a car waiting when you land at SLC?",
+          answer: "interested",
+          serviceSlug: "airport-transfer-slc",
+        },
+        {
+          key: "kitchen",
+          question: "Arriving to a stocked kitchen, or planning to shop?",
+          answer: "interested",
+          serviceSlug: "grocery-pre-stock",
+        },
+        {
+          key: "chef",
+          question:
+            "Most guests do at least one dinner in-residence. Want us to hold a chef for a night?",
+          answer: "declined",
+          serviceSlug: "private-chef-dinner",
+        },
+      ],
+      note: "Two kids (8 and 11) — gentle ski school mornings, and we'd love one adults-only dinner out if you can swing a sitter recommendation.",
+      source: "email",
+    },
   });
 
   const base = process.env.APP_BASE_URL ?? "http://localhost:3000";

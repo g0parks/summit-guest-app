@@ -168,7 +168,7 @@ model Stay {
   departureDate   DateTime
   partySize       Int?
   currency        String           @default("usd")
-  status          String           @default("upcoming") // upcoming | active | completed (display)
+  status          String           @default("upcoming") // write-only legacy display — phase is DERIVED from dates (src/lib/stayPhase.ts)
   isDemo          Boolean          @default(false) // /demo sandbox — cleanup-eligible, [DEMO]-tagged notifications
   accessTokens    AccessToken[]
   itineraryItems  ItineraryItem[]
@@ -294,6 +294,7 @@ model TripIntake {
   stay        Stay?    @relation(fields: [stayId], references: [id])
   guestId     String? // future World-A conversion
   guest       Guest?   @relation(fields: [guestId], references: [id])
+  convertedAt DateTime? // operator converted this lead into a Stay — doubles as the conversion idempotency claim
   createdAt   DateTime @default(now())
 }
 
