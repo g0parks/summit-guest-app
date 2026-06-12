@@ -58,7 +58,7 @@ export const INTAKE_QUESTIONS: IntakeQuestion[] = [
     detail: "Fitted at the residence, swapped anytime — no shop lines.",
     yesLabel: "Fit us",
     passLabel: "Bringing ours",
-    serviceSlug: "ski-bike-rental",
+    serviceSlug: "ski-rental",
     interestLabel: "Ski & gear fitting",
   },
   {

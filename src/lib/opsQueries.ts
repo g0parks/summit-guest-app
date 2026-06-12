@@ -24,7 +24,7 @@ export async function getNeedsAction() {
 
   const [needsQuote, upcoming, perkClaims] = await Promise.all([
     prisma.serviceRequest.findMany({
-      where: { status: "REQUESTED" },
+      where: { status: "READY" },
       include,
       orderBy: { createdAt: "asc" },
     }),

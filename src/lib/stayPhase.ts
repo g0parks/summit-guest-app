@@ -31,6 +31,18 @@ export function getStayPhase(
 }
 
 /**
+ * The stay's season, DERIVED from arrival month in the property tz —
+ * Park City runs two menus (Product Doctrine 2026-06-12): Nov–Apr = WINTER,
+ * May–Oct = SUMMER. Stay dates pick what the catalog shows; ALL_YEAR
+ * services render in both.
+ */
+export function staySeason(stay: StayDates, timezone: string): "WINTER" | "SUMMER" {
+  // dayKey is "YYYY-MM-DD" in the property tz — month is chars 5–6.
+  const month = Number(dayKey(stay.arrivalDate, timezone).slice(5, 7));
+  return month >= 11 || month <= 4 ? "WINTER" : "SUMMER";
+}
+
+/**
  * Whole days until arrival day in the property tz (0 = arriving today,
  * 1 = tomorrow). Compares calendar days, not 24h blocks — "tomorrow" is
  * tomorrow even at 11 PM tonight.

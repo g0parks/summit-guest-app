@@ -4,9 +4,11 @@ import { prisma } from "@/lib/db";
 import { requireOperator } from "@/lib/opsSession";
 import {
   createStayWithToken,
+  enrollIntakeSignals,
   guestLinkShareMessage,
   StayInputError,
 } from "@/lib/opsStay";
+import { interestedSlugs, parseIntakeAnswers } from "@/lib/intakeFlow";
 import { buildToken } from "@/lib/tokens";
 import { getGuestEmailConfig, sendWelcomeEmail } from "@/lib/guestEmail";
 
@@ -80,6 +82,7 @@ export async function submitStayForm(
   try {
     outcome = await prisma.$transaction(async (tx): Promise<TxOutcome> => {
       let intakeGuestId: string | null = null;
+      let intakeInterestSlugs: string[] = [];
 
       if (intakeId) {
         // Idempotency claim: stamps convertedAt iff unclaimed AND unlinked.
@@ -123,6 +126,7 @@ export async function submitStayForm(
         const intake = await tx.tripIntake.findUnique({ where: { id: intakeId } });
         if (!intake) throw new StayInputError("Intake not found.");
         intakeGuestId = intake.guestId; // post-stay return intents carry the guest
+        intakeInterestSlugs = interestedSlugs(parseIntakeAnswers(intake.answersJson));
       }
 
       const created = await createStayWithToken(tx, {
@@ -139,6 +143,9 @@ export async function submitStayForm(
           where: { id: intakeId },
           data: { stayId: created.stay.id, guestId: created.guest.id },
         });
+        // World B's signals enroll the moment the lead becomes a stay — the
+        // guest opens their fresh link to a checklist already in motion.
+        await enrollIntakeSignals(tx, created.stay, intakeInterestSlugs);
       }
 
       return { kind: "created", created };

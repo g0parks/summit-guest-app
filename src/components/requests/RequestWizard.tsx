@@ -1,0 +1,459 @@
+"use client";
+
+import { useActionState, useMemo, useState } from "react";
+import Link from "next/link";
+import type { PriceUnit } from "@prisma/client";
+import { saveRequestDetails, type WizardResult } from "@/app/actions/requests";
+import {
+  clampParty,
+  perPersonName,
+  serviceFlow,
+  type ServiceField,
+  type SubField,
+  type WizardStep,
+} from "@/lib/serviceForm";
+import { computeChargeCents, isFixedPrice } from "@/lib/catalog";
+import { formatMoney } from "@/lib/money";
+import styles from "./RequestWizard.module.css";
+
+/**
+ * The guided completion wizard — the waiter taking the order (Product
+ * Doctrine 2026-06-12). One question per screen in the /plan register;
+ * every screen exits gracefully ("Finish later — we'll hold it"). All
+ * panels stay MOUNTED inside one <form> (IntakeFlow pattern) so uncontrolled
+ * fields keep their values and one submission carries everything. No HTML
+ * `required` attributes — hidden mounted inputs would block submission;
+ * the server validates on complete.
+ */
+
+type WizardService = {
+  slug: string;
+  name: string;
+  priceUnit: PriceUnit;
+  priceAmount: number | null;
+  requiresDate: boolean;
+  requiresTime: boolean;
+  requiresPartySize: boolean;
+};
+
+type WizardDefaults = {
+  date: string | null;
+  time: string | null;
+  partySize: number;
+  notes: string | null;
+  /** Saved detail values keyed by machine name — the resume state. */
+  details: Record<string, string>;
+};
+
+type PerPersonField = Extract<ServiceField, { kind: "perPerson" }>;
+
+type Screen =
+  | { key: string; kind: "schedule" }
+  | { key: string; kind: "fields"; step: WizardStep }
+  | { key: string; kind: "person"; step: WizardStep; group: PerPersonField; person: number }
+  | { key: string; kind: "notes" };
+
+export default function RequestWizard({
+  requestId,
+  service,
+  currency,
+  backHref,
+  defaults,
+}: {
+  requestId: string;
+  service: WizardService;
+  currency: string;
+  backHref: string;
+  defaults: WizardDefaults;
+}) {
+  const flow = useMemo(() => serviceFlow(service.slug), [service.slug]);
+  const needsSchedule =
+    service.requiresDate || service.requiresTime || service.requiresPartySize;
+
+  const [party, setParty] = useState(clampParty(defaults.partySize));
+  const [idx, setIdx] = useState(0);
+  const [state, formAction, pending] = useActionState<WizardResult | null, FormData>(
+    saveRequestDetails,
+    null,
+  );
+
+  const screens = useMemo(() => {
+    const list: Screen[] = [];
+    if (needsSchedule) list.push({ key: "schedule", kind: "schedule" });
+    for (const step of flow.steps) {
+      const group = step.fields.find((f): f is PerPersonField => f.kind === "perPerson");
+      if (group) {
+        for (let p = 1; p <= party; p++) {
+          list.push({ key: `${step.key}:${p}`, kind: "person", step, group, person: p });
+        }
+      } else {
+        list.push({ key: step.key, kind: "fields", step });
+      }
+    }
+    list.push({ key: "notes", kind: "notes" });
+    return list;
+  }, [flow, needsSchedule, party]);
+
+  // Party can shrink the screen list mid-flow — never strand the index.
+  const current = Math.min(idx, screens.length - 1);
+  const next = () => setIdx(Math.min(current + 1, screens.length - 1));
+  const back = () => setIdx(Math.max(current - 1, 0));
+
+  const fixed = isFixedPrice(service.priceUnit, service.priceAmount);
+  const previewCents = fixed
+    ? computeChargeCents(service.priceUnit, service.priceAmount as number, party)
+    : null;
+
+  // ── The close — three outcomes, one calm screen each ──────────────────
+  if (state?.ok) {
+    const close = {
+      confirmed: {
+        headline: "You're all set.",
+        detail:
+          state.chargedCents != null
+            ? `${service.name} is arranged — ${formatMoney(state.chargedCents, currency)} on your tab, and it's on your itinerary.`
+            : `${service.name} is arranged — it's on your itinerary.`,
+        links: [
+          { href: "/tab", label: "View your tab" },
+          { href: "/", label: "Back to your trip" },
+        ],
+      },
+      ready: {
+        headline: "Consider it underway.",
+        detail:
+          "Your concierge is putting it together — you'll see it come to life on your trip page.",
+        links: [{ href: "/", label: "Back to your trip" }],
+      },
+      saved: {
+        headline: "We'll hold it right here.",
+        detail: "Pick it back up anytime from your trip page — nothing is lost.",
+        links: [{ href: "/", label: "Back to your trip" }],
+      },
+    }[state.outcome];
+
+    return (
+      <main className={styles.page}>
+        <div className={`${styles.screen} ${styles.active}`}>
+          <div className={styles.doneBody}>
+            <span className="eyebrow">{service.name}</span>
+            <h1 className={styles.headline}>{close.headline}</h1>
+            <p className={styles.detail}>{close.detail}</p>
+            <div className={styles.doneLinks}>
+              {close.links.map((l) => (
+                <Link key={l.href} href={l.href} className={styles.quietLink}>
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className={styles.page}>
+      <form action={formAction} className={styles.form}>
+        <input type="hidden" name="requestId" value={requestId} />
+
+        {screens.map((screen, si) => {
+          const activeCls = si === current ? styles.active : styles.hidden;
+          return (
+            <section key={screen.key} className={`${styles.screen} ${activeCls}`}>
+              <header className={styles.topRow}>
+                {si === 0 ? (
+                  <Link href={backHref} className={styles.backBtn} aria-label="Back">
+                    <BackIcon />
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.backBtn}
+                    onClick={back}
+                    aria-label="Back"
+                  >
+                    <BackIcon />
+                  </button>
+                )}
+                <span
+                  className={styles.dots}
+                  aria-label={`Step ${si + 1} of ${screens.length}`}
+                >
+                  {screens.map((d, di) => (
+                    <span
+                      key={d.key}
+                      className={`${styles.dot} ${di === si ? styles.dotOn : ""}`}
+                      aria-hidden="true"
+                    />
+                  ))}
+                </span>
+              </header>
+
+              <div className={styles.screenBody}>
+                {screen.kind === "schedule" && (
+                  <>
+                    <span className="eyebrow">{service.name}</span>
+                    <h1 className={styles.question}>When should we plan it for?</h1>
+                    <div className={styles.fields}>
+                      {service.requiresDate && (
+                        <label className={styles.fieldLabel}>
+                          <span>Date</span>
+                          <input
+                            type="date"
+                            name="date"
+                            defaultValue={defaults.date ?? ""}
+                            className={styles.input}
+                          />
+                        </label>
+                      )}
+                      {service.requiresTime && (
+                        <label className={styles.fieldLabel}>
+                          <span>
+                            Time <span className={styles.optional}>if you have one in mind</span>
+                          </span>
+                          <input
+                            type="time"
+                            name="time"
+                            defaultValue={defaults.time ?? ""}
+                            className={styles.input}
+                          />
+                        </label>
+                      )}
+                      {service.requiresPartySize && (
+                        <label className={styles.fieldLabel}>
+                          <span>How many of you?</span>
+                          <select
+                            name="partySize"
+                            value={party}
+                            onChange={(e) => setParty(clampParty(Number(e.target.value)))}
+                            className={styles.input}
+                          >
+                            {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => (
+                              <option key={n} value={n}>
+                                {n}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {screen.kind === "fields" && (
+                  <>
+                    <span className="eyebrow">{screen.step.eyebrow}</span>
+                    <h1 className={styles.question}>{screen.step.question}</h1>
+                    {screen.step.detail && (
+                      <p className={styles.detail}>{screen.step.detail}</p>
+                    )}
+                    <div className={styles.fields}>
+                      {screen.step.fields
+                        .filter(
+                          (f): f is Exclude<ServiceField, PerPersonField> =>
+                            f.kind !== "perPerson",
+                        )
+                        .map((field) => (
+                          <Field key={field.name} field={field} saved={defaults.details} />
+                        ))}
+                    </div>
+                  </>
+                )}
+
+                {screen.kind === "person" && (
+                  <>
+                    <span className="eyebrow">{screen.step.eyebrow}</span>
+                    <h1 className={styles.question}>
+                      {screen.person === 1
+                        ? screen.step.question
+                        : `${screen.group.personNoun} ${screen.person}.`}
+                    </h1>
+                    {screen.person === 1 && screen.step.detail && (
+                      <p className={styles.detail}>{screen.step.detail}</p>
+                    )}
+                    {party > 1 && (
+                      <p className={styles.personTag}>
+                        {screen.group.personNoun} {screen.person} of {party}
+                      </p>
+                    )}
+                    <div className={styles.fields}>
+                      {screen.group.fields.map((sub) => (
+                        <SubFieldInput
+                          key={sub.name}
+                          sub={sub}
+                          name={perPersonName(screen.group.name, screen.person, sub.name)}
+                          saved={defaults.details}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {screen.kind === "notes" && (
+                  <>
+                    <span className="eyebrow">One more thing</span>
+                    <h1 className={styles.question}>
+                      {flow.notesPrompt ?? "Anything else we should know?"}
+                    </h1>
+                    <textarea
+                      name="notes"
+                      rows={4}
+                      className={styles.noteInput}
+                      defaultValue={defaults.notes ?? ""}
+                      placeholder={
+                        flow.notesPlaceholder ?? "Allergies, preferences, timing…"
+                      }
+                    />
+                  </>
+                )}
+              </div>
+
+              <div className={styles.screenActions}>
+                {screen.kind === "notes" ? (
+                  <>
+                    {state && !state.ok && <p className={styles.error}>{state.error}</p>}
+                    {previewCents != null && (
+                      <p className={styles.priceLine}>
+                        {formatMoney(previewCents, currency)} — billed to your tab
+                      </p>
+                    )}
+                    <button
+                      type="submit"
+                      name="mode"
+                      value="complete"
+                      disabled={pending}
+                      className={styles.primaryBtn}
+                    >
+                      {pending
+                        ? "Sending…"
+                        : fixed
+                          ? "Arrange it"
+                          : "Send to your concierge"}
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className={styles.primaryBtn} onClick={next}>
+                    Continue
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  name="mode"
+                  value="later"
+                  disabled={pending}
+                  className={styles.skipBtn}
+                >
+                  Finish later — we&rsquo;ll hold it
+                </button>
+              </div>
+            </section>
+          );
+        })}
+      </form>
+    </main>
+  );
+}
+
+/* ── field renderers — uncontrolled, rehydrated from saved details ── */
+
+function Field({
+  field,
+  saved,
+}: {
+  field: Exclude<ServiceField, PerPersonField>;
+  saved: Record<string, string>;
+}) {
+  if (field.kind === "checkboxes") {
+    const picked = (saved[field.name] ?? "").split(";").map((s) => s.trim());
+    return (
+      <fieldset className={styles.checkGroup}>
+        {field.options.map((opt) => (
+          <label key={opt} className={styles.checkRow}>
+            <input
+              type="checkbox"
+              name={`detail_${field.name}`}
+              value={opt}
+              defaultChecked={picked.includes(opt)}
+              className={styles.checkbox}
+            />
+            <span>{opt}</span>
+          </label>
+        ))}
+      </fieldset>
+    );
+  }
+  if (field.kind === "textarea") {
+    return (
+      <label className={styles.fieldLabel}>
+        <span>{field.label}</span>
+        <textarea
+          name={`detail_${field.name}`}
+          rows={3}
+          defaultValue={saved[field.name] ?? ""}
+          placeholder={field.placeholder}
+          className={styles.noteInput}
+        />
+      </label>
+    );
+  }
+  return <SubFieldInput sub={field} name={field.name} saved={saved} />;
+}
+
+function SubFieldInput({
+  sub,
+  name,
+  saved,
+}: {
+  sub: SubField;
+  name: string;
+  saved: Record<string, string>;
+}) {
+  if (sub.kind === "select") {
+    return (
+      <label className={styles.fieldLabel}>
+        <span>{sub.label}</span>
+        <select
+          name={`detail_${name}`}
+          defaultValue={saved[name] ?? ""}
+          className={styles.input}
+        >
+          <option value="">Choose…</option>
+          {sub.options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+  return (
+    <label className={styles.fieldLabel}>
+      <span>{sub.label}</span>
+      <input
+        name={`detail_${name}`}
+        defaultValue={saved[name] ?? ""}
+        placeholder={sub.placeholder}
+        className={styles.input}
+      />
+    </label>
+  );
+}
+
+function BackIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M15 6l-6 6 6 6" />
+    </svg>
+  );
+}

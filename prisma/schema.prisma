@@ -39,13 +39,39 @@ enum ItineraryCategory {
   NOTE
 }
 
+/// The request lifecycle (Product Doctrine 2026-06-12). Two pricing paths:
+/// fixed-price completes SIGNALED → CONFIRMED directly (no quote, no
+/// approval); QUOTE-priced runs SIGNALED → READY → QUOTED → CONFIRMED with
+/// the guest's in-app approval tap in between. EXPIRED = the stay departed
+/// with the signal still open — kept as demand data, never deleted.
 enum RequestStatus {
-  REQUESTED
+  SIGNALED
+  READY
+  QUOTED
   CONFIRMED
   SCHEDULED
   COMPLETED
   DECLINED
   CANCELLED
+  EXPIRED
+}
+
+enum Season {
+  WINTER
+  SUMMER
+  ALL_YEAR
+}
+
+enum ChangeKind {
+  MOVE
+  CANCEL
+  MODIFY
+}
+
+enum ChangeStatus {
+  OPEN
+  APPLIED
+  DECLINED
 }
 
 enum TabItemStatus {
@@ -177,6 +203,7 @@ model Stay {
   paymentMethods  PaymentMethod[]
   perkClaims      PerkClaim[]
   tripIntakes     TripIntake[]
+  changeRequests  ChangeRequest[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -208,6 +235,9 @@ model Service {
   priceUnit         PriceUnit        @default(FLAT)
   priceNote         String? // "from", "per night", etc.
   leadTimeHours     Int              @default(24)
+  season            Season           @default(ALL_YEAR) // stay dates pick the menu (winter/summer)
+  moveCutoffHours   Int? // in-app "move it" offered until this many hours before; null = concierge-only
+  cancelCutoffHours Int? // in-app cancel offered until this many hours before; null = concierge-only
   requiresDate      Boolean          @default(true)
   requiresTime      Boolean          @default(false)
   requiresPartySize Boolean          @default(false)
@@ -225,7 +255,8 @@ model ServiceRequest {
   serviceId     String?
   service       Service?       @relation(fields: [serviceId], references: [id])
   customTitle   String? // free-form "ask the concierge" request
-  status        RequestStatus  @default(REQUESTED)
+  status        RequestStatus   @default(SIGNALED)
+  source        String          @default("catalog") // "catalog" | "intake" | "ops" — where the signal came from
   requestedFor  DateTime?
   partySize     Int?
   notes         String?
@@ -234,8 +265,29 @@ model ServiceRequest {
   operatorNote  String?
   tabLineItems  TabLineItem[]
   itineraryItem ItineraryItem?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  changeRequests ChangeRequest[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+/// A guest's structured ask to move/cancel/modify something already on the
+/// itinerary. Offered in-app only inside the service's cutoff window; past
+/// the cutoff the guest gets the quiet concierge escape hatch instead.
+model ChangeRequest {
+  id               String          @id @default(cuid())
+  stayId           String
+  stay             Stay            @relation(fields: [stayId], references: [id])
+  itineraryItemId  String
+  itineraryItem    ItineraryItem   @relation(fields: [itineraryItemId], references: [id])
+  serviceRequestId String?
+  serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id])
+  kind             ChangeKind
+  requestedDate    String? // wall-clock "YYYY-MM-DD" in property tz (MOVE)
+  requestedTime    String? // wall-clock "HH:mm" in property tz (MOVE)
+  note             String?
+  status           ChangeStatus    @default(OPEN)
+  resolvedAt       DateTime?
+  createdAt        DateTime        @default(now())
 }
 
 /// Running-tab source of truth.
@@ -311,8 +363,9 @@ model ItineraryItem {
   startsAt         DateTime
   endsAt           DateTime?
   allDay           Boolean           @default(false)
-  changePending    Boolean           @default(false) // operator-set: guest sees a quiet "Being rearranged" chip
+  changePending    Boolean           @default(false) // set while a ChangeRequest is OPEN: guest sees a quiet "Being rearranged" chip
   sortOrder        Int               @default(0)
+  changeRequests   ChangeRequest[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }

@@ -61,6 +61,43 @@
   margin-top: 26px;
 }
 
+/* an open request resumes — never stacks a duplicate */
+.resume {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.resumeNote {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+
+.resumeCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 15.5px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.22s var(--ease), transform 0.22s var(--ease);
+}
+
+.resumeCta:active {
+  background: var(--accent-pressed);
+  transform: scale(0.985);
+}
+
 /* quiet "ask first" line under the request form */
 .askFirst {
   margin-top: 22px;
