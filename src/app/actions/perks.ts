@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActiveStay } from "@/lib/session";
 import { notifyOperator } from "@/lib/notify";
+import { getStayPhase } from "@/lib/stayPhase";
 
 export type ClaimResult = { ok: true } | { ok: false; error: string };
 
@@ -23,6 +24,16 @@ export async function claimPerk(
     return { ok: false, error: "Your session has expired — please reopen your link." };
   }
   const { stay } = active;
+
+  // Warm close-down: no new claims on a departed stay (server is the source
+  // of truth; the UI mirrors).
+  if (getStayPhase(stay, stay.property.timezone) === "POST_STAY") {
+    return {
+      ok: false,
+      error:
+        "Your stay has wrapped — text your concierge and we'll take care of next time.",
+    };
+  }
 
   const perkId = String(formData.get("perkId") ?? "");
   const email = String(formData.get("email") ?? "").trim() || null;

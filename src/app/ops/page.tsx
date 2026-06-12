@@ -4,6 +4,7 @@ import {
   getOpsStays,
   getRecentActivity,
   getRecentIntakes,
+  getRecentlyDeparted,
 } from "@/lib/opsQueries";
 import { formatMoney } from "@/lib/money";
 import { formatDateRange, formatDayLabel, formatTime } from "@/lib/dates";
@@ -13,16 +14,25 @@ import styles from "./ops.module.css";
 export const dynamic = "force-dynamic";
 
 export default async function OpsOverviewPage() {
-  const [{ needsQuote, upcoming, perkClaims }, stays, activity, intakes] =
+  const [{ needsQuote, upcoming, perkClaims }, stays, activity, intakes, departed] =
     await Promise.all([
       getNeedsAction(),
       getOpsStays(),
       getRecentActivity(),
       getRecentIntakes(),
+      getRecentlyDeparted(),
     ]);
 
   return (
     <main>
+      {/* Path A is PRIMARY: PMS-sourced guest data gets keyed here today;
+          the future PMS feed calls the same creation core. */}
+      <div className={styles.pageActions}>
+        <Link href="/ops/stays/new" className={styles.btnLink}>
+          + New stay
+        </Link>
+      </div>
+
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Needs action</h2>
         {needsQuote.length === 0 && upcoming.length === 0 && perkClaims.length === 0 ? (
@@ -196,6 +206,48 @@ export default async function OpsOverviewPage() {
         )}
       </section>
 
+      {departed.length > 0 && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Recently departed — close out</h2>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Guest</th>
+                <th>Property</th>
+                <th>Departed</th>
+                <th className={styles.num}>Tab pending</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {departed.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    {s.guest.firstName} {s.guest.lastName ?? ""}
+                    {s.isDemo && (
+                      <>
+                        {" "}
+                        <span className={`${styles.badge} ${styles.badgeNeutral}`}>DEMO</span>
+                      </>
+                    )}
+                  </td>
+                  <td>{s.property.name}</td>
+                  <td className={styles.small}>
+                    {formatDayLabel(s.departureDate, s.property.timezone)}
+                  </td>
+                  <td className={styles.num}>{formatMoney(s.pendingCents, s.currency)}</td>
+                  <td>
+                    <Link href={`/ops/stays/${s.id}`} className={styles.link}>
+                      open
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Trip intakes — /plan leads</h2>
         {intakes.length === 0 ? (
@@ -210,6 +262,7 @@ export default async function OpsOverviewPage() {
                 <th>Trip timing</th>
                 <th>Interested in</th>
                 <th>Note</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -260,6 +313,35 @@ export default async function OpsOverviewPage() {
                         : "—"}
                     </td>
                     <td className={styles.small}>{it.note ?? "—"}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {it.convertedAt ? (
+                        <>
+                          <span className={`${styles.badge} ${styles.badgeOk}`}>
+                            CONVERTED
+                          </span>{" "}
+                          <Link
+                            href={`/ops/intakes/${it.id}`}
+                            className={styles.link}
+                          >
+                            open
+                          </Link>
+                        </>
+                      ) : it.stayId ? (
+                        <Link
+                          href={`/ops/stays/${it.stayId}`}
+                          className={styles.link}
+                        >
+                          linked — open stay
+                        </Link>
+                      ) : (
+                        <Link
+                          href={`/ops/intakes/${it.id}`}
+                          className={styles.link}
+                        >
+                          convert →
+                        </Link>
+                      )}
+                    </td>
                   </tr>
                 );
               })}

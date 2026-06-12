@@ -104,3 +104,54 @@ export async function submitTripIntake(
 
   return { ok: true };
 }
+
+/**
+ * Post-stay "have us along next time" — the lifecycle loop. Token = identity:
+ * requires a live session and asks ZERO contact fields (never ask what we
+ * already know). Lands as a TripIntake with the guest linked but NO stayId —
+ * the convertedAt claim requires stayId: null, so this row stays convertible
+ * via the ops convert flow; the operator notification still deep-links the
+ * departed stay for context.
+ */
+export async function submitReturnIntent(
+  _prev: IntakeResult | null,
+  formData: FormData,
+): Promise<IntakeResult> {
+  const active = await getActiveStay();
+  if (!active) {
+    return { ok: false, error: "Your session has expired — please reopen your link." };
+  }
+  const { stay } = active;
+
+  const tripTiming = field(formData, "tripTiming", 200);
+
+  const intake = await prisma.tripIntake.create({
+    data: {
+      name: `${stay.guest.firstName} ${stay.guest.lastName ?? ""}`.trim(),
+      email: stay.guest.email,
+      phone: stay.guest.phone,
+      tripTiming,
+      answersJson: [],
+      source: "post-stay",
+      guestId: stay.guestId,
+    },
+  });
+
+  await notifyOperator({
+    type: "trip_intake",
+    intakeId: intake.id,
+    name: stay.guest.firstName,
+    email: stay.guest.email,
+    phone: stay.guest.phone,
+    tripTiming,
+    interests: [],
+    declined: [],
+    note: null,
+    source: "post-stay",
+    stayId: stay.id,
+    isDemo: stay.isDemo,
+    partnerName: stay.property.partner?.name ?? null,
+  });
+
+  return { ok: true };
+}

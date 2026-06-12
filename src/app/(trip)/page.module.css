@@ -205,3 +205,27 @@
   line-height: 1.55;
   color: var(--ink-muted);
 }
+
+/* ── phase-specific (pre-arrival / post-stay) ────────────── */
+
+/* a card that is one quiet informational line — no title, not a button */
+.cardSolo {
+  margin-top: 12px;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+/* quiet inline link inside card copy (interests, pending tab) */
+.interestLink {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* post-stay brand-voice thank-you line */
+.thanks {
+  margin-top: 16px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-muted);
+}

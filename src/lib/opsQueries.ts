@@ -77,6 +77,33 @@ export async function getOpsStays() {
   });
 }
 
+/**
+ * Departed in the last 14 days with PENDING tab lines — unsettled money that
+ * used to vanish when the stays table filtered to departureDate >= now.
+ * The close-out action is the existing ChargeButton on stay detail.
+ */
+export async function getRecentlyDeparted() {
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - 14 * 24 * HOUR);
+  const stays = await prisma.stay.findMany({
+    where: {
+      departureDate: { lt: now, gte: cutoff },
+      tabLineItems: { some: { status: "PENDING" } },
+    },
+    include: {
+      guest: true,
+      property: true,
+      tabLineItems: { where: { status: "PENDING" } },
+    },
+    orderBy: { departureDate: "desc" },
+  });
+
+  return stays.map((s) => ({
+    ...s,
+    pendingCents: s.tabLineItems.reduce((sum, l) => sum + l.amount, 0),
+  }));
+}
+
 export type ActivityEntry = {
   at: Date;
   kind: "request" | "charge";
@@ -124,7 +151,37 @@ export async function getRecentIntakes(limit = 25) {
     orderBy: { createdAt: "desc" },
     take: limit,
     include: {
+      guest: true,
       stay: { include: { guest: true, property: true } },
+    },
+  });
+}
+
+/**
+ * Properties an operator can create a stay against: filters out /demo
+ * sandbox property clones (every sandbox property carries an isDemo stay),
+ * keeps canonical/real properties — including brand-new ones with no stays.
+ */
+export async function getConvertProperties() {
+  return prisma.property.findMany({
+    where: { stays: { none: { isDemo: true } } },
+    orderBy: { name: "asc" },
+  });
+}
+
+/** One intake with everything the convert page renders. */
+export async function getIntakeDetail(intakeId: string) {
+  return prisma.tripIntake.findUnique({
+    where: { id: intakeId },
+    include: {
+      guest: true,
+      stay: {
+        include: {
+          guest: true,
+          property: true,
+          accessTokens: { orderBy: { createdAt: "asc" } },
+        },
+      },
     },
   });
 }
@@ -148,6 +205,7 @@ export async function getOpsStayDetail(stayId: string) {
         orderBy: { createdAt: "desc" },
       },
       itineraryItems: { orderBy: [{ startsAt: "asc" }, { sortOrder: "asc" }] },
+      tripIntakes: { orderBy: { createdAt: "desc" } },
     },
   });
 }

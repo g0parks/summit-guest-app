@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStay } from "@/lib/session";
 import { getPerkBySlug } from "@/lib/queries";
+import { getStayPhase } from "@/lib/stayPhase";
 import ClaimForm from "@/components/perks/ClaimForm";
 import styles from "./page.module.css";
 
@@ -23,6 +24,7 @@ export default async function PerkDetail({
   if (!perk || !visible) notFound();
 
   const claimed = perk.claims.length > 0;
+  const postStay = getStayPhase(stay, stay.property.timezone) === "POST_STAY";
 
   return (
     <main className={styles.page}>
@@ -45,15 +47,23 @@ export default async function PerkDetail({
       </section>
 
       <section className={`${styles.formWrap} reveal reveal-4`}>
-        {/* ClaimForm owns the claimed state too — it survives the post-action
-            RSC refresh, so a fresh claimer keeps the confirmation moment. */}
-        <ClaimForm
-          perkId={perk.id}
-          guestFirstName={stay.guest.firstName}
-          defaultEmail={stay.guest.email}
-          defaultPhone={stay.guest.phone}
-          alreadyClaimed={claimed}
-        />
+        {postStay && !claimed ? (
+          /* warm close-down — mirrors the claimPerk server guard */
+          <p className={styles.lead}>
+            Your stay has wrapped — this one will be waiting with our
+            compliments next time.
+          </p>
+        ) : (
+          /* ClaimForm owns the claimed state too — it survives the post-action
+             RSC refresh, so a fresh claimer keeps the confirmation moment. */
+          <ClaimForm
+            perkId={perk.id}
+            guestFirstName={stay.guest.firstName}
+            defaultEmail={stay.guest.email}
+            defaultPhone={stay.guest.phone}
+            alreadyClaimed={claimed}
+          />
+        )}
       </section>
     </main>
   );

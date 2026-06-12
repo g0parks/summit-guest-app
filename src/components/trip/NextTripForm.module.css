@@ -1,0 +1,127 @@
+/* Post-stay return-intent — mirrors the home CTA + RequestForm registers. */
+
+.cta {
+  width: 100%;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.22s var(--ease), transform 0.22s var(--ease),
+    box-shadow 0.22s var(--ease);
+}
+
+.cta:hover:not(:disabled) {
+  box-shadow: var(--shadow-md);
+}
+
+.cta:active:not(:disabled) {
+  background: var(--accent-pressed);
+  transform: scale(0.985);
+}
+
+.cta:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: formIn 0.4s var(--ease);
+}
+
+@keyframes formIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+
+.input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 13px 14px;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  appearance: none;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+.error {
+  font-size: 14px;
+  color: #9a4a3c;
+}
+
+/* ── confirmation ────────────────────────────────────────── */
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 8px 0;
+  animation: formIn 0.5s var(--ease);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent-tint);
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+
+.doneTitle {
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.doneBody {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-muted);
+  max-width: 320px;
+}

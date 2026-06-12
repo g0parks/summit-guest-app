@@ -24,6 +24,12 @@ import {
   tzAbbr,
 } from "@/lib/dates";
 import { parseRequestDetails } from "@/lib/serviceForm";
+import {
+  INTAKE_QUESTIONS,
+  interestedLabels,
+  parseIntakeAnswers,
+} from "@/lib/intakeFlow";
+import { getStayPhase, type StayPhase } from "@/lib/stayPhase";
 import styles from "../../ops.module.css";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +68,19 @@ const CLAIM_BADGE: Record<PerkClaimStatus, string> = {
   CLAIMED: styles.badgeAction!,
   FULFILLED: styles.badgeOk!,
   CANCELLED: styles.badgeVoid!,
+};
+
+/* derived from dates (src/lib/stayPhase.ts) — Stay.status is legacy display */
+const PHASE_LABEL: Record<StayPhase, string> = {
+  PRE_ARRIVAL: "PRE-ARRIVAL",
+  IN_STAY: "IN-HOUSE",
+  POST_STAY: "DEPARTED",
+};
+
+const PHASE_BADGE: Record<StayPhase, string> = {
+  PRE_ARRIVAL: styles.badgeNeutral!,
+  IN_STAY: styles.badgeOk!,
+  POST_STAY: styles.badgeVoid!,
 };
 
 /** "$x (17.5%)" — net as a share of the line amount; drift outside 15–20% flagged. */
@@ -113,8 +132,10 @@ export default async function OpsStayPage({
         <dl className={styles.kv}>
           <dt>Dates</dt>
           <dd>
-            {formatDateRange(stay.arrivalDate, stay.departureDate, tz)}
-            <span className={styles.muted}> · {stay.status}</span>
+            {formatDateRange(stay.arrivalDate, stay.departureDate, tz)}{" "}
+            <span className={`${styles.badge} ${PHASE_BADGE[getStayPhase(stay, tz)]}`}>
+              {PHASE_LABEL[getStayPhase(stay, tz)]}
+            </span>
           </dd>
           <dt>Party</dt>
           <dd>{stay.partySize ?? "—"}</dd>
@@ -138,6 +159,52 @@ export default async function OpsStayPage({
           </dd>
         </dl>
       </section>
+
+      {stay.tripIntakes.length > 0 && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Trip intake</h2>
+          {stay.tripIntakes.map((it) => {
+            const answers = parseIntakeAnswers(it.answersJson);
+            const interests = interestedLabels(answers);
+            const declined = answers
+              .filter((a) => a.answer === "declined")
+              .map(
+                (a) =>
+                  INTAKE_QUESTIONS.find((q) => q.key === a.key)?.interestLabel ??
+                  a.key,
+              );
+            return (
+              <div key={it.id} className={styles.requestCard}>
+                <div className={styles.requestHead}>
+                  {interests.length > 0 ? (
+                    interests.map((label) => (
+                      <span key={label} className={`${styles.badge} ${styles.badgeOk}`}>
+                        {label}
+                      </span>
+                    ))
+                  ) : (
+                    <span className={styles.muted}>no interests flagged</span>
+                  )}
+                  {declined.length > 0 && (
+                    <span className={`${styles.muted} ${styles.small}`}>
+                      passed on: {declined.join(", ")}
+                    </span>
+                  )}
+                </div>
+                {it.note && <p className={styles.small}>Note: {it.note}</p>}
+                {it.tripTiming && (
+                  <p className={styles.small}>Timing: {it.tripTiming}</p>
+                )}
+                <p className={`${styles.small} ${styles.muted}`}>
+                  taken {when(it.createdAt)}
+                  {it.convertedAt ? ` · converted ${when(it.convertedAt)}` : ""}
+                  {it.source ? ` · via ${it.source}` : ""}
+                </p>
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Requests</h2>
