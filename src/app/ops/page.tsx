@@ -23,6 +23,14 @@ export default async function OpsOverviewPage() {
 
   return (
     <main>
+      {/* Path A is PRIMARY: PMS-sourced guest data gets keyed here today;
+          the future PMS feed calls the same creation core. */}
+      <div className={styles.pageActions}>
+        <Link href="/ops/stays/new" className={styles.btnLink}>
+          + New stay
+        </Link>
+      </div>
+
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Needs action</h2>
         {needsQuote.length === 0 && upcoming.length === 0 && perkClaims.length === 0 ? (
@@ -210,6 +218,7 @@ export default async function OpsOverviewPage() {
                 <th>Trip timing</th>
                 <th>Interested in</th>
                 <th>Note</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -260,6 +269,35 @@ export default async function OpsOverviewPage() {
                         : "—"}
                     </td>
                     <td className={styles.small}>{it.note ?? "—"}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {it.convertedAt ? (
+                        <>
+                          <span className={`${styles.badge} ${styles.badgeOk}`}>
+                            CONVERTED
+                          </span>{" "}
+                          <Link
+                            href={`/ops/intakes/${it.id}`}
+                            className={styles.link}
+                          >
+                            open
+                          </Link>
+                        </>
+                      ) : it.stayId ? (
+                        <Link
+                          href={`/ops/stays/${it.stayId}`}
+                          className={styles.link}
+                        >
+                          linked — open stay
+                        </Link>
+                      ) : (
+                        <Link
+                          href={`/ops/intakes/${it.id}`}
+                          className={styles.link}
+                        >
+                          convert →
+                        </Link>
+                      )}
+                    </td>
                   </tr>
                 );
               })}

@@ -309,4 +309,37 @@
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 8px;
+  align-items: center;
+}
+
+/* page-level actions (e.g. “New stay” on the overview) */
+.pageActions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 16px;
+}
+
+/* anchor styled like .btn — links that act like primary buttons */
+.btnLink {
+  display: inline-block;
+  font: inherit;
+  font-weight: 600;
+  padding: 3px 10px;
+  border: 1px solid #1c1c1c;
+  border-radius: 3px;
+  background: #1c1c1c;
+  color: #fff;
+  text-decoration: none;
+}
+
+/* the minted guest link — derived on render, never stored */
+.guestLink {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  word-break: break-all;
+  background: #f3f0e9;
+  border: 1px dashed #d9d4c9;
+  padding: 8px 10px;
+  margin: 6px 0 8px;
 }

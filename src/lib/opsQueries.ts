@@ -124,7 +124,37 @@ export async function getRecentIntakes(limit = 25) {
     orderBy: { createdAt: "desc" },
     take: limit,
     include: {
+      guest: true,
       stay: { include: { guest: true, property: true } },
+    },
+  });
+}
+
+/**
+ * Properties an operator can create a stay against: filters out /demo
+ * sandbox property clones (every sandbox property carries an isDemo stay),
+ * keeps canonical/real properties — including brand-new ones with no stays.
+ */
+export async function getConvertProperties() {
+  return prisma.property.findMany({
+    where: { stays: { none: { isDemo: true } } },
+    orderBy: { name: "asc" },
+  });
+}
+
+/** One intake with everything the convert page renders. */
+export async function getIntakeDetail(intakeId: string) {
+  return prisma.tripIntake.findUnique({
+    where: { id: intakeId },
+    include: {
+      guest: true,
+      stay: {
+        include: {
+          guest: true,
+          property: true,
+          accessTokens: { orderBy: { createdAt: "asc" } },
+        },
+      },
     },
   });
 }
