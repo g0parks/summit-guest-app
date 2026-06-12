@@ -11,6 +11,7 @@ import {
 } from "@/lib/catalog";
 import { serviceFormConfig, type RequestDetail } from "@/lib/serviceForm";
 import { zonedDateTime } from "@/lib/dates";
+import { getStayPhase } from "@/lib/stayPhase";
 
 export type RequestResult =
   | { ok: true; status: "CONFIRMED" | "REQUESTED"; serviceName: string; chargedCents: number | null }
@@ -32,6 +33,17 @@ export async function createServiceRequest(
     return { ok: false, error: "Your session has expired — please reopen your link." };
   }
   const { stay } = active;
+
+  // Warm close-down: no new requests on a departed stay (server is the
+  // source of truth; the UI mirrors). PRE_ARRIVAL stays allowed — that's
+  // the plan-ahead funnel.
+  if (getStayPhase(stay, stay.property.timezone) === "POST_STAY") {
+    return {
+      ok: false,
+      error:
+        "Your stay has wrapped — text your concierge and we'll take care of next time.",
+    };
+  }
 
   const serviceId = String(formData.get("serviceId") ?? "");
   const service = serviceId

@@ -29,6 +29,7 @@ import {
   interestedLabels,
   parseIntakeAnswers,
 } from "@/lib/intakeFlow";
+import { getStayPhase, type StayPhase } from "@/lib/stayPhase";
 import styles from "../../ops.module.css";
 
 export const dynamic = "force-dynamic";
@@ -67,6 +68,19 @@ const CLAIM_BADGE: Record<PerkClaimStatus, string> = {
   CLAIMED: styles.badgeAction!,
   FULFILLED: styles.badgeOk!,
   CANCELLED: styles.badgeVoid!,
+};
+
+/* derived from dates (src/lib/stayPhase.ts) — Stay.status is legacy display */
+const PHASE_LABEL: Record<StayPhase, string> = {
+  PRE_ARRIVAL: "PRE-ARRIVAL",
+  IN_STAY: "IN-HOUSE",
+  POST_STAY: "DEPARTED",
+};
+
+const PHASE_BADGE: Record<StayPhase, string> = {
+  PRE_ARRIVAL: styles.badgeNeutral!,
+  IN_STAY: styles.badgeOk!,
+  POST_STAY: styles.badgeVoid!,
 };
 
 /** "$x (17.5%)" — net as a share of the line amount; drift outside 15–20% flagged. */
@@ -118,8 +132,10 @@ export default async function OpsStayPage({
         <dl className={styles.kv}>
           <dt>Dates</dt>
           <dd>
-            {formatDateRange(stay.arrivalDate, stay.departureDate, tz)}
-            <span className={styles.muted}> · {stay.status}</span>
+            {formatDateRange(stay.arrivalDate, stay.departureDate, tz)}{" "}
+            <span className={`${styles.badge} ${PHASE_BADGE[getStayPhase(stay, tz)]}`}>
+              {PHASE_LABEL[getStayPhase(stay, tz)]}
+            </span>
           </dd>
           <dt>Party</dt>
           <dd>{stay.partySize ?? "—"}</dd>

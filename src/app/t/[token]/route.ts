@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { resolveToken, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
 import { addDays } from "@/lib/dates";
+import { POST_STAY_ACCESS_DAYS } from "@/lib/stayPhase";
 
 const UTM_KEYS = [
   "utm_source",
@@ -49,10 +50,13 @@ export async function GET(
   });
 
   const res = NextResponse.redirect(new URL("/", req.url));
+  // Session lives through the post-stay window (the recap + return-intent
+  // moment); converted/manual tokens expire on the same clock, so after it
+  // the link itself resolves to /invalid — a real ending.
   res.cookies.set(
     SESSION_COOKIE,
     token,
-    sessionCookieOptions(addDays(active.stay.departureDate, 2)),
+    sessionCookieOptions(addDays(active.stay.departureDate, POST_STAY_ACCESS_DAYS)),
   );
   return res;
 }

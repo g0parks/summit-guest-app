@@ -6,6 +6,7 @@ import { formatPriceLabel } from "@/lib/money";
 import { CATEGORY_LABEL } from "@/lib/catalog";
 import { serviceFormConfig } from "@/lib/serviceForm";
 import { generalMessage, getConciergeContact } from "@/lib/concierge";
+import { getStayPhase } from "@/lib/stayPhase";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import RequestForm from "@/components/services/RequestForm";
 import styles from "./page.module.css";
@@ -23,6 +24,7 @@ export default async function ServiceDetail({
   if (!service || !service.isActive) notFound();
 
   const concierge = getConciergeContact();
+  const postStay = getStayPhase(stay, stay.property.timezone) === "POST_STAY";
 
   const leadDays = Math.round(service.leadTimeHours / 24);
   const leadLabel =
@@ -54,42 +56,70 @@ export default async function ServiceDetail({
 
       <section className={`${styles.body} reveal reveal-3`}>
         <p className={styles.desc}>{service.longDesc ?? service.shortDesc}</p>
-        <p className={styles.lead}>{leadLabel} · billed to your tab</p>
-      </section>
-
-      <section className={`${styles.formWrap} reveal reveal-4`}>
-        <RequestForm
-          service={{
-            id: service.id,
-            name: service.name,
-            priceUnit: service.priceUnit,
-            priceAmount: service.priceAmount,
-            requiresDate: service.requiresDate,
-            requiresTime: service.requiresTime,
-            requiresPartySize: service.requiresPartySize,
-          }}
-          fields={serviceFormConfig(service.slug).fields}
-          notesPlaceholder={serviceFormConfig(service.slug).notesPlaceholder}
-          defaultPartySize={stay.partySize ?? 2}
-          currency={stay.currency}
-        />
-      </section>
-
-      {(concierge.phone || concierge.email) && (
-        <p className={`${styles.askFirst} reveal reveal-5`}>
-          Prefer to ask first?{" "}
-          <ConciergeLinks
-            phone={concierge.phone}
-            email={concierge.email}
-            message={generalMessage({
-              guestFirstName: stay.guest.firstName,
-              propertyName: stay.property.name,
-            })}
-            variant="inline"
-            smsLabel="Text your concierge"
-            emailLabel="Email your concierge"
-          />
+        <p className={styles.lead}>
+          {postStay ? leadLabel : `${leadLabel} · billed to your tab`}
         </p>
+      </section>
+
+      {postStay ? (
+        /* the warm close-down: the catalog is a brochure now, but the line
+           never closes — the concierge block replaces the request form */
+        <section className={`${styles.formWrap} reveal reveal-4`}>
+          <p className={styles.desc}>
+            Your stay has wrapped — we&rsquo;d love to arrange this for your
+            next one.
+          </p>
+          {(concierge.phone || concierge.email) && (
+            <ConciergeLinks
+              phone={concierge.phone}
+              email={concierge.email}
+              message={generalMessage({
+                guestFirstName: stay.guest.firstName,
+                propertyName: stay.property.name,
+              })}
+              variant="card"
+              smsLabel="Text your concierge"
+              emailLabel="Email your concierge"
+            />
+          )}
+        </section>
+      ) : (
+        <>
+          <section className={`${styles.formWrap} reveal reveal-4`}>
+            <RequestForm
+              service={{
+                id: service.id,
+                name: service.name,
+                priceUnit: service.priceUnit,
+                priceAmount: service.priceAmount,
+                requiresDate: service.requiresDate,
+                requiresTime: service.requiresTime,
+                requiresPartySize: service.requiresPartySize,
+              }}
+              fields={serviceFormConfig(service.slug).fields}
+              notesPlaceholder={serviceFormConfig(service.slug).notesPlaceholder}
+              defaultPartySize={stay.partySize ?? 2}
+              currency={stay.currency}
+            />
+          </section>
+
+          {(concierge.phone || concierge.email) && (
+            <p className={`${styles.askFirst} reveal reveal-5`}>
+              Prefer to ask first?{" "}
+              <ConciergeLinks
+                phone={concierge.phone}
+                email={concierge.email}
+                message={generalMessage({
+                  guestFirstName: stay.guest.firstName,
+                  propertyName: stay.property.name,
+                })}
+                variant="inline"
+                smsLabel="Text your concierge"
+                emailLabel="Email your concierge"
+              />
+            </p>
+          )}
+        </>
       )}
     </main>
   );

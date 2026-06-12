@@ -1,21 +1,30 @@
 import Link from "next/link";
-import { requireStay } from "@/lib/session";
-import { resolveBrand } from "@/lib/branding";
-import { getTripHome } from "@/lib/queries";
+import { requireStay, type ActiveStay } from "@/lib/session";
+import { resolveBrand, type Brand } from "@/lib/branding";
+import { getStayIntakeSignals, getTab, getTripHome } from "@/lib/queries";
 import { getConciergeContact, generalMessage } from "@/lib/concierge";
+import { getStayPhase, daysUntilArrival } from "@/lib/stayPhase";
+import { labelsForSlugs } from "@/lib/intakeFlow";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
+import NextTripForm from "@/components/trip/NextTripForm";
 import { formatDateRange, formatTime, relativeDayWord } from "@/lib/dates";
+import { formatMoney } from "@/lib/money";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * The trip home, phase-aware (src/lib/stayPhase.ts):
+ *  PRE_ARRIVAL — the countdown + plan-ahead funnel (requests stay open).
+ *  IN_STAY     — the original page, untouched.
+ *  POST_STAY   — the quiet recap; one CTA ("Have us along next time") and
+ *                the concierge line, which never closes.
+ */
 export default async function TripHome() {
-  const { stay } = await requireStay();
-  const { guest, property } = stay;
-  const tz = property.timezone;
-  const brand = resolveBrand(property);
-  const { nextUp, unclaimedPerk } = await getTripHome(stay.id, property.partnerId);
-  const concierge = getConciergeContact();
+  const active = await requireStay();
+  const { stay } = active;
+  const brand = resolveBrand(stay.property);
+  const phase = getStayPhase(stay, stay.property.timezone);
 
   return (
     <main className={styles.page}>
@@ -35,6 +44,136 @@ export default async function TripHome() {
         )}
       </header>
 
+      {phase === "PRE_ARRIVAL" ? (
+        <PreArrivalBody active={active} brand={brand} />
+      ) : phase === "POST_STAY" ? (
+        <PostStayBody active={active} brand={brand} />
+      ) : (
+        <InStayBody active={active} brand={brand} />
+      )}
+    </main>
+  );
+}
+
+/* ── PRE_ARRIVAL ─────────────────────────────────────────────────────── */
+
+async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Brand }) {
+  const { stay } = active;
+  const { guest, property } = stay;
+  const tz = property.timezone;
+  const [{ unclaimedPerk }, signals] = await Promise.all([
+    getTripHome(stay.id, property.partnerId),
+    getStayIntakeSignals(stay.id),
+  ]);
+  const concierge = getConciergeContact();
+
+  const days = daysUntilArrival(stay, tz);
+  const countdown =
+    days <= 0
+      ? `Arriving today — ${property.name}`
+      : days === 1
+        ? `Tomorrow — ${property.name}`
+        : `${days} days until ${property.name}`;
+
+  const interestLabels = signals ? labelsForSlugs(signals.interestedSlugs) : [];
+
+  return (
+    <>
+      <section className={`${styles.welcome} reveal reveal-2`}>
+        <h1 className={styles.greeting}>
+          Welcome,
+          <br />
+          <span className={styles.name}>{guest.firstName}.</span>
+        </h1>
+        <p className={styles.property}>{countdown}</p>
+        <p className={styles.trip}>
+          {formatDateRange(stay.arrivalDate, stay.departureDate, tz)}
+          {stay.partySize ? ` · ${stay.partySize} guests` : ""}
+        </p>
+      </section>
+
+      {/* the pre-arrival gift hook — by design, unchanged across phases */}
+      {unclaimedPerk && (
+        <Link href="/perks" className={`${styles.gift} reveal reveal-3`}>
+          <div className={styles.giftBody}>
+            <span className="eyebrow">
+              {brand.poweredBy
+                ? `A gift from ${brand.shortName}`
+                : "With our compliments"}
+            </span>
+            <h2 className={styles.giftTitle}>{unclaimedPerk.name}</h2>
+            <p className={styles.giftMeta}>Complimentary — tap to claim</p>
+          </div>
+          <svg className={styles.giftChevron} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </Link>
+      )}
+
+      <section className={`${styles.card} reveal reveal-3`}>
+        <span className="eyebrow">Before you arrive</span>
+        {interestLabels.length > 0 ? (
+          <p className={styles.cardSolo}>
+            From planning your trip —{" "}
+            <Link href="/services" className={styles.interestLink}>
+              {interestLabels.slice(0, 3).join(", ")}
+            </Link>
+            . Say the word and they&rsquo;re arranged.
+          </p>
+        ) : (
+          <p className={styles.cardSolo}>
+            A little planning now means a seamless arrival.
+          </p>
+        )}
+      </section>
+
+      <div className={`${styles.actions} reveal reveal-4`}>
+        <Link href="/services" className={styles.cta}>
+          Plan ahead
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </Link>
+        <Link href="/itinerary" className={styles.secondary}>
+          View itinerary
+        </Link>
+      </div>
+
+      {(concierge.phone || concierge.email) && (
+        <section className={`${styles.card} reveal reveal-5`}>
+          <span className="eyebrow">Your concierge</span>
+          <p className={styles.conciergeCopy}>
+            Anything at all — dinner moved, powder-day plans, a question.{" "}
+            {concierge.phone ? "Text us" : "Email us"} and consider it handled.
+          </p>
+          <ConciergeLinks
+            phone={concierge.phone}
+            email={concierge.email}
+            message={generalMessage({
+              guestFirstName: guest.firstName,
+              propertyName: property.name,
+            })}
+            variant="card"
+            smsLabel="Text your concierge"
+            emailLabel="Email your concierge"
+          />
+        </section>
+      )}
+    </>
+  );
+}
+
+/* ── IN_STAY — the original page, untouched ──────────────────────────── */
+
+async function InStayBody({ active, brand }: { active: ActiveStay; brand: Brand }) {
+  const { stay } = active;
+  const { guest, property } = stay;
+  const tz = property.timezone;
+  const { nextUp, unclaimedPerk } = await getTripHome(stay.id, property.partnerId);
+  const concierge = getConciergeContact();
+
+  return (
+    <>
       <section className={`${styles.welcome} reveal reveal-2`}>
         <h1 className={styles.greeting}>
           Welcome back,
@@ -134,6 +273,82 @@ export default async function TripHome() {
           />
         </section>
       )}
-    </main>
+    </>
+  );
+}
+
+/* ── POST_STAY — the quiet recap; the line never closes ──────────────── */
+
+async function PostStayBody({ active, brand }: { active: ActiveStay; brand: Brand }) {
+  const { stay } = active;
+  const { guest, property } = stay;
+  const tz = property.timezone;
+  const tab = await getTab(stay.id);
+  const concierge = getConciergeContact();
+
+  return (
+    <>
+      <section className={`${styles.welcome} reveal reveal-2`}>
+        <h1 className={styles.greeting}>
+          Thank you,
+          <br />
+          <span className={styles.name}>{guest.firstName}.</span>
+        </h1>
+        <p className={styles.property}>{property.name}</p>
+        <p className={styles.trip}>
+          Your stay · {formatDateRange(stay.arrivalDate, stay.departureDate, tz)}
+        </p>
+        <p className={styles.thanks}>
+          It was a pleasure looking after you — from all of us at{" "}
+          {brand.shortName}.
+        </p>
+      </section>
+
+      {tab.items.length > 0 && (
+        <section className={`${styles.card} reveal reveal-3`}>
+          <span className="eyebrow">Your tab</span>
+          <h2 className={styles.cardTitle}>
+            {formatMoney(tab.charged, stay.currency)} settled
+          </h2>
+          {tab.pending > 0 ? (
+            <p className={styles.cardMeta}>
+              <Link href="/tab" className={styles.interestLink}>
+                {formatMoney(tab.pending, stay.currency)} being closed out
+              </Link>
+            </p>
+          ) : (
+            <p className={styles.cardMeta}>
+              Every detail settled — nothing left to do.
+            </p>
+          )}
+        </section>
+      )}
+
+      <div className={`${styles.actions} reveal reveal-4`}>
+        <NextTripForm />
+      </div>
+
+      {(concierge.phone || concierge.email) && (
+        <section className={`${styles.card} reveal reveal-5`}>
+          <span className="eyebrow">Your concierge</span>
+          <p className={styles.conciergeCopy}>
+            The line never closes — a question about your tab, something left
+            behind, the next trip.{" "}
+            {concierge.phone ? "Text us" : "Email us"} and consider it handled.
+          </p>
+          <ConciergeLinks
+            phone={concierge.phone}
+            email={concierge.email}
+            message={generalMessage({
+              guestFirstName: guest.firstName,
+              propertyName: property.name,
+            })}
+            variant="card"
+            smsLabel="Text your concierge"
+            emailLabel="Email your concierge"
+          />
+        </section>
+      )}
+    </>
   );
 }

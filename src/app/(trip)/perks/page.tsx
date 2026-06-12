@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireStay } from "@/lib/session";
 import { resolveBrand } from "@/lib/branding";
 import { getPerksForStay } from "@/lib/queries";
+import { getStayPhase } from "@/lib/stayPhase";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function PerksPage() {
   const { stay } = await requireStay();
   const brand = resolveBrand(stay.property);
+  const postStay = getStayPhase(stay, stay.property.timezone) === "POST_STAY";
   const perks = await getPerksForStay(stay.id, stay.property.partnerId);
 
   return (
@@ -22,7 +24,9 @@ export default async function PerksPage() {
           {brand.poweredBy ? `A gift from ${brand.shortName}` : "With our compliments"}
         </h1>
         <p className={styles.sub}>
-          A few touches arranged for your stay — claim whichever suit you. No charge.
+          {postStay
+            ? "Your stay has wrapped — these will be waiting next time."
+            : "A few touches arranged for your stay — claim whichever suit you. No charge."}
         </p>
       </header>
 
@@ -51,6 +55,9 @@ export default async function PerksPage() {
                           </svg>
                           Claimed
                         </span>
+                      ) : postStay ? (
+                        // warm close-down: the claim CTA quietly retires
+                        <span className={styles.value}>Your stay has ended</span>
                       ) : (
                         // generosity is the register — no dollar-value framing
                         <span className={styles.value}>Complimentary</span>

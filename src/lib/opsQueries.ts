@@ -77,6 +77,33 @@ export async function getOpsStays() {
   });
 }
 
+/**
+ * Departed in the last 14 days with PENDING tab lines — unsettled money that
+ * used to vanish when the stays table filtered to departureDate >= now.
+ * The close-out action is the existing ChargeButton on stay detail.
+ */
+export async function getRecentlyDeparted() {
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - 14 * 24 * HOUR);
+  const stays = await prisma.stay.findMany({
+    where: {
+      departureDate: { lt: now, gte: cutoff },
+      tabLineItems: { some: { status: "PENDING" } },
+    },
+    include: {
+      guest: true,
+      property: true,
+      tabLineItems: { where: { status: "PENDING" } },
+    },
+    orderBy: { departureDate: "desc" },
+  });
+
+  return stays.map((s) => ({
+    ...s,
+    pendingCents: s.tabLineItems.reduce((sum, l) => sum + l.amount, 0),
+  }));
+}
+
 export type ActivityEntry = {
   at: Date;
   kind: "request" | "charge";

@@ -4,6 +4,7 @@ import {
   getOpsStays,
   getRecentActivity,
   getRecentIntakes,
+  getRecentlyDeparted,
 } from "@/lib/opsQueries";
 import { formatMoney } from "@/lib/money";
 import { formatDateRange, formatDayLabel, formatTime } from "@/lib/dates";
@@ -13,12 +14,13 @@ import styles from "./ops.module.css";
 export const dynamic = "force-dynamic";
 
 export default async function OpsOverviewPage() {
-  const [{ needsQuote, upcoming, perkClaims }, stays, activity, intakes] =
+  const [{ needsQuote, upcoming, perkClaims }, stays, activity, intakes, departed] =
     await Promise.all([
       getNeedsAction(),
       getOpsStays(),
       getRecentActivity(),
       getRecentIntakes(),
+      getRecentlyDeparted(),
     ]);
 
   return (
@@ -203,6 +205,48 @@ export default async function OpsOverviewPage() {
           </table>
         )}
       </section>
+
+      {departed.length > 0 && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Recently departed — close out</h2>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Guest</th>
+                <th>Property</th>
+                <th>Departed</th>
+                <th className={styles.num}>Tab pending</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {departed.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    {s.guest.firstName} {s.guest.lastName ?? ""}
+                    {s.isDemo && (
+                      <>
+                        {" "}
+                        <span className={`${styles.badge} ${styles.badgeNeutral}`}>DEMO</span>
+                      </>
+                    )}
+                  </td>
+                  <td>{s.property.name}</td>
+                  <td className={styles.small}>
+                    {formatDayLabel(s.departureDate, s.property.timezone)}
+                  </td>
+                  <td className={styles.num}>{formatMoney(s.pendingCents, s.currency)}</td>
+                  <td>
+                    <Link href={`/ops/stays/${s.id}`} className={styles.link}>
+                      open
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Trip intakes — /plan leads</h2>

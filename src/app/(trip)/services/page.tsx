@@ -3,6 +3,7 @@ import { requireStay } from "@/lib/session";
 import { getActiveServices, getStayIntakeSignals } from "@/lib/queries";
 import { formatPriceLabel } from "@/lib/money";
 import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/catalog";
+import { getStayPhase } from "@/lib/stayPhase";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -33,13 +34,15 @@ function ServiceCard({ service, currency }: { service: Service; currency: string
 
 export default async function ServicesPage() {
   const { stay } = await requireStay();
+  const postStay = getStayPhase(stay, stay.property.timezone) === "POST_STAY";
   const [services, signals] = await Promise.all([
     getActiveServices(),
-    getStayIntakeSignals(stay.id),
+    postStay ? null : getStayIntakeSignals(stay.id),
   ]);
 
   // Intake interests that map to live services — a suggestion, not an upsell.
-  // These ALSO remain in their normal category sections below.
+  // These ALSO remain in their normal category sections below. Post-stay the
+  // catalog is a brochure, so the suggestion section quietly retires.
   const planned = signals
     ? services.filter((s) => signals.interestedSlugs.includes(s.slug))
     : [];
@@ -53,7 +56,11 @@ export default async function ServicesPage() {
     <main className={styles.page}>
       <header className={`${styles.head} reveal reveal-1`}>
         <h1 className={styles.title}>Concierge</h1>
-        <p className={styles.sub}>Anything you need — arranged, on one tab.</p>
+        <p className={styles.sub}>
+          {postStay
+            ? "Your stay has wrapped — for next time, just say the word."
+            : "Anything you need — arranged, on one tab."}
+        </p>
       </header>
 
       {planned.length > 0 && (
