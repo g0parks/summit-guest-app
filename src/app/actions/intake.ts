@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { getActiveStay } from "@/lib/session";
 import { notifyOperator } from "@/lib/notify";
+import { getStayPhase } from "@/lib/stayPhase";
 import {
   INTAKE_QUESTIONS,
   interestedLabels,
@@ -66,17 +67,32 @@ export async function submitTripIntake(
 
   const active = await getActiveStay();
 
+  // A POST_STAY session follows the return-intent convention (see
+  // submitReturnIntent): link the guest, never the departed stay — the
+  // conversion claim requires stayId: null, so this keeps the intake
+  // convertible into the NEXT stay. The known-guest flow skips the contact
+  // screen, so contact is backfilled from the Guest record; the operator
+  // notification still deep-links the departed stay for context.
+  const guest = active?.stay.guest ?? null;
+  const postStay =
+    active != null &&
+    getStayPhase(active.stay, active.stay.property.timezone) === "POST_STAY";
+
   const intake = await prisma.tripIntake.create({
     data: {
-      name,
-      email,
-      phone,
+      name:
+        name ??
+        (postStay && guest
+          ? `${guest.firstName} ${guest.lastName ?? ""}`.trim()
+          : null),
+      email: email ?? (postStay ? guest?.email ?? null : null),
+      phone: phone ?? (postStay ? guest?.phone ?? null : null),
       tripTiming,
       note,
       source,
       answersJson: answers,
       utmJson: utmJson ?? undefined,
-      stayId: active?.stay.id ?? null,
+      stayId: postStay ? null : active?.stay.id ?? null,
       guestId: active?.stay.guestId ?? null,
     },
   });

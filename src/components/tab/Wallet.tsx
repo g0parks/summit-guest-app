@@ -18,10 +18,13 @@ export default function Wallet({
   card,
   pendingCents,
   currency,
+  cardEditable = true,
 }: {
   card: Card | null;
   pendingCents: number;
   currency: string;
+  /** False post-stay — the addPaymentMethod guard's UI mirror. Settle stays. */
+  cardEditable?: boolean;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [addState, addAction, adding] = useActionState<AddCardResult | null, FormData>(
@@ -36,7 +39,7 @@ export default function Wallet({
     if (addState?.ok) setShowForm(false);
   }, [addState]);
 
-  const formOpen = !card || showForm;
+  const formOpen = cardEditable && (!card || showForm);
 
   return (
     <div className={styles.wrap}>
@@ -58,9 +61,11 @@ export default function Wallet({
               </span>
             </span>
           </div>
-          <button type="button" className={styles.linkBtn} onClick={() => setShowForm(true)}>
-            Replace
-          </button>
+          {cardEditable && (
+            <button type="button" className={styles.linkBtn} onClick={() => setShowForm(true)}>
+              Replace
+            </button>
+          )}
         </div>
       )}
 
