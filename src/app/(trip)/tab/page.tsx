@@ -3,6 +3,7 @@ import { getTab } from "@/lib/queries";
 import { formatMoney } from "@/lib/money";
 import { formatDayLabel } from "@/lib/dates";
 import { generalMessage, getConciergeContact } from "@/lib/concierge";
+import { getStayPhase } from "@/lib/stayPhase";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import Wallet from "@/components/tab/Wallet";
 import styles from "./page.module.css";
@@ -46,6 +47,7 @@ export default async function TabPage() {
           }
           pendingCents={pending}
           currency={stay.currency}
+          cardEditable={getStayPhase(stay, tz) !== "POST_STAY"}
         />
       </section>
 

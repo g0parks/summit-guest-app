@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getActiveStay } from "@/lib/session";
 import { notifyOperator } from "@/lib/notify";
 import { getPaymentProvider } from "@/lib/payments";
+import { getStayPhase } from "@/lib/stayPhase";
 
 export type AddCardResult =
   | { ok: true; brand: string; last4: string }
@@ -18,6 +19,17 @@ export async function addPaymentMethod(
   const active = await getActiveStay();
   if (!active) return { ok: false, error: "Your session has expired — please reopen your link." };
   const { stay } = active;
+
+  // Warm close-down (same rule as requests/claims): no card changes on a
+  // departed stay. settleTab deliberately stays open — paying down pending
+  // is the desired post-stay action when a card is already on file.
+  if (getStayPhase(stay, stay.property.timezone) === "POST_STAY") {
+    return {
+      ok: false,
+      error:
+        "Your stay has wrapped — text your concierge and we'll take care of next time.",
+    };
+  }
 
   const number = String(formData.get("number") ?? "").replace(/\D/g, "");
   const exp = String(formData.get("exp") ?? "").trim();
