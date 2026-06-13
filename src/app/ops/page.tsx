@@ -417,9 +417,13 @@ export default async function OpsOverviewPage() {
                           c.kind === "MOVE" && c.requestedDate
                             ? c.requestedDate
                             : dayKey(item.startsAt, tz),
+                        // A date-only MOVE ("same time, different day") carries
+                        // no requestedTime — fall back to the item's existing
+                        // time, NOT "" (empty => parseItineraryFields makes it
+                        // all-day at noon, silently dropping the original time).
                         time:
-                          c.kind === "MOVE"
-                            ? c.requestedTime ?? ""
+                          c.kind === "MOVE" && c.requestedTime
+                            ? c.requestedTime
                             : item.allDay
                               ? ""
                               : timeValue(item.startsAt, tz),

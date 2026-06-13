@@ -469,10 +469,15 @@ export async function applyChangeCancel(formData: FormData): Promise<void> {
           .join("\n"),
       },
     });
-    await prisma.tabLineItem.updateMany({
-      where: { serviceRequestId: change.serviceRequest.id, status: "PENDING" },
-      data: { status: "VOID" },
-    });
+    // Only void the bill when we actually cancelled. A non-cancellable
+    // request is terminal — most notably COMPLETED (delivered): its PENDING
+    // line is owed, not to be voided by a stale guest cancel.
+    if (cancellable) {
+      await prisma.tabLineItem.updateMany({
+        where: { serviceRequestId: change.serviceRequest.id, status: "PENDING" },
+        data: { status: "VOID" },
+      });
+    }
   }
 
   await prisma.changeRequest.deleteMany({

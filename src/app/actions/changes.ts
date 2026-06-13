@@ -94,23 +94,36 @@ export async function createChangeRequest(
     return { ok: false, error: "Tell us what you need — a line is plenty." };
   }
 
-  await prisma.changeRequest.create({
-    data: {
-      stayId: stay.id,
-      itineraryItemId: item.id,
-      serviceRequestId: item.serviceRequestId,
-      kind,
-      requestedDate: kind === "MOVE" ? requestedDate : null,
-      requestedTime: kind === "MOVE" ? requestedTime : null,
-      note,
-    },
+  // Atomic claim-then-create (the guarded-updateMany money-path idiom): the
+  // changePending flip is the single-winner lock — of two racing submits (two
+  // tabs, a retried action on a passwordless link) only the one that flips
+  // false→true creates the row; the loser gets count 0 and the same friendly
+  // message as the dedup check above. Wrapped in a transaction so a failed
+  // create rolls the flip back — the chip ("Being rearranged") never strands
+  // without its row.
+  let claimed = false;
+  await prisma.$transaction(async (tx) => {
+    const lock = await tx.itineraryItem.updateMany({
+      where: { id: item.id, changePending: false },
+      data: { changePending: true },
+    });
+    if (lock.count === 0) return;
+    claimed = true;
+    await tx.changeRequest.create({
+      data: {
+        stayId: stay.id,
+        itineraryItemId: item.id,
+        serviceRequestId: item.serviceRequestId,
+        kind,
+        requestedDate: kind === "MOVE" ? requestedDate : null,
+        requestedTime: kind === "MOVE" ? requestedTime : null,
+        note,
+      },
+    });
   });
-
-  // The existing guest chip ("Being rearranged") renders off this flag.
-  await prisma.itineraryItem.update({
-    where: { id: item.id },
-    data: { changePending: true },
-  });
+  if (!claimed) {
+    return { ok: false, error: "Already being rearranged — your concierge has it." };
+  }
 
   const tz = stay.property.timezone;
   await notifyOperator({

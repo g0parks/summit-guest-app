@@ -185,11 +185,17 @@ export default function ChangeFlow({
             <p className={styles.detail}>
               We&rsquo;ll handle the unwinding — no calls, no fuss.
             </p>
+            {/* Two screens share name="note" (CANCEL + MODIFY) inside one
+                mounted form — disable the inactive one so formData.get("note")
+                resolves to the screen the guest is actually on, not the first
+                in the DOM. (IntakeFlow's single-submission pattern only holds
+                while field names are unique.) */}
             <textarea
               name="note"
               rows={3}
               className={styles.noteInput}
               placeholder="Anything we should know? Optional."
+              disabled={screen !== "CANCEL"}
             />
           </div>
           <div className={styles.screenActions}>
@@ -230,6 +236,7 @@ export default function ChangeFlow({
               rows={4}
               className={styles.noteInput}
               placeholder="One more for dinner, an earlier start, a different run…"
+              disabled={screen !== "MODIFY"}
             />
           </div>
           <div className={styles.screenActions}>
