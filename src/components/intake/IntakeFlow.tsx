@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { submitTripIntake, type IntakeResult } from "@/app/actions/intake";
-import { INTAKE_QUESTIONS, type IntakeAnswerValue } from "@/lib/intakeFlow";
+import type { IntakeAnswerValue, IntakeQuestion } from "@/lib/intakeFlow";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import styles from "./IntakeFlow.module.css";
 
@@ -25,6 +25,7 @@ type KnownStay = {
 };
 
 export default function IntakeFlow({
+  questions,
   knownStay,
   utm,
   source,
@@ -32,6 +33,8 @@ export default function IntakeFlow({
   conciergeEmail,
   conciergeMessage,
 }: {
+  /** Season-keyed question set (intakeQuestionsFor) — the server picks. */
+  questions: IntakeQuestion[];
   knownStay: KnownStay | null;
   utm: Record<string, string> | null;
   source: string | null;
@@ -39,10 +42,10 @@ export default function IntakeFlow({
   conciergeEmail: string | null;
   conciergeMessage: string;
 }) {
-  // welcome → q0..q4 → capstone → contact (anonymous only); done = state.ok
+  // welcome → q0..qN → capstone → contact (anonymous only); done = state.ok
   const stepKeys = [
     "welcome",
-    ...INTAKE_QUESTIONS.map((q) => `q:${q.key}`),
+    ...questions.map((q) => `q:${q.key}`),
     "capstone",
     ...(knownStay ? [] : ["contact"]),
   ];
@@ -64,7 +67,9 @@ export default function IntakeFlow({
     next();
   };
 
-  // ── The close — something has STARTED, not ended ──────────────────────
+  // ── The close — a confirmation with a delivery time, not a contact CTA
+  //    (Channel Doctrine 2026-06-12: the app is the interface; texting is
+  //    the quiet escape hatch, never the primary action) ──────────────────
   if (state?.ok) {
     return (
       <main className={styles.page}>
@@ -76,22 +81,23 @@ export default function IntakeFlow({
             </h1>
             <p className={styles.detail}>
               {skippedContact
-                ? "Whenever you're ready, we're one text away."
+                ? "Whenever you're ready, you know where to find us."
                 : knownStay
-                  ? "We'll weave this into your stay — watch your itinerary."
-                  : "A real person is putting your trip plan together — we'll have it over to you shortly."}
+                  ? "We're weaving it into your stay — it'll be on your itinerary by end of day."
+                  : "A real person is putting your plan together — you'll have it by end of day."}
             </p>
-            {conciergeLive && (
-              <div className={styles.doneConcierge}>
+            {conciergeLive && !skippedContact && (
+              <p className={styles.soonerLine}>
+                Need us sooner?{" "}
                 <ConciergeLinks
                   phone={conciergePhone}
                   email={conciergeEmail}
                   message={conciergeMessage}
-                  variant="card"
-                  smsLabel="Text your concierge"
-                  emailLabel="Email your concierge"
+                  variant="inline"
+                  smsLabel="Text us"
+                  emailLabel="Email us"
                 />
-              </div>
+              </p>
             )}
             {knownStay && (
               <Link href="/" className={styles.quietLink}>
@@ -108,7 +114,7 @@ export default function IntakeFlow({
     <main className={styles.page}>
       <form action={formAction} className={styles.form}>
         {/* accumulated answers + attribution ride the one submission */}
-        {INTAKE_QUESTIONS.map((q) => (
+        {questions.map((q) => (
           <input
             key={q.key}
             type="hidden"
@@ -147,7 +153,7 @@ export default function IntakeFlow({
         </section>
 
         {/* ── The questions — one per screen, presuppose the standard ── */}
-        {INTAKE_QUESTIONS.map((q, qi) => (
+        {questions.map((q, qi) => (
           <section
             key={q.key}
             className={`${styles.screen} ${step === `q:${q.key}` ? styles.active : styles.hidden}`}
@@ -163,8 +169,8 @@ export default function IntakeFlow({
                   <path d="M15 6l-6 6 6 6" />
                 </svg>
               </button>
-              <span className={styles.dots} aria-label={`Question ${qi + 1} of ${INTAKE_QUESTIONS.length}`}>
-                {INTAKE_QUESTIONS.map((d, di) => (
+              <span className={styles.dots} aria-label={`Question ${qi + 1} of ${questions.length}`}>
+                {questions.map((d, di) => (
                   <span
                     key={d.key}
                     className={`${styles.dot} ${di === qi ? styles.dotOn : ""}`}

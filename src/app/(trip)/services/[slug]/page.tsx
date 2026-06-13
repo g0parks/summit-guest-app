@@ -89,41 +89,24 @@ export default async function ServiceDetail({
           )}
         </section>
       ) : (
-        <>
-          <section className={`${styles.formWrap} reveal reveal-4`}>
-            {openRequest ? (
-              <div className={styles.resume}>
-                <p className={styles.resumeNote}>
-                  {openRequest.status === "SIGNALED"
-                    ? "You started arranging this — a few details and it's done."
-                    : "This one's with your concierge — being arranged."}
-                </p>
-                <Link href={`/requests/${openRequest.id}`} className={styles.resumeCta}>
-                  {openRequest.status === "SIGNALED" ? "Pick it back up" : "View it"}
-                </Link>
-              </div>
-            ) : (
-              <ArrangeButton serviceId={service.id} />
-            )}
-          </section>
-
-          {(concierge.phone || concierge.email) && (
-            <p className={`${styles.askFirst} reveal reveal-5`}>
-              Prefer to ask first?{" "}
-              <ConciergeLinks
-                phone={concierge.phone}
-                email={concierge.email}
-                message={generalMessage({
-                  guestFirstName: stay.guest.firstName,
-                  propertyName: stay.property.name,
-                })}
-                variant="inline"
-                smsLabel="Text your concierge"
-                emailLabel="Email your concierge"
-              />
-            </p>
+        /* the flow IS the ask (Channel Doctrine) — no "prefer to ask first?"
+           contact detour; the wizard asks everything worth asking */
+        <section className={`${styles.formWrap} reveal reveal-4`}>
+          {openRequest ? (
+            <div className={styles.resume}>
+              <p className={styles.resumeNote}>
+                {openRequest.status === "SIGNALED"
+                  ? "You started arranging this — a few details and it's done."
+                  : "This one's with your concierge — being arranged."}
+              </p>
+              <Link href={`/requests/${openRequest.id}`} className={styles.resumeCta}>
+                {openRequest.status === "SIGNALED" ? "Pick it back up" : "View it"}
+              </Link>
+            </div>
+          ) : (
+            <ArrangeButton serviceId={service.id} />
           )}
-        </>
+        </section>
       )}
     </main>
   );

@@ -33,6 +33,17 @@ export type OperatorEvent =
       notes?: string | null;
     })
   | (DemoContext & {
+      type: "change_requested";
+      stayId: string;
+      guestName: string;
+      property: string;
+      itemTitle: string;
+      kind: string; // MOVE | CANCEL | MODIFY
+      currentWhen: string;
+      requestedWhen?: string | null;
+      note?: string | null;
+    })
+  | (DemoContext & {
       type: "quote_approved";
       stayId: string;
       guestName: string;
@@ -122,6 +133,31 @@ async function buildEmail(
 ): Promise<{ subject: string; text: string }> {
   const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
   const tag = subjectTag(event);
+
+  if (event.type === "change_requested") {
+    const ask =
+      event.kind === "CANCEL"
+        ? "cancel it"
+        : event.kind === "MOVE"
+          ? `move it${event.requestedWhen ? ` to ${event.requestedWhen}` : ""}`
+          : "change it";
+    return {
+      subject: `${tag} Change asked — ${event.itemTitle} — ${event.guestName}`,
+      text: [
+        `Guest:     ${event.guestName}`,
+        `Property:  ${event.property}`,
+        `Item:      ${event.itemTitle}`,
+        `Currently: ${event.currentWhen}`,
+        `Asking to: ${ask}`,
+        event.note ? `Note: ${event.note}` : null,
+        ``,
+        `ACTION: apply or decline in the ops Changes queue — the guest sees`,
+        `"Being rearranged" until you do.`,
+        ``,
+        `Stay: ${base}/ops/stays/${event.stayId}`,
+      ].filter((l): l is string => l !== null).join("\n"),
+    };
+  }
 
   if (event.type === "quote_approved") {
     return {

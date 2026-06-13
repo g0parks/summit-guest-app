@@ -60,6 +60,23 @@ export async function getItinerary(stayId: string) {
 }
 
 /**
+ * One itinerary item for the structured-change page — must belong to the
+ * stay. The linked service's cutoffs decide which change options render;
+ * open change rows mean "already being rearranged".
+ */
+export async function getItineraryItemForChange(stayId: string, itemId: string) {
+  const item = await prisma.itineraryItem.findUnique({
+    where: { id: itemId },
+    include: {
+      serviceRequest: { include: { service: true } },
+      changeRequests: { where: { status: "OPEN" } },
+    },
+  });
+  if (!item || item.stayId !== stayId) return null;
+  return item;
+}
+
+/**
  * Pre-arrival planning signals from this stay's latest linked trip intake.
  * Null when there's no intake OR it carries no signal — every surface must
  * render exactly as today in that case (pure degradation).

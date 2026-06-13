@@ -292,8 +292,11 @@
   gap: 14px;
 }
 
-.doneConcierge {
-  margin-top: 18px;
+/* the demoted escape hatch — one quiet line, never a contact CTA */
+.soonerLine {
+  margin-top: 14px;
+  font-size: 13.5px;
+  color: var(--ink-faint);
 }
 
 .quietLink {

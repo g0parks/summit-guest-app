@@ -6,9 +6,21 @@ import {
   getRecentIntakes,
   getRecentlyDeparted,
 } from "@/lib/opsQueries";
+import {
+  applyChangeCancel,
+  applyChangeEdit,
+  declineChangeRequest,
+} from "@/app/actions/ops";
 import { buildToken } from "@/lib/tokens";
 import { formatMoney } from "@/lib/money";
-import { formatDateRange, formatDayLabel, formatTime } from "@/lib/dates";
+import {
+  dayKey,
+  formatDateRange,
+  formatDayLabel,
+  formatTime,
+  timeValue,
+  tzAbbr,
+} from "@/lib/dates";
 import { interestedLabels, parseIntakeAnswers } from "@/lib/intakeFlow";
 import { isFixedPrice } from "@/lib/catalog";
 import {
@@ -19,6 +31,7 @@ import {
 } from "@/lib/serviceForm";
 import QuoteForm from "@/components/ops/QuoteForm";
 import NudgeButton from "@/components/ops/NudgeButton";
+import ItineraryItemForm from "@/components/ops/ItineraryItemForm";
 import styles from "./ops.module.css";
 
 export const dynamic = "force-dynamic";
@@ -328,16 +341,101 @@ export default async function OpsOverviewPage() {
         )}
       </section>
 
-      {/* ── 5 · Changes — structured change flows land in the next build ── */}
+      {/* ── 5 · Changes — apply (honor or adjust) or decline; both clear
+              the guest's "Being rearranged" chip ── */}
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Changes</h2>
-        {queues.openChangeCount === 0 ? (
+        {queues.changes.length === 0 ? (
           <p className={styles.empty}>No change requests waiting.</p>
         ) : (
-          <p className={styles.empty}>
-            {queues.openChangeCount} open — structured change handling lands
-            with the next build.
-          </p>
+          queues.changes.map((c) => {
+            const tz = c.stay.property.timezone;
+            const item = c.itineraryItem;
+            return (
+              <div key={c.id} className={styles.requestCard}>
+                <div className={styles.requestHead}>
+                  <span className={styles.requestTitle}>{item.title}</span>
+                  <span className={`${styles.badge} ${styles.badgeAction}`}>{c.kind}</span>
+                  <span className={`${styles.muted} ${styles.small}`}>
+                    asked {when(c.createdAt, tz)}
+                  </span>
+                </div>
+                <p className={styles.small}>
+                  {c.stay.guest.firstName} {c.stay.guest.lastName ?? ""}
+                  {c.stay.isDemo && (
+                    <>
+                      {" "}
+                      <span className={`${styles.badge} ${styles.badgeNeutral}`}>DEMO</span>
+                    </>
+                  )}
+                  <span className={styles.muted}> @ {c.stay.property.name}</span>
+                  {" · currently "}
+                  {item.allDay
+                    ? `${formatDayLabel(item.startsAt, tz)} · all day`
+                    : when(item.startsAt, tz)}
+                </p>
+                {c.kind === "MOVE" && c.requestedDate && (
+                  <p className={styles.small}>
+                    Asked for: {c.requestedDate}
+                    {c.requestedTime ? ` · ${c.requestedTime}` : ""} (property time)
+                  </p>
+                )}
+                {c.note && <p className={styles.small}>Note: {c.note}</p>}
+
+                <div className={styles.actionsRow}>
+                  {c.kind === "CANCEL" && (
+                    <form action={applyChangeCancel}>
+                      <input type="hidden" name="changeId" value={c.id} />
+                      <button type="submit" className={styles.btnDanger}>
+                        Apply — cancel it
+                      </button>
+                    </form>
+                  )}
+                  <form action={declineChangeRequest}>
+                    <input type="hidden" name="changeId" value={c.id} />
+                    <button type="submit" className={styles.btnGhost}>
+                      Decline
+                    </button>
+                  </form>
+                  <Link href={`/ops/stays/${c.stayId}`} className={styles.link}>
+                    open stay
+                  </Link>
+                </div>
+
+                {(c.kind === "MOVE" || c.kind === "MODIFY") && (
+                  <details className={styles.editDetails}>
+                    <summary>Apply — edit the item</summary>
+                    <ItineraryItemForm
+                      action={applyChangeEdit}
+                      hidden={{ changeId: c.id }}
+                      defaults={{
+                        title: item.title,
+                        category: item.category,
+                        // MOVE prefills the guest's ask — the operator can
+                        // honor it exactly or land somewhere agreed.
+                        date:
+                          c.kind === "MOVE" && c.requestedDate
+                            ? c.requestedDate
+                            : dayKey(item.startsAt, tz),
+                        time:
+                          c.kind === "MOVE"
+                            ? c.requestedTime ?? ""
+                            : item.allDay
+                              ? ""
+                              : timeValue(item.startsAt, tz),
+                        endsAtTime: "",
+                        location: item.location ?? "",
+                        description: item.description ?? "",
+                        sortOrder: item.sortOrder,
+                      }}
+                      tzLabel={tzAbbr(item.startsAt, tz)}
+                      submitLabel="Apply change"
+                    />
+                  </details>
+                )}
+              </div>
+            );
+          })
         )}
       </section>
 

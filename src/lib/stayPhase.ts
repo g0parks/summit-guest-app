@@ -31,15 +31,25 @@ export function getStayPhase(
 }
 
 /**
- * The stay's season, DERIVED from arrival month in the property tz —
  * Park City runs two menus (Product Doctrine 2026-06-12): Nov–Apr = WINTER,
- * May–Oct = SUMMER. Stay dates pick what the catalog shows; ALL_YEAR
- * services render in both.
+ * May–Oct = SUMMER. Anonymous surfaces (/plan World B) season off today's
+ * date — Park City time, since that's where the trip lands.
+ */
+export function seasonForDate(
+  d: Date,
+  timezone = "America/Denver",
+): "WINTER" | "SUMMER" {
+  // dayKey is "YYYY-MM-DD" in the property tz — month is chars 5–6.
+  const month = Number(dayKey(d, timezone).slice(5, 7));
+  return month >= 11 || month <= 4 ? "WINTER" : "SUMMER";
+}
+
+/**
+ * The stay's season, DERIVED from arrival month in the property tz.
+ * Stay dates pick what the catalog shows; ALL_YEAR services render in both.
  */
 export function staySeason(stay: StayDates, timezone: string): "WINTER" | "SUMMER" {
-  // dayKey is "YYYY-MM-DD" in the property tz — month is chars 5–6.
-  const month = Number(dayKey(stay.arrivalDate, timezone).slice(5, 7));
-  return month >= 11 || month <= 4 ? "WINTER" : "SUMMER";
+  return seasonForDate(stay.arrivalDate, timezone);
 }
 
 /**
