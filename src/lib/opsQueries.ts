@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "./db";
+import { getStayPhase } from "./stayPhase";
 
 /**
  * Ops-console queries ONLY. `queries.ts` stays guest-only so it's obvious
@@ -11,39 +12,131 @@ import { prisma } from "./db";
 const HOUR = 60 * 60 * 1000;
 
 /**
- * "Needs action" queue: unquoted requests first (price them), then confirmed
- * requests being delivered in the next 48h, then perk claims waiting to be
- * arranged (status CLAIMED).
+ * Lazy EXPIRED sweep, run on each dashboard load (the /demo GC pattern —
+ * best-effort, never blocks the page): open SIGNALED/READY/QUOTED signals on
+ * departed stays flip to EXPIRED — an unapproved quote dies with the stay
+ * too. Unconverted demand is still data — the broker's book records what was
+ * wanted, not just what was sold; rows are kept, never deleted. Departure is
+ * phase-derived (day-granular, property tz) — the departureDate prefilter
+ * just keeps the candidate set small.
  */
-export async function getNeedsAction() {
+async function sweepExpiredSignals(): Promise<void> {
+  try {
+    const candidates = await prisma.serviceRequest.findMany({
+      where: {
+        status: { in: ["SIGNALED", "READY", "QUOTED"] },
+        stay: { departureDate: { lt: new Date() } },
+      },
+      select: {
+        id: true,
+        stay: {
+          select: {
+            arrivalDate: true,
+            departureDate: true,
+            property: { select: { timezone: true } },
+          },
+        },
+      },
+    });
+    const expired = candidates
+      .filter((r) => getStayPhase(r.stay, r.stay.property.timezone) === "POST_STAY")
+      .map((r) => r.id);
+    if (expired.length > 0) {
+      await prisma.serviceRequest.updateMany({
+        where: { id: { in: expired }, status: { in: ["SIGNALED", "READY", "QUOTED"] } },
+        data: { status: "EXPIRED" },
+      });
+    }
+  } catch (err) {
+    console.error("[ops] expired-signal sweep failed:", err);
+  }
+}
+
+/**
+ * The six queues (Product Doctrine 2026-06-12) — one section, one action
+ * each. Perk claims ride along (they had a triage home before and still
+ * need arranging). Runs the EXPIRED sweep first so departed stays' open
+ * signals never show up as actionable.
+ */
+export async function getOpsQueues() {
+  await sweepExpiredSignals();
+
   const now = new Date();
+  const dayAgo = new Date(now.getTime() - 24 * HOUR);
   const include = {
     service: true,
     stay: { include: { guest: true, property: true } },
   } as const;
 
-  const [needsQuote, upcoming, perkClaims] = await Promise.all([
-    prisma.serviceRequest.findMany({
-      where: { status: "READY" },
-      include,
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.serviceRequest.findMany({
-      where: {
-        status: "CONFIRMED",
-        requestedFor: { gte: now, lte: new Date(now.getTime() + 48 * HOUR) },
-      },
-      include,
-      orderBy: { requestedFor: "asc" },
-    }),
-    prisma.perkClaim.findMany({
-      where: { status: "CLAIMED" },
-      include: { perk: true, stay: { include: { guest: true, property: true } } },
-      orderBy: { createdAt: "asc" },
-    }),
-  ]);
+  const [newSignals, awaitingGuest, readyToRoute, scheduled, openChangeCount, toSettle, perkClaims] =
+    await Promise.all([
+      // 1 — New signals: tapped in the last 24h; the guest is likely still
+      //     filling the wizard. Watch, don't chase.
+      prisma.serviceRequest.findMany({
+        where: { status: "SIGNALED", createdAt: { gte: dayAgo } },
+        include,
+        orderBy: { createdAt: "desc" },
+      }),
+      // 2 — Awaiting guest: signals stalled ≥24h AND every outstanding quote
+      //     (the guest's tap is the money moment — it must never be
+      //     invisible). The one action is the Nudge (operator-tapped sms:
+      //     draft with a wizard deep link), so the stay's tokens ride along.
+      prisma.serviceRequest.findMany({
+        where: {
+          OR: [
+            { status: "SIGNALED", createdAt: { lt: dayAgo } },
+            { status: "QUOTED" },
+          ],
+        },
+        include: {
+          service: true,
+          stay: { include: { guest: true, property: true, accessTokens: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      // 3 — Ready to route: execution-complete; QUOTE dishes get priced here.
+      prisma.serviceRequest.findMany({
+        where: { status: "READY" },
+        include,
+        orderBy: { createdAt: "asc" },
+      }),
+      // 4 — Scheduled: confirmed work being delivered in the next 48h.
+      prisma.serviceRequest.findMany({
+        where: {
+          status: { in: ["CONFIRMED", "SCHEDULED"] },
+          requestedFor: { gte: now, lte: new Date(now.getTime() + 48 * HOUR) },
+        },
+        include,
+        orderBy: { requestedFor: "asc" },
+      }),
+      // 5 — Changes: count only until the structured change flows land (PR C).
+      prisma.changeRequest.count({ where: { status: "OPEN" } }),
+      // 6 — To settle: delivered but not charged.
+      prisma.serviceRequest.findMany({
+        where: { status: "COMPLETED", tabLineItems: { some: { status: "PENDING" } } },
+        include: {
+          service: true,
+          stay: { include: { guest: true, property: true } },
+          tabLineItems: { where: { status: "PENDING" } },
+        },
+        orderBy: { updatedAt: "asc" },
+      }),
+      prisma.perkClaim.findMany({
+        where: { status: "CLAIMED" },
+        include: { perk: true, stay: { include: { guest: true, property: true } } },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
 
-  return { needsQuote, upcoming, perkClaims };
+  return {
+    newSignals,
+    awaitingGuest,
+    readyToRoute,
+    scheduled,
+    openChangeCount,
+    toSettle,
+    perkClaims,
+  };
 }
 
 /** Upcoming + in-house stays with tab totals and the engagement signal. */

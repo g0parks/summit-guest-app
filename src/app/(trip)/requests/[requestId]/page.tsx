@@ -4,9 +4,9 @@ import { requireStay } from "@/lib/session";
 import { getRequestForWizard } from "@/lib/queries";
 import { parseRequestDetails } from "@/lib/serviceForm";
 import { dayKey, timeValue } from "@/lib/dates";
-import { formatMoney } from "@/lib/money";
 import { getStayPhase } from "@/lib/stayPhase";
 import RequestWizard from "@/components/requests/RequestWizard";
+import ApproveQuote from "@/components/requests/ApproveQuote";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +14,9 @@ export const dynamic = "force-dynamic";
 /**
  * The guided completion wizard — where a one-tap signal becomes an
  * execution-ready order, and the resumable surface nudges deep-link to.
- * Open statuses (SIGNALED/READY) render the wizard; everything later
- * renders a calm status screen — the guest never edits a priced order.
+ * Open statuses (SIGNALED/READY) render the wizard; QUOTED renders the
+ * approval moment; everything later renders a calm status screen — the
+ * guest never edits a priced order.
  */
 export default async function RequestPage({
   params,
@@ -60,6 +61,18 @@ export default async function RequestPage({
     );
   }
 
+  // ── QUOTED: the approval moment — the guest's yes creates the tab line ──
+  if (!postStay && request.status === "QUOTED" && request.quotedAmount != null) {
+    return (
+      <ApproveQuote
+        requestId={request.id}
+        serviceName={service.name}
+        amountCents={request.quotedAmount}
+        currency={stay.currency}
+      />
+    );
+  }
+
   // ── Closed / in-flight: a status screen, not a form ──
   const status = postStay
     ? {
@@ -69,9 +82,7 @@ export default async function RequestPage({
     : request.status === "QUOTED"
       ? {
           headline: "Being arranged.",
-          detail: request.quotedAmount
-            ? `Your concierge has it at ${formatMoney(request.quotedAmount, stay.currency)} — we'll confirm it with you shortly.`
-            : "Your concierge is pricing it — you'll hear from us shortly.",
+          detail: "Your concierge is pricing it — you'll hear from us shortly.",
         }
       : request.status === "CONFIRMED" || request.status === "SCHEDULED"
         ? {

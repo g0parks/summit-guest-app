@@ -491,3 +491,38 @@ export function isFlowComplete(
   }
   return true;
 }
+
+/**
+ * What's still missing before a SIGNALED request can advance — the ops-queue
+ * badge text ("date + 4 details"). Same walk as isFlowComplete, summarized
+ * for an operator's glance. Everything present = the guest just never hit
+ * send ("just the send").
+ */
+export function missingSummary(
+  config: ServiceFlowConfig,
+  details: RequestDetail[],
+  partySize: number,
+  missingDate: boolean,
+): string {
+  let missing = 0;
+  for (const step of config.steps) {
+    for (const field of step.fields) {
+      if (field.kind === "perPerson") {
+        for (let p = 1; p <= clampParty(partySize); p++) {
+          for (const sub of field.fields) {
+            if (sub.required && !valueOf(details, perPersonName(field.name, p, sub.name))) {
+              missing++;
+            }
+          }
+        }
+      } else if (field.kind !== "checkboxes" && field.required) {
+        if (!valueOf(details, field.name)) missing++;
+      }
+    }
+  }
+
+  const bits: string[] = [];
+  if (missingDate) bits.push("date");
+  if (missing > 0) bits.push(`${missing} detail${missing === 1 ? "" : "s"}`);
+  return bits.length > 0 ? bits.join(" + ") : "just the send";
+}

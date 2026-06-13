@@ -23,6 +23,7 @@ import {
   timeValue,
   tzAbbr,
 } from "@/lib/dates";
+import { isFixedPrice } from "@/lib/catalog";
 import { parseRequestDetails } from "@/lib/serviceForm";
 import {
   INTAKE_QUESTIONS,
@@ -53,7 +54,7 @@ const MOVE_LABEL: Partial<Record<RequestStatus, string>> = {
 const REQUEST_BADGE: Record<RequestStatus, string> = {
   SIGNALED: styles.badgeNeutral!, // awaiting guest details — nudge, don't price
   READY: styles.badgeAction!, // the operator's move: route / quote
-  QUOTED: styles.badgeAction!,
+  QUOTED: styles.badgeNeutral!, // awaiting the guest's approval tap
   CONFIRMED: styles.badgeOk!,
   SCHEDULED: styles.badgeNeutral!,
   COMPLETED: styles.badgeNeutral!,
@@ -245,7 +246,14 @@ export default async function OpsStayPage({
               )}
 
               <div className={styles.actionsRow}>
-                {r.status === "READY" && <QuoteForm requestId={r.id} />}
+                {/* The two pricing paths: only un-priced (QUOTE/custom)
+                    requests take a quote — fixed-price never does. QUOTED
+                    keeps the form for re-quotes until the guest approves. */}
+                {(r.status === "READY" || r.status === "QUOTED") &&
+                  (!r.service ||
+                    !isFixedPrice(r.service.priceUnit, r.service.priceAmount)) && (
+                    <QuoteForm requestId={r.id} />
+                  )}
                 {(NEXT_MOVES[r.status] ?? []).map((next) => (
                   <form key={next} action={setRequestStatus}>
                     <input type="hidden" name="requestId" value={r.id} />

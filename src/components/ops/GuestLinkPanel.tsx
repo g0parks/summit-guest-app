@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { detectSmsPlatform, smsDeepLink, type SmsPlatform } from "@/lib/smsLink";
 import styles from "@/app/ops/ops.module.css";
 
 /**
@@ -9,32 +10,10 @@ import styles from "@/app/ops/ops.module.css";
  * every render — nothing secret is stored), a prefilled sms: deep link to the
  * GUEST's phone when we have one, and a copy button as the last resort.
  *
- * Platform-aware sms body syntax + hydration guard follow ConciergeLinks:
- * UA is unknown at SSR, so the first render uses a bare sms: href and the
- * platform-specific body resolves after mount.
+ * Platform-aware sms body syntax + hydration guard live in src/lib/smsLink.ts
+ * (shared with the ops Nudge button): UA is unknown at SSR, so the first
+ * render uses a bare sms: href and the body resolves after mount.
  */
-
-type Platform = "ios" | "android" | "mac" | "other";
-
-function detectPlatform(): Platform {
-  const ua = navigator.userAgent;
-  if (/iPhone|iPad|iPod/.test(ua)) return "ios";
-  if (/Android/.test(ua)) return "android";
-  if (/Macintosh/.test(ua)) return "mac";
-  return "other";
-}
-
-function smsHref(phone: string, message: string, platform: Platform | null): string | null {
-  // Operator-typed phones may carry human formatting — make them dialable.
-  const dialable = phone.replace(/[^+\d]/g, "");
-  if (!dialable) return null;
-  if (platform === "other") return null;
-  if (platform === null) return `sms:${dialable}`;
-  const body = encodeURIComponent(message);
-  return platform === "android"
-    ? `sms:${dialable}?body=${body}`
-    : `sms:${dialable}&body=${body}`;
-}
 
 function CopyLinkButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -73,12 +52,12 @@ export default function GuestLinkPanel({
   /** Honest welcome-email status; null = no line (e.g. revisiting later). */
   emailLine: string | null;
 }) {
-  const [platform, setPlatform] = useState<Platform | null>(null);
+  const [platform, setPlatform] = useState<SmsPlatform | null>(null);
   useEffect(() => {
-    setPlatform(detectPlatform());
+    setPlatform(detectSmsPlatform());
   }, []);
 
-  const sms = guestPhone ? smsHref(guestPhone, smsMessage, platform) : null;
+  const sms = guestPhone ? smsDeepLink(guestPhone, smsMessage, platform) : null;
 
   return (
     <div className={styles.requestCard}>
