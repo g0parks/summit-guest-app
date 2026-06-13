@@ -16,6 +16,7 @@ import {
   serviceFlow,
   type RequestDetail,
 } from "@/lib/serviceForm";
+import { parseVendorCostNote } from "@/lib/vendorNote";
 import { zonedDateTime } from "@/lib/dates";
 import { getStayPhase } from "@/lib/stayPhase";
 
@@ -24,6 +25,7 @@ import { getStayPhase } from "@/lib/stayPhase";
  *
  *   createSignal        one tap — demand registered, nothing else asked
  *   saveRequestDetails  the guided wizard saves; completeness decides what's next
+ *   approveQuote        the guest's yes on a priced QUOTED request
  *
  * Two pricing paths — NEVER conflated: fixed-price completes straight to
  * CONFIRMED (tab line + itinerary, no quote, no approval); QUOTE-priced
@@ -301,4 +303,106 @@ export async function saveRequestDetails(
     serviceName: service.name,
     chargedCents,
   };
+}
+
+export type ApproveResult =
+  | { ok: true; serviceName: string; amountCents: number }
+  | { ok: false; error: string };
+
+/**
+ * The guest's approval tap on a QUOTED request: QUOTED → CONFIRMED, and the
+ * tab line + itinerary item are created HERE (moved from quoteRequest) —
+ * nothing touches the tab before the guest says yes. This tap is the future
+ * card-consent seam (Stripe off-session PaymentIntent drops in behind it).
+ * Fixed-price services never reach QUOTED, so they never pass through here.
+ */
+export async function approveQuote(
+  _prev: ApproveResult | null,
+  formData: FormData,
+): Promise<ApproveResult> {
+  const active = await getActiveStay();
+  if (!active) {
+    return { ok: false, error: "Your session has expired — please reopen your link." };
+  }
+  const { stay } = active;
+
+  if (getStayPhase(stay, stay.property.timezone) === "POST_STAY") {
+    return postStayError();
+  }
+
+  const requestId = String(formData.get("requestId") ?? "");
+  const request = requestId
+    ? await prisma.serviceRequest.findUnique({
+        where: { id: requestId },
+        include: { service: true },
+      })
+    : null;
+  if (!request || request.stayId !== stay.id) {
+    return { ok: false, error: "We couldn’t find that request — please reopen your link." };
+  }
+  if (request.status !== "QUOTED" || request.quotedAmount == null) {
+    return { ok: false, error: "This one isn’t waiting on you — your concierge has it." };
+  }
+  const amountCents = request.quotedAmount;
+  const serviceName = request.service?.name ?? request.customTitle ?? "Concierge service";
+
+  // Guarded transition — a double tap can't stack tab lines: only one
+  // updateMany wins the move out of QUOTED.
+  const moved = await prisma.serviceRequest.updateMany({
+    where: { id: request.id, status: "QUOTED" },
+    data: { status: "CONFIRMED" },
+  });
+  if (moved.count === 0) {
+    return { ok: false, error: "Already confirmed — your concierge has it." };
+  }
+
+  // Vendor cost captured at quote time rides the operator note (ops-only
+  // surface) until this line exists — see src/lib/vendorNote.ts.
+  const vendorCostCents = parseVendorCostNote(request.operatorNote);
+  await prisma.tabLineItem.create({
+    data: {
+      stayId: stay.id,
+      serviceRequestId: request.id,
+      description: serviceName,
+      amount: amountCents,
+      currency: stay.currency,
+      status: "PENDING",
+      vendorCostCents,
+      pmShareCents: vendorCostCents != null ? 0 : null, // Phase-2: real PM share
+      netCents: vendorCostCents != null ? amountCents - vendorCostCents : null,
+    },
+  });
+
+  // Confirmed + scheduled → it belongs on the trip timeline.
+  if (request.requestedFor && request.service) {
+    await prisma.itineraryItem.create({
+      data: confirmedRequestItineraryData({
+        stayId: stay.id,
+        requestId: request.id,
+        service: request.service,
+        notes: request.notes,
+        startsAt: request.requestedFor,
+      }),
+    });
+  }
+
+  // The approval IS the actionable moment — the operator books the vendor now.
+  await notifyOperator({
+    type: "quote_approved",
+    stayId: stay.id,
+    guestName: `${stay.guest.firstName} ${stay.guest.lastName ?? ""}`.trim(),
+    property: stay.property.name,
+    serviceName,
+    requestId: request.id,
+    amountCents,
+    isDemo: stay.isDemo,
+    partnerName: stay.property.partner?.name ?? null,
+  });
+
+  // Deliberately NO revalidatePath (the saveRequestDetails precedent):
+  // /requests/[id]'s render branch flips on status — revalidating would
+  // unmount the approval panel before its confirmed state renders. Every
+  // surface this touched is force-dynamic; navigation renders fresh.
+
+  return { ok: true, serviceName, amountCents };
 }

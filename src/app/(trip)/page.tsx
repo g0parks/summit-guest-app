@@ -117,7 +117,7 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
                 req.status === "SIGNALED"
                   ? "A few details and it's done"
                   : req.status === "QUOTED" && req.quotedAmount
-                    ? `Being arranged — ${formatMoney(req.quotedAmount, stay.currency)}`
+                    ? `Approve — ${formatMoney(req.quotedAmount, stay.currency)}`
                     : "Being arranged";
               return (
                 <li key={req.id}>

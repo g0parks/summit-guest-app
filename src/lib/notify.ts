@@ -33,6 +33,15 @@ export type OperatorEvent =
       notes?: string | null;
     })
   | (DemoContext & {
+      type: "quote_approved";
+      stayId: string;
+      guestName: string;
+      property: string;
+      serviceName: string;
+      requestId: string;
+      amountCents: number;
+    })
+  | (DemoContext & {
       type: "card_added";
       stayId: string;
       guestName: string;
@@ -113,6 +122,22 @@ async function buildEmail(
 ): Promise<{ subject: string; text: string }> {
   const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
   const tag = subjectTag(event);
+
+  if (event.type === "quote_approved") {
+    return {
+      subject: `${tag} Approved — ${event.serviceName} at ${formatMoney(event.amountCents)} — ${event.guestName}`,
+      text: [
+        `Guest:    ${event.guestName}`,
+        `Property: ${event.property}`,
+        `Service:  ${event.serviceName}`,
+        `Approved: ${formatMoney(event.amountCents)} — pending on the guest's tab`,
+        ``,
+        `ACTION: book the vendor — the guest has said yes.`,
+        ``,
+        `Stay: ${base}/ops/stays/${event.stayId}`,
+      ].join("\n"),
+    };
+  }
 
   if (event.type === "card_added") {
     return {

@@ -5,8 +5,9 @@ import { ItineraryCategory, type PerkClaimStatus, type RequestStatus } from "@pr
 import { prisma } from "@/lib/db";
 import { requireOperator } from "@/lib/opsSession";
 import { getPaymentProvider } from "@/lib/payments";
-import { confirmedRequestItineraryData } from "@/lib/catalog";
+import { isFixedPrice } from "@/lib/catalog";
 import { parseMoneyCents } from "@/lib/money";
+import { withVendorCostNote } from "@/lib/vendorNote";
 import { zonedDateTime } from "@/lib/dates";
 
 /**
@@ -36,9 +37,13 @@ function computeNetCents(
 }
 
 /**
- * Price a QUOTE request: set quotedAmount, confirm, drop the PENDING line on
- * the guest tab (with economics), and surface it on the itinerary if dated —
- * the same shape the auto-confirm path produces for fixed-price services.
+ * Price a QUOTE request: set quotedAmount and park it at QUOTED for the
+ * guest's in-app approval tap. NO tab line, NO itinerary item here — those
+ * are created by the guest's approveQuote (src/app/actions/requests.ts);
+ * nothing lands on the tab the guest hasn't said yes to. Vendor cost rides
+ * the operator note (src/lib/vendorNote.ts) until the line exists.
+ * Fixed-price services NEVER pass through QUOTED — they auto-confirm on
+ * wizard completion (the two pricing paths, never conflated).
  */
 export async function quoteRequest(
   _prev: OpsResult | null,
@@ -60,46 +65,29 @@ export async function quoteRequest(
 
   const request = await prisma.serviceRequest.findUnique({
     where: { id: requestId },
-    include: { service: true, stay: true },
+    include: { service: true },
   });
   if (!request) return { ok: false, error: "Request not found." };
   if (request.status !== "READY") {
-    return { ok: false, error: "Only un-quoted requests can be quoted." };
+    return { ok: false, error: "Only requests awaiting routing can be quoted." };
+  }
+  if (request.service && isFixedPrice(request.service.priceUnit, request.service.priceAmount)) {
+    return {
+      ok: false,
+      error: "Fixed-price services confirm on completion — nothing to quote.",
+    };
   }
 
   await prisma.serviceRequest.update({
     where: { id: request.id },
-    data: { quotedAmount: amountCents, status: "CONFIRMED" },
-  });
-
-  await prisma.tabLineItem.create({
     data: {
-      stayId: request.stayId,
-      serviceRequestId: request.id,
-      description: request.service?.name ?? request.customTitle ?? "Concierge service",
-      amount: amountCents,
-      currency: request.stay.currency,
-      status: "PENDING",
-      vendorCostCents,
-      pmShareCents: vendorCostCents != null ? 0 : null, // Phase-2: real PM share
-      netCents:
-        vendorCostCents != null
-          ? computeNetCents(amountCents, vendorCostCents, 0)
-          : null,
+      quotedAmount: amountCents,
+      status: "QUOTED",
+      ...(vendorCostCents != null
+        ? { operatorNote: withVendorCostNote(request.operatorNote, vendorCostCents) }
+        : {}),
     },
   });
-
-  if (request.requestedFor && request.service) {
-    await prisma.itineraryItem.create({
-      data: confirmedRequestItineraryData({
-        stayId: request.stayId,
-        requestId: request.id,
-        service: request.service,
-        notes: request.notes,
-        startsAt: request.requestedFor,
-      }),
-    });
-  }
 
   revalidateSurfaces(request.stayId);
   return { ok: true };
