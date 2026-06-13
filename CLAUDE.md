@@ -35,6 +35,9 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 - **Stay creation is PMS-data-first** via ops "New stay" (the future PMS feed calls the same core, `src/lib/opsStay.ts`); `/plan` intake conversion is the **secondary** capture path for non-PMS leads — decided 2026-06-11. Stay phase (pre-arrival / in-stay / post-stay) is DERIVED from dates (`src/lib/stayPhase.ts`, 30-day post-stay window); `Stay.status` is write-only legacy.
 - **Reserve internal per-line economics** — tab lines can carry `vendorCostCents` / `pmShareCents` / `netCents` (net target 15–20%); computed + stored internally, NEVER surfaced to guest or PM.
 
+## Pre-launch gates (MUST clear before the FIRST real guest)
+- **Fork the database — dev vs production.** Local dev and prod currently share ONE Supabase DB, and `npm run db:seed` is a full wipe that's run constantly during dev. Harmless only because prod has no real guests yet; the first real guest + one routine reseed = their data gone. Before launch: stand up a separate dev DB, point local `.env` at it, leave prod's connection string ONLY in Vercel; prod gets `migrate deploy` at deploy time, never `seed`. (See memory: shared-db-risk.)
+
 ## The three things the experience must nail (equal priority, one connected flow)
 1. Itinerary view — their trip in one place
 2. Service catalog + low-friction request flow
