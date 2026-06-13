@@ -13,17 +13,18 @@ const HOUR = 60 * 60 * 1000;
 
 /**
  * Lazy EXPIRED sweep, run on each dashboard load (the /demo GC pattern —
- * best-effort, never blocks the page): open SIGNALED/READY signals on
- * departed stays flip to EXPIRED. Unconverted demand is still data — the
- * broker's book records what was wanted, not just what was sold; rows are
- * kept, never deleted. Departure is phase-derived (day-granular, property
- * tz) — the departureDate prefilter just keeps the candidate set small.
+ * best-effort, never blocks the page): open SIGNALED/READY/QUOTED signals on
+ * departed stays flip to EXPIRED — an unapproved quote dies with the stay
+ * too. Unconverted demand is still data — the broker's book records what was
+ * wanted, not just what was sold; rows are kept, never deleted. Departure is
+ * phase-derived (day-granular, property tz) — the departureDate prefilter
+ * just keeps the candidate set small.
  */
 async function sweepExpiredSignals(): Promise<void> {
   try {
     const candidates = await prisma.serviceRequest.findMany({
       where: {
-        status: { in: ["SIGNALED", "READY"] },
+        status: { in: ["SIGNALED", "READY", "QUOTED"] },
         stay: { departureDate: { lt: new Date() } },
       },
       select: {
@@ -42,7 +43,7 @@ async function sweepExpiredSignals(): Promise<void> {
       .map((r) => r.id);
     if (expired.length > 0) {
       await prisma.serviceRequest.updateMany({
-        where: { id: { in: expired }, status: { in: ["SIGNALED", "READY"] } },
+        where: { id: { in: expired }, status: { in: ["SIGNALED", "READY", "QUOTED"] } },
         data: { status: "EXPIRED" },
       });
     }
@@ -76,11 +77,17 @@ export async function getOpsQueues() {
         include,
         orderBy: { createdAt: "desc" },
       }),
-      // 2 — Awaiting guest: stalled ≥24h; the one action is the Nudge
-      //     (operator-tapped sms: draft with a wizard deep link), so the
-      //     stay's tokens ride along to build it.
+      // 2 — Awaiting guest: signals stalled ≥24h AND every outstanding quote
+      //     (the guest's tap is the money moment — it must never be
+      //     invisible). The one action is the Nudge (operator-tapped sms:
+      //     draft with a wizard deep link), so the stay's tokens ride along.
       prisma.serviceRequest.findMany({
-        where: { status: "SIGNALED", createdAt: { lt: dayAgo } },
+        where: {
+          OR: [
+            { status: "SIGNALED", createdAt: { lt: dayAgo } },
+            { status: "QUOTED" },
+          ],
+        },
         include: {
           service: true,
           stay: { include: { guest: true, property: true, accessTokens: true } },

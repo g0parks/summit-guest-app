@@ -103,9 +103,11 @@ export default async function OpsOverviewPage() {
 
   const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
 
-  /** Concierge-register nudge draft, wizard deep link included. */
+  /** Concierge-register nudge draft, wizard deep link included. A stalled
+   *  signal asks for details; an outstanding quote asks for the yes. */
   const nudgeMessage = (r: {
     id: string;
+    status: string;
     service: { name: string } | null;
     customTitle: string | null;
     stay: {
@@ -117,7 +119,9 @@ export default async function OpsOverviewPage() {
     if (!tokenId) return null;
     const link = `${base}/t/${buildToken(tokenId)}?next=${encodeURIComponent(`/requests/${r.id}`)}`;
     const what = r.service?.name ?? r.customTitle ?? "your request";
-    return `Hi ${r.stay.guest.firstName} — your concierge here. ${what} is nearly arranged — a few details and it's done: ${link}`;
+    return r.status === "QUOTED"
+      ? `Hi ${r.stay.guest.firstName} — your concierge here. ${what} is priced and ready — one tap to approve and it's done: ${link}`
+      : `Hi ${r.stay.guest.firstName} — your concierge here. ${what} is nearly arranged — a few details and it's done: ${link}`;
   };
 
   const when = (d: Date | null, tz?: string) =>
@@ -176,7 +180,8 @@ export default async function OpsOverviewPage() {
         )}
       </section>
 
-      {/* ── 2 · Awaiting guest — stalled ≥24h; the action is the Nudge ── */}
+      {/* ── 2 · Awaiting guest — stalled signals + every outstanding quote;
+              the action is the Nudge ── */}
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Awaiting guest — nudge</h2>
         {queues.awaitingGuest.length === 0 ? (
@@ -188,7 +193,7 @@ export default async function OpsOverviewPage() {
                 <th>Request</th>
                 <th>Guest</th>
                 <th>Signaled</th>
-                <th>Missing</th>
+                <th>Waiting on</th>
                 <th></th>
               </tr>
             </thead>
@@ -204,7 +209,9 @@ export default async function OpsOverviewPage() {
                     </td>
                     <td>
                       <span className={`${styles.badge} ${styles.badgeAction}`}>
-                        {missingFor(r)}
+                        {r.status === "QUOTED" && r.quotedAmount != null
+                          ? `approve — ${formatMoney(r.quotedAmount, r.stay.currency)}`
+                          : missingFor(r)}
                       </span>
                     </td>
                     <td>

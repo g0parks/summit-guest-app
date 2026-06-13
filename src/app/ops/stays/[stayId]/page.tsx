@@ -247,8 +247,9 @@ export default async function OpsStayPage({
 
               <div className={styles.actionsRow}>
                 {/* The two pricing paths: only un-priced (QUOTE/custom)
-                    requests take a quote — fixed-price never does. */}
-                {r.status === "READY" &&
+                    requests take a quote — fixed-price never does. QUOTED
+                    keeps the form for re-quotes until the guest approves. */}
+                {(r.status === "READY" || r.status === "QUOTED") &&
                   (!r.service ||
                     !isFixedPrice(r.service.priceUnit, r.service.priceAmount)) && (
                     <QuoteForm requestId={r.id} />

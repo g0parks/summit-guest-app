@@ -98,8 +98,12 @@ export async function createDemoStay(
     data: {
       firstName: opts.guest.firstName,
       lastName: opts.guest.lastName ?? null,
-      // email/phone deliberately empty — the Perk Bank claim is the
-      // first-party capture moment; the demo should show it landing.
+      // Email deliberately empty — the Perk Bank claim is the first-party
+      // capture moment, and its contact lands on the CLAIM row regardless.
+      // Phone IS seeded (reserved-fictional 555-01xx, never a real number):
+      // real PMS-sourced stays carry one, and the ops Nudge button should
+      // demo live — an sms: draft, not the copy fallback.
+      phone: "+14355550100",
       notes: opts.guest.notes ?? null,
     },
   });

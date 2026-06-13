@@ -68,8 +68,10 @@ export async function quoteRequest(
     include: { service: true },
   });
   if (!request) return { ok: false, error: "Request not found." };
-  if (request.status !== "READY") {
-    return { ok: false, error: "Only requests awaiting routing can be quoted." };
+  // READY takes a first quote; QUOTED takes a RE-quote (typo fixes, vendor
+  // came back different) — replaceable right up until the guest approves.
+  if (request.status !== "READY" && request.status !== "QUOTED") {
+    return { ok: false, error: "Only requests awaiting routing or approval can be quoted." };
   }
   if (request.service && isFixedPrice(request.service.priceUnit, request.service.priceAmount)) {
     return {
@@ -78,8 +80,11 @@ export async function quoteRequest(
     };
   }
 
-  await prisma.serviceRequest.update({
-    where: { id: request.id },
+  // Guarded write: if the guest's approval tap lands between the read above
+  // and this update, the request is CONFIRMED with a tab line — re-quoting
+  // it back to QUOTED would orphan that line. Only an open status moves.
+  const moved = await prisma.serviceRequest.updateMany({
+    where: { id: request.id, status: { in: ["READY", "QUOTED"] } },
     data: {
       quotedAmount: amountCents,
       status: "QUOTED",
@@ -88,6 +93,9 @@ export async function quoteRequest(
         : {}),
     },
   });
+  if (moved.count === 0) {
+    return { ok: false, error: "The guest just approved this one — nothing to re-quote." };
+  }
 
   revalidateSurfaces(request.stayId);
   return { ok: true };
