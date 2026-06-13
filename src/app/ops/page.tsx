@@ -23,6 +23,7 @@ import {
 } from "@/lib/dates";
 import { interestedLabels, parseIntakeAnswers } from "@/lib/intakeFlow";
 import { isFixedPrice } from "@/lib/catalog";
+import { isChangeableStatus } from "@/lib/changePolicy";
 import {
   clampParty,
   missingSummary,
@@ -383,7 +384,7 @@ export default async function OpsOverviewPage() {
                 {c.note && <p className={styles.small}>Note: {c.note}</p>}
 
                 <div className={styles.actionsRow}>
-                  {c.kind === "CANCEL" && (
+                  {c.kind === "CANCEL" && isChangeableStatus(c.serviceRequest?.status) && (
                     <form action={applyChangeCancel}>
                       <input type="hidden" name="changeId" value={c.id} />
                       <button type="submit" className={styles.btnDanger}>

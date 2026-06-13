@@ -62,7 +62,9 @@ export async function createChangeRequest(
 
   // The doctrine gate, re-checked server-side: null cutoff or past cutoff =
   // no in-app change of that shape. MODIFY rides whichever window is open.
-  const windows = changeWindows(item.serviceRequest?.service, item.startsAt);
+  const windows = changeWindows(item.serviceRequest?.service, item.startsAt, {
+    requestStatus: item.serviceRequest?.status,
+  });
   const allowed =
     kind === "MOVE"
       ? windows.canMove

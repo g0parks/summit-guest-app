@@ -422,14 +422,23 @@ export async function applyChangeEdit(
   const parsed = parseItineraryFields(formData, item.stay.property.timezone);
   if (!parsed.ok) return parsed;
 
-  await prisma.itineraryItem.update({
-    where: { id: item.id },
-    data: { ...parsed.fields, changePending: false },
+  // Claim the row first (guarded on OPEN) so the resolution label can never
+  // disagree with what happened to the item: if another tap already resolved
+  // this change, we touch nothing. The item edit rides the same transaction.
+  let applied = false;
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.changeRequest.updateMany({
+      where: { id: change.id, status: "OPEN" },
+      data: { status: "APPLIED", resolvedAt: new Date() },
+    });
+    if (claimed.count === 0) return;
+    applied = true;
+    await tx.itineraryItem.update({
+      where: { id: item.id },
+      data: { ...parsed.fields, changePending: false },
+    });
   });
-  await prisma.changeRequest.update({
-    where: { id: change.id },
-    data: { status: "APPLIED", resolvedAt: new Date() },
-  });
+  if (!applied) return { ok: false, error: "Already resolved." };
 
   revalidateSurfaces(change.stayId);
   return { ok: true };
@@ -453,37 +462,50 @@ export async function applyChangeCancel(formData: FormData): Promise<void> {
   });
   if (!change || change.status !== "OPEN" || change.kind !== "CANCEL") return;
 
-  if (change.serviceRequest) {
-    const cancellable = (TRANSITIONS[change.serviceRequest.status] ?? []).includes(
-      "CANCELLED",
-    );
-    await prisma.serviceRequest.update({
-      where: { id: change.serviceRequest.id },
-      data: {
-        ...(cancellable ? { status: "CANCELLED" as const } : {}),
-        operatorNote: [
-          change.serviceRequest.operatorNote,
-          `Cancelled at the guest's request (in-app change)${change.note ? ` — "${change.note}"` : ""}.`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      },
+  // A delivered/terminal service is never cancellable in-app (the guest UI
+  // gates Cancel out pre-delivery, and the queue hides the button). If a stale
+  // cancel was completed out from under us, REFUSE the destructive path — don't
+  // void an owed bill or delete a delivered item. The operator declines it
+  // instead; the item + bill stand. Internal must match external.
+  const cancellable = change.serviceRequest
+    ? (TRANSITIONS[change.serviceRequest.status] ?? []).includes("CANCELLED")
+    : true;
+  if (!cancellable) return;
+
+  await prisma.$transaction(async (tx) => {
+    // Claim the row (guarded on OPEN) so exactly one resolver acts.
+    const claimed = await tx.changeRequest.updateMany({
+      where: { id: change.id, status: "OPEN" },
+      data: { status: "APPLIED", resolvedAt: new Date() },
     });
-    // Only void the bill when we actually cancelled. A non-cancellable
-    // request is terminal — most notably COMPLETED (delivered): its PENDING
-    // line is owed, not to be voided by a stale guest cancel.
-    if (cancellable) {
-      await prisma.tabLineItem.updateMany({
+    if (claimed.count === 0) return;
+
+    if (change.serviceRequest) {
+      await tx.serviceRequest.update({
+        where: { id: change.serviceRequest.id },
+        data: {
+          status: "CANCELLED",
+          operatorNote: [
+            change.serviceRequest.operatorNote,
+            `Cancelled at the guest's request (in-app change)${change.note ? ` — "${change.note}"` : ""}.`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        },
+      });
+      await tx.tabLineItem.updateMany({
         where: { serviceRequestId: change.serviceRequest.id, status: "PENDING" },
         data: { status: "VOID" },
       });
     }
-  }
 
-  await prisma.changeRequest.deleteMany({
-    where: { itineraryItemId: change.itineraryItemId },
+    // The item leaves the itinerary; its change rows go with it (required FK,
+    // no cascade). The CANCELLED request + VOID lines remain the record.
+    await tx.changeRequest.deleteMany({
+      where: { itineraryItemId: change.itineraryItemId },
+    });
+    await tx.itineraryItem.delete({ where: { id: change.itineraryItemId } });
   });
-  await prisma.itineraryItem.delete({ where: { id: change.itineraryItemId } });
 
   revalidateSurfaces(change.stayId);
 }
@@ -496,13 +518,19 @@ export async function declineChangeRequest(formData: FormData): Promise<void> {
   const change = await prisma.changeRequest.findUnique({ where: { id: changeId } });
   if (!change || change.status !== "OPEN") return;
 
-  await prisma.changeRequest.update({
-    where: { id: change.id },
-    data: { status: "DECLINED", resolvedAt: new Date() },
-  });
-  await prisma.itineraryItem.update({
-    where: { id: change.itineraryItemId },
-    data: { changePending: false },
+  // Claim-first (guarded on OPEN): exactly one resolver wins, so an APPLIED
+  // edit and a DECLINE can't both land and leave the label disagreeing with
+  // the item.
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.changeRequest.updateMany({
+      where: { id: change.id, status: "OPEN" },
+      data: { status: "DECLINED", resolvedAt: new Date() },
+    });
+    if (claimed.count === 0) return;
+    await tx.itineraryItem.update({
+      where: { id: change.itineraryItemId },
+      data: { changePending: false },
+    });
   });
 
   revalidateSurfaces(change.stayId);
