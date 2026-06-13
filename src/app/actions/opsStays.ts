@@ -191,13 +191,24 @@ export async function submitStayForm(
       const result = await sendWelcomeEmail({ guest, stay, property, link: guestLink });
       if (result.sent) {
         // Touchpoint #1 of the cadence — recorded so the stay's Touchpoints
-        // panel reads honestly and never offers a double-send.
-        await recordTouch({
-          stayId: stay.id,
-          kind: "WELCOME",
-          channel: result.mode,
-          sentTo: result.to,
-        });
+        // panel reads honestly and never offers a double-send. Best-effort:
+        // the stay is already created and the email already sent, so a
+        // touch-log failure must NOT throw and unwind that (the same invariant
+        // the surrounding block keeps for the send itself). Worst case the
+        // panel just re-offers the welcome — harmless next to a lost stay.
+        try {
+          await recordTouch({
+            stayId: stay.id,
+            kind: "WELCOME",
+            channel: result.mode === "resend" ? "email" : result.mode,
+            sentTo: result.to,
+          });
+        } catch (err) {
+          console.error(
+            "[ops] welcome touch-record failed (stay created + email sent):",
+            err,
+          );
+        }
       }
       emailLine = result.sent
         ? result.mode === "resend"
