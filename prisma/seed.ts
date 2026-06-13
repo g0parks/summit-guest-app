@@ -12,6 +12,7 @@ const prisma = new PrismaClient();
 
 async function reset() {
   // Child → parent order (FK-safe). Dev seed: clean slate each run.
+  await prisma.guestTouch.deleteMany();
   await prisma.changeRequest.deleteMany();
   await prisma.perkClaim.deleteMany();
   await prisma.tabLineItem.deleteMany();

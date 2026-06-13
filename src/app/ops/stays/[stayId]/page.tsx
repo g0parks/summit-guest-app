@@ -31,6 +31,9 @@ import {
   parseIntakeAnswers,
 } from "@/lib/intakeFlow";
 import { getStayPhase, type StayPhase } from "@/lib/stayPhase";
+import { buildTouchPlan, getStayTouches } from "@/lib/touchpoints";
+import { getGuestEmailConfig } from "@/lib/guestEmail";
+import TouchpointsPanel, { type TouchRowView } from "@/components/ops/TouchpointsPanel";
 import styles from "../../ops.module.css";
 
 export const dynamic = "force-dynamic";
@@ -112,6 +115,19 @@ export default async function OpsStayPage({
   if (!stay) notFound();
 
   const tz = stay.property.timezone;
+  // Touchpoints fetched via their own lib — getOpsStayDetail stays untouched
+  // (concurrent-build discipline).
+  const touches = await getStayTouches(stayId);
+  const touchRows: TouchRowView[] = buildTouchPlan(stay, tz, touches).map((row) => ({
+    kind: row.kind,
+    label: row.label,
+    detail: row.detail,
+    dueLabel: formatDayLabel(row.dueAt, tz),
+    status: row.status,
+    sentLine: row.sentAt
+      ? `${formatDayLabel(row.sentAt, tz)} · ${row.channel ?? "email"}${row.sentTo ? ` · ${row.sentTo}` : ""}`
+      : null,
+  }));
   const lastAccessedAt = stay.accessTokens.reduce<Date | null>(
     (latest, t) =>
       t.lastAccessedAt && (!latest || t.lastAccessedAt > latest)
@@ -164,6 +180,17 @@ export default async function OpsStayPage({
             {lastAccessedAt ? when(lastAccessedAt) : <span className={styles.muted}>never</span>}
           </dd>
         </dl>
+      </section>
+
+      {/* ── Touchpoints — the cadence, surfaced; the operator sends ── */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Touchpoints — pre-arrival cadence</h2>
+        <TouchpointsPanel
+          stayId={stay.id}
+          rows={touchRows}
+          emailEnabled={getGuestEmailConfig().enabled}
+          guestHasEmail={Boolean(stay.guest.email)}
+        />
       </section>
 
       {stay.tripIntakes.length > 0 && (

@@ -19,7 +19,8 @@ import { formatDateRange } from "./dates";
  * Register: luxury, calm, no prices, never "exclusive"/"FREE".
  */
 
-// SEAM: pre-arrival cadence (next phase) sends through this module.
+// The pre-arrival cadence (PLAN_AHEAD, PRE_ARRIVAL) sends through here —
+// operator-triggered from the ops Touchpoints panel, recorded as GuestTouch.
 
 export type GuestEmailConfig =
   | { enabled: true; from: string; mode: "resend" | "console" }
@@ -152,6 +153,155 @@ export async function sendWelcomeEmail(input: {
     console.error("[guest-email] send failed:", err);
     return { sent: false, reason: "send-failed" };
   }
+}
+
+/* ── Cadence emails — same gate, same register, one shared renderer ── */
+
+type CadenceEmailInput = {
+  guest: Guest;
+  stay: Stay;
+  property: Property & { partner: Partner | null };
+  /** Tokened deep link (e.g. …/t/<token>?next=/plan). */
+  link: string;
+};
+
+type RenderedEmail = {
+  subject: string;
+  headline: string;
+  paragraphs: string[];
+  ctaLabel: string;
+  closing: string | null;
+};
+
+async function sendCadenceEmail(
+  input: CadenceEmailInput,
+  rendered: RenderedEmail,
+): Promise<GuestEmailResult> {
+  const config = getGuestEmailConfig();
+  if (!config.enabled) return { sent: false, reason: "not-configured" };
+  const to = input.guest.email?.trim();
+  if (!to) return { sent: false, reason: "no-email" };
+
+  const brand = resolveBrand(input.property);
+  const concierge = getConciergeContact();
+  const conciergeLine = concierge.phone
+    ? `Anything at all, anytime — text your concierge at ${concierge.phone}.`
+    : concierge.email
+      ? `Anything at all, anytime — email your concierge at ${concierge.email}.`
+      : null;
+
+  const text = [
+    `${input.guest.firstName} —`,
+    ``,
+    ...rendered.paragraphs.flatMap((p) => [p, ``]),
+    input.link,
+    ...(rendered.closing ? [``, rendered.closing] : []),
+    ...(conciergeLine ? [``, conciergeLine] : []),
+    ``,
+    `${brand.label}`,
+    ...(brand.poweredBy ? [`powered by Summit`] : []),
+  ].join("\n");
+
+  const accent = brand.accentColor ?? "#2f4b3c";
+  const html = `<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:#f7f3ec;font-family:Georgia,'Times New Roman',serif;color:#26241f;">
+    <div style="max-width:520px;margin:0 auto;padding:48px 28px;">
+      <p style="font-size:12px;letter-spacing:0.22em;text-transform:uppercase;color:#8b857a;margin:0 0 36px;">
+        ${escapeHtml(brand.label)}${brand.poweredBy ? `<br /><span style="font-size:10px;letter-spacing:0.1em;">powered by Summit</span>` : ""}
+      </p>
+      <h1 style="font-size:26px;font-weight:400;line-height:1.25;margin:0 0 24px;">
+        ${escapeHtml(rendered.headline)}
+      </h1>
+      ${rendered.paragraphs
+        .map(
+          (p) =>
+            `<p style="font-size:15px;line-height:1.65;margin:0 0 24px;">${escapeHtml(p)}</p>`,
+        )
+        .join("\n      ")}
+      <p style="margin:0 0 30px;">
+        <a href="${escapeAttr(input.link)}"
+           style="display:inline-block;background:${accent};color:#ffffff;text-decoration:none;font-family:-apple-system,'Segoe UI',sans-serif;font-size:15px;font-weight:600;padding:14px 30px;border-radius:999px;">
+          ${escapeHtml(rendered.ctaLabel)}
+        </a>
+      </p>
+      ${rendered.closing ? `<p style="font-size:14px;line-height:1.65;color:#6f6a60;margin:0 0 30px;">${escapeHtml(rendered.closing)}</p>` : ""}
+      ${conciergeLine ? `<p style="font-size:14px;line-height:1.65;color:#6f6a60;margin:0;">${escapeHtml(conciergeLine)}</p>` : ""}
+    </div>
+  </body>
+</html>`;
+
+  if (config.mode === "console") {
+    console.info(
+      [
+        `[guest-email] console fallback (RESEND_API_KEY unset)`,
+        `From:    ${config.from}`,
+        `To:      ${to}`,
+        `Subject: ${rendered.subject}`,
+        ``,
+        text,
+      ].join("\n"),
+    );
+    return { sent: true, to, mode: "console" };
+  }
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from: config.from, to, subject: rendered.subject, text, html }),
+    });
+    if (!res.ok) {
+      console.error(
+        `[guest-email] send failed: ${res.status} ${await res.text().catch(() => "")}`,
+      );
+      return { sent: false, reason: "send-failed" };
+    }
+    return { sent: true, to, mode: "resend" };
+  } catch (err) {
+    console.error("[guest-email] send failed:", err);
+    return { sent: false, reason: "send-failed" };
+  }
+}
+
+/**
+ * ~2 wks post-booking: the /plan invitation. Presupposing register — the
+ * planning is already underway; they're invited into it. No prices.
+ */
+export async function sendPlanAheadEmail(input: CadenceEmailInput): Promise<GuestEmailResult> {
+  const { guest, property } = input;
+  return sendCadenceEmail(input, {
+    subject: `${property.name} — shall we get your stay arranged?`,
+    headline: `${guest.firstName} — let's get ahead of it.`,
+    paragraphs: [
+      `Your stay at ${property.name} is on our books, and the best trips are arranged before the bags are packed.`,
+      `A few one-tap questions — a car waiting, a stocked kitchen, gear fitted before you arrive — and your concierge handles the rest.`,
+    ],
+    ctaLabel: "Plan your stay",
+    closing: "Two minutes now; a seamless arrival later.",
+  });
+}
+
+/**
+ * ~2 wks before arrival: nearly here. Calm readiness, not a checklist of
+ * guilt — whatever's still open is one tap from done.
+ */
+export async function sendPreArrivalEmail(input: CadenceEmailInput): Promise<GuestEmailResult> {
+  const { guest, stay, property } = input;
+  const dates = formatDateRange(stay.arrivalDate, stay.departureDate, property.timezone);
+  return sendCadenceEmail(input, {
+    subject: `${property.name} is nearly ready for you`,
+    headline: `${guest.firstName} — it's nearly time.`,
+    paragraphs: [
+      `${property.name}, ${dates}. Everything we've arranged is in motion, and your trip page has the latest — itinerary, requests, all of it.`,
+      `If anything's still open, it's one tap from done. And if something new comes to mind, the concierge is already listening.`,
+    ],
+    ctaLabel: "Open your trip",
+    closing: "We'll have everything waiting.",
+  });
 }
 
 function escapeHtml(s: string): string {

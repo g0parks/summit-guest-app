@@ -11,6 +11,7 @@ import {
 import { interestedSlugs, parseIntakeAnswers } from "@/lib/intakeFlow";
 import { buildToken } from "@/lib/tokens";
 import { getGuestEmailConfig, sendWelcomeEmail } from "@/lib/guestEmail";
+import { recordTouch } from "@/lib/touchpoints";
 
 /**
  * Stay creation — the two ops front doors converge here. Entry A (manual
@@ -188,6 +189,16 @@ export async function submitStayForm(
       emailLine = "No welcome email — no email address on file.";
     } else {
       const result = await sendWelcomeEmail({ guest, stay, property, link: guestLink });
+      if (result.sent) {
+        // Touchpoint #1 of the cadence — recorded so the stay's Touchpoints
+        // panel reads honestly and never offers a double-send.
+        await recordTouch({
+          stayId: stay.id,
+          kind: "WELCOME",
+          channel: result.mode,
+          sentTo: result.to,
+        });
+      }
       emailLine = result.sent
         ? result.mode === "resend"
           ? `Welcome email sent to ${result.to}.`
