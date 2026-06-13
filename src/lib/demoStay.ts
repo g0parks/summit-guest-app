@@ -100,10 +100,10 @@ export async function createDemoStay(
       lastName: opts.guest.lastName ?? null,
       // Email deliberately empty — the Perk Bank claim is the first-party
       // capture moment, and its contact lands on the CLAIM row regardless.
-      // Phone IS seeded (reserved-fictional 555-01xx, never a real number):
-      // real PMS-sourced stays carry one, and the ops Nudge button should
-      // demo live — an sms: draft, not the copy fallback.
-      phone: "+14355550100",
+      // Phone IS seeded — Parker's dev number, BY REQUEST (2026-06-12): the
+      // ops Nudge demos live (an sms: draft, not the copy fallback) and the
+      // draft lands on a phone he holds during a pitch.
+      phone: "+19104200302",
       notes: opts.guest.notes ?? null,
     },
   });

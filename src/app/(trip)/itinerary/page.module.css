@@ -160,8 +160,22 @@
   color: var(--ink-faint);
 }
 
-/* quiet per-item concierge ask — meta weight, not a button */
+/* quiet per-item change door — meta weight, not a button */
 .itemAsk {
   margin-top: 7px;
   font-size: 13px;
+}
+
+.askLink {
+  color: var(--ink-muted);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline);
+  text-underline-offset: 3px;
+  transition: color 0.2s var(--ease), text-decoration-color 0.2s var(--ease);
+}
+
+.askLink:hover {
+  color: var(--ink);
+  text-decoration-color: var(--ink-faint);
 }

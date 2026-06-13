@@ -68,7 +68,7 @@ export async function getOpsQueues() {
     stay: { include: { guest: true, property: true } },
   } as const;
 
-  const [newSignals, awaitingGuest, readyToRoute, scheduled, openChangeCount, toSettle, perkClaims] =
+  const [newSignals, awaitingGuest, readyToRoute, scheduled, changes, toSettle, perkClaims] =
     await Promise.all([
       // 1 — New signals: tapped in the last 24h; the guest is likely still
       //     filling the wizard. Watch, don't chase.
@@ -109,8 +109,16 @@ export async function getOpsQueues() {
         include,
         orderBy: { requestedFor: "asc" },
       }),
-      // 5 — Changes: count only until the structured change flows land (PR C).
-      prisma.changeRequest.count({ where: { status: "OPEN" } }),
+      // 5 — Changes: open structured change asks; apply or decline, one tap.
+      prisma.changeRequest.findMany({
+        where: { status: "OPEN" },
+        include: {
+          itineraryItem: true,
+          serviceRequest: { include: { service: true } },
+          stay: { include: { guest: true, property: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
       // 6 — To settle: delivered but not charged.
       prisma.serviceRequest.findMany({
         where: { status: "COMPLETED", tabLineItems: { some: { status: "PENDING" } } },
@@ -133,7 +141,7 @@ export async function getOpsQueues() {
     awaitingGuest,
     readyToRoute,
     scheduled,
-    openChangeCount,
+    changes,
     toSettle,
     perkClaims,
   };

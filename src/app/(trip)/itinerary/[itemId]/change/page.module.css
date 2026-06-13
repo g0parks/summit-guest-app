@@ -1,0 +1,55 @@
+/* Status / escape-hatch screens for the change route — same calm geometry
+   as the request status screen (requests/[requestId]/page.module.css). */
+
+.page {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  min-height: calc(100dvh - var(--nav-h) - 56px);
+}
+
+.body {
+  width: 100%;
+  max-width: var(--page-max);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  padding: 22px var(--space-page) 36px;
+}
+
+.headline {
+  font-size: 34px;
+  line-height: 1.12;
+  font-weight: 400;
+}
+
+.detail {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+  max-width: 36ch;
+}
+
+.conciergeWrap {
+  margin-top: 10px;
+}
+
+.links {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quietLink {
+  align-self: flex-start;
+  padding: 6px 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  text-decoration: underline;
+  text-decoration-color: var(--hairline);
+  text-underline-offset: 3px;
+}

@@ -244,6 +244,17 @@ async function InStayBody({ active, brand }: { active: ActiveStay; brand: Brand 
                 </>
               )}
             </p>
+            {/* the structured change door, quiet (Channel Doctrine) */}
+            {!nextUp.changePending && (
+              <p className={styles.cardMeta}>
+                <Link
+                  href={`/itinerary/${nextUp.id}/change`}
+                  className={styles.interestLink}
+                >
+                  Request a change
+                </Link>
+              </p>
+            )}
           </>
         ) : (
           <>

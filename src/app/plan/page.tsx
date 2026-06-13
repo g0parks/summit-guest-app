@@ -1,6 +1,8 @@
 import { getActiveStay } from "@/lib/session";
 import { getConciergeContact, intakeFollowupMessage } from "@/lib/concierge";
 import { formatDateRange } from "@/lib/dates";
+import { seasonForDate, staySeason } from "@/lib/stayPhase";
+import { intakeQuestionsFor } from "@/lib/intakeFlow";
 import IntakeFlow from "@/components/intake/IntakeFlow";
 
 export const dynamic = "force-dynamic";
@@ -34,8 +36,15 @@ export default async function PlanPage({
   const active = await getActiveStay();
   const concierge = getConciergeContact();
 
+  // Season-aware questions (Menu Doctrine): World A from the stay's dates,
+  // World B from today's — no "skis fitted and waiting" for a July stay.
+  const season = active
+    ? staySeason(active.stay, active.stay.property.timezone)
+    : seasonForDate(new Date());
+
   return (
     <IntakeFlow
+      questions={intakeQuestionsFor(season)}
       knownStay={
         active
           ? {

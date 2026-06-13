@@ -141,6 +141,12 @@ export async function setRequestStatus(formData: FormData): Promise<void> {
       data: { status: "VOID" },
     });
     if (request.itineraryItem) {
+      // Change rows reference the item with a required FK (no cascade) —
+      // delete them first or the item delete throws. The CANCELLED request
+      // itself remains the demand record (the demoStay GC precedent).
+      await prisma.changeRequest.deleteMany({
+        where: { itineraryItemId: request.itineraryItem.id },
+      });
       await prisma.itineraryItem.delete({ where: { id: request.itineraryItem.id } });
     }
   }
@@ -376,9 +382,130 @@ export async function deleteItineraryItem(formData: FormData): Promise<void> {
   const item = await prisma.itineraryItem.findUnique({ where: { id: itemId } });
   if (!item) return;
 
+  // Change rows hold a required FK on the item — clear them first.
+  await prisma.changeRequest.deleteMany({ where: { itineraryItemId: item.id } });
   await prisma.itineraryItem.delete({ where: { id: item.id } });
 
   revalidateSurfaces(item.stayId);
+}
+
+/* ── Change-request resolution (the ops Changes queue) ───────────────────
+   A change resolves exactly two ways — APPLIED or DECLINED — and both clear
+   the guest's "Being rearranged" chip. MOVE/MODIFY rows are kept (stamped
+   resolvedAt); a CANCEL deletes the item, and the rows go with it (required
+   FK) — the cancelled REQUEST stays the demand record. When change history
+   matters enough, make ChangeRequest.itineraryItemId nullable and keep all
+   rows; flagged, not built. */
+
+/**
+ * Apply a MOVE/MODIFY by editing the item (the ItineraryItemForm reuse —
+ * the operator can honor the ask exactly or land somewhere agreed). One
+ * submission updates the item, clears the chip, and resolves the change.
+ */
+export async function applyChangeEdit(
+  _prev: OpsResult | null,
+  formData: FormData,
+): Promise<OpsResult> {
+  await requireOperator();
+
+  const changeId = String(formData.get("changeId") ?? "");
+  const change = await prisma.changeRequest.findUnique({
+    where: { id: changeId },
+    include: {
+      itineraryItem: { include: { stay: { include: { property: true } } } },
+    },
+  });
+  if (!change) return { ok: false, error: "Change request not found." };
+  if (change.status !== "OPEN") return { ok: false, error: "Already resolved." };
+
+  const item = change.itineraryItem;
+  const parsed = parseItineraryFields(formData, item.stay.property.timezone);
+  if (!parsed.ok) return parsed;
+
+  await prisma.itineraryItem.update({
+    where: { id: item.id },
+    data: { ...parsed.fields, changePending: false },
+  });
+  await prisma.changeRequest.update({
+    where: { id: change.id },
+    data: { status: "APPLIED", resolvedAt: new Date() },
+  });
+
+  revalidateSurfaces(change.stayId);
+  return { ok: true };
+}
+
+/**
+ * Apply a CANCEL: the standing cancel semantics (setRequestStatus) — linked
+ * request → CANCELLED (when its status allows) with PENDING lines voided,
+ * and the item leaves the itinerary. The item's change rows go with it
+ * (required FK, no cascade); the CANCELLED request + VOID lines remain the
+ * record. This change row itself is deleted with the item — kind=CANCEL
+ * history lives on the request's operatorNote.
+ */
+export async function applyChangeCancel(formData: FormData): Promise<void> {
+  await requireOperator();
+
+  const changeId = String(formData.get("changeId") ?? "");
+  const change = await prisma.changeRequest.findUnique({
+    where: { id: changeId },
+    include: { serviceRequest: true },
+  });
+  if (!change || change.status !== "OPEN" || change.kind !== "CANCEL") return;
+
+  if (change.serviceRequest) {
+    const cancellable = (TRANSITIONS[change.serviceRequest.status] ?? []).includes(
+      "CANCELLED",
+    );
+    await prisma.serviceRequest.update({
+      where: { id: change.serviceRequest.id },
+      data: {
+        ...(cancellable ? { status: "CANCELLED" as const } : {}),
+        operatorNote: [
+          change.serviceRequest.operatorNote,
+          `Cancelled at the guest's request (in-app change)${change.note ? ` — "${change.note}"` : ""}.`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      },
+    });
+    // Only void the bill when we actually cancelled. A non-cancellable
+    // request is terminal — most notably COMPLETED (delivered): its PENDING
+    // line is owed, not to be voided by a stale guest cancel.
+    if (cancellable) {
+      await prisma.tabLineItem.updateMany({
+        where: { serviceRequestId: change.serviceRequest.id, status: "PENDING" },
+        data: { status: "VOID" },
+      });
+    }
+  }
+
+  await prisma.changeRequest.deleteMany({
+    where: { itineraryItemId: change.itineraryItemId },
+  });
+  await prisma.itineraryItem.delete({ where: { id: change.itineraryItemId } });
+
+  revalidateSurfaces(change.stayId);
+}
+
+/** Decline a change: the item stands as planned; the chip clears. */
+export async function declineChangeRequest(formData: FormData): Promise<void> {
+  await requireOperator();
+
+  const changeId = String(formData.get("changeId") ?? "");
+  const change = await prisma.changeRequest.findUnique({ where: { id: changeId } });
+  if (!change || change.status !== "OPEN") return;
+
+  await prisma.changeRequest.update({
+    where: { id: change.id },
+    data: { status: "DECLINED", resolvedAt: new Date() },
+  });
+  await prisma.itineraryItem.update({
+    where: { id: change.itineraryItemId },
+    data: { changePending: false },
+  });
+
+  revalidateSurfaces(change.stayId);
 }
 
 /** Off-catalog item straight onto the tab — PENDING, no request linked. */

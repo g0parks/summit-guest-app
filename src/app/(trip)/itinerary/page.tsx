@@ -1,7 +1,7 @@
+import Link from "next/link";
 import { requireStay } from "@/lib/session";
 import { getItinerary } from "@/lib/queries";
-import { changeMessage, getConciergeContact } from "@/lib/concierge";
-import ConciergeLinks from "@/components/concierge/ConciergeLinks";
+import TodayAnchor from "@/components/itinerary/TodayAnchor";
 import {
   dayKey,
   formatDateRange,
@@ -20,8 +20,6 @@ export default async function ItineraryPage() {
   const tz = stay.property.timezone;
   const items = await getItinerary(stay.id);
   const now = Date.now();
-  const concierge = getConciergeContact();
-  const conciergeLive = Boolean(concierge.phone || concierge.email);
 
   // First still-upcoming item — gets the accent treatment.
   const nextId = items.find((it) => it.startsAt.getTime() >= now)?.id;
@@ -35,8 +33,14 @@ export default async function ItineraryPage() {
     else groups.push({ key, date: it.startsAt, items: [it] });
   }
 
+  // Mid-stay, land on today — only worth a scroll when days sit above it.
+  const todayKey = dayKey(new Date(), tz);
+  const todayIdx = groups.findIndex((g) => g.key === todayKey);
+  const anchorId = todayIdx > 0 ? `day-${todayKey}` : null;
+
   return (
     <main className={styles.page}>
+      {anchorId && <TodayAnchor targetId={anchorId} />}
       <header className={`${styles.head} reveal reveal-1`}>
         <h1 className={styles.title}>Itinerary</h1>
         <p className={styles.sub}>
@@ -45,7 +49,11 @@ export default async function ItineraryPage() {
       </header>
 
       {groups.map((group, gi) => (
-        <section key={group.key} className={`${styles.day} reveal reveal-${Math.min(gi + 2, 5)}`}>
+        <section
+          key={group.key}
+          id={`day-${group.key}`}
+          className={`${styles.day} reveal reveal-${Math.min(gi + 2, 5)}`}
+        >
           <div className={styles.dayHead}>
             <span className={styles.dayWord}>{relativeDayWord(group.date, tz)}</span>
             <span className={styles.dayDate}>{formatDayLabel(group.date, tz)}</span>
@@ -73,23 +81,13 @@ export default async function ItineraryPage() {
                   <h2 className={styles.itemTitle}>{it.title}</h2>
                   {it.description && <p className={styles.itemDesc}>{it.description}</p>}
                   {it.location && <p className={styles.itemLoc}>{it.location}</p>}
-                  {conciergeLive && (
+                  {/* The structured change door (Channel Doctrine) — upcoming
+                      items only; an in-motion item already says so. */}
+                  {!isPast && !it.changePending && (
                     <p className={styles.itemAsk}>
-                      <ConciergeLinks
-                        phone={concierge.phone}
-                        email={concierge.email}
-                        message={changeMessage({
-                          guestFirstName: stay.guest.firstName,
-                          propertyName: stay.property.name,
-                          itemTitle: it.title,
-                          whenLabel: it.allDay
-                            ? formatDayLabel(it.startsAt, tz)
-                            : `${formatDayLabel(it.startsAt, tz)} · ${formatTime(it.startsAt, tz)}`,
-                        })}
-                        variant="inline"
-                        smsLabel="Request a change"
-                        emailLabel="Request a change"
-                      />
+                      <Link href={`/itinerary/${it.id}/change`} className={styles.askLink}>
+                        Request a change
+                      </Link>
                     </p>
                   )}
                 </li>

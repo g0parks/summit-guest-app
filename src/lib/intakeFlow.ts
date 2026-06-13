@@ -30,27 +30,44 @@ export type IntakeQuestion = {
   interestLabel: string;
 };
 
-export const INTAKE_QUESTIONS: IntakeQuestion[] = [
-  {
-    key: "airport-car",
-    eyebrow: "Getting there",
-    question: "Should we have a car waiting when you land at SLC?",
-    detail: "A private car, driver tracking your flight — no curb chaos.",
-    yesLabel: "Yes — have a car waiting",
-    passLabel: "I'm set",
-    serviceSlug: "airport-transfer-slc",
-    interestLabel: "Airport car",
-  },
-  {
-    key: "kitchen",
-    eyebrow: "The kitchen",
-    question: "Arriving to a stocked kitchen, or planning to shop?",
-    detail: "Send a list later — we'll have it put away before you walk in.",
-    yesLabel: "Stock it",
-    passLabel: "I'll shop",
-    serviceSlug: "grocery-pre-stock",
-    interestLabel: "Kitchen stocking",
-  },
+/* Season-agnostic anchors — the demand-router L1s every trip starts with. */
+
+const Q_AIRPORT: IntakeQuestion = {
+  key: "airport-car",
+  eyebrow: "Getting there",
+  question: "Should we have a car waiting when you land at SLC?",
+  detail: "A private car, driver tracking your flight — no curb chaos.",
+  yesLabel: "Yes — have a car waiting",
+  passLabel: "I'm set",
+  serviceSlug: "airport-transfer-slc",
+  interestLabel: "Airport car",
+};
+
+const Q_KITCHEN: IntakeQuestion = {
+  key: "kitchen",
+  eyebrow: "The kitchen",
+  question: "Arriving to a stocked kitchen, or planning to shop?",
+  detail: "Send a list later — we'll have it put away before you walk in.",
+  yesLabel: "Stock it",
+  passLabel: "I'll shop",
+  serviceSlug: "grocery-pre-stock",
+  interestLabel: "Kitchen stocking",
+};
+
+const Q_CHEF: IntakeQuestion = {
+  key: "chef",
+  eyebrow: "A night in",
+  question: "Most guests do at least one dinner in-residence. Want us to hold a chef for a night?",
+  detail: "A menu built around your table — we just need the night.",
+  yesLabel: "Tell me more",
+  passLabel: "We're set",
+  serviceSlug: "private-chef-dinner",
+  interestLabel: "Chef night",
+};
+
+/* Winter dishes (the original set). */
+
+const WINTER_ONLY: IntakeQuestion[] = [
   {
     key: "gear",
     eyebrow: "On the snow",
@@ -62,16 +79,6 @@ export const INTAKE_QUESTIONS: IntakeQuestion[] = [
     interestLabel: "Ski & gear fitting",
   },
   {
-    key: "chef",
-    eyebrow: "A night in",
-    question: "Most guests do at least one dinner in-residence. Want us to hold a chef for a night?",
-    detail: "A menu built around your table — we just need the night.",
-    yesLabel: "Tell me more",
-    passLabel: "We're set",
-    serviceSlug: "private-chef-dinner",
-    interestLabel: "Chef night",
-  },
-  {
     key: "guide",
     eyebrow: "The mountain",
     question: "One day with a private guide — first tracks, no lift lines. Interested?",
@@ -81,6 +88,66 @@ export const INTAKE_QUESTIONS: IntakeQuestion[] = [
     serviceSlug: "private-ski-guide",
     interestLabel: "Private guide",
   },
+];
+
+/* Summer dishes — PLACEHOLDER COPY pending Parker's copy pass (flagged in
+   the PR); the presupposing register holds, the words may not. */
+
+const SUMMER_ONLY: IntakeQuestion[] = [
+  {
+    key: "bike-gear",
+    eyebrow: "On the trails",
+    question: "Bikes fitted and waiting at the residence — or bringing your own?",
+    detail: "Sized to each rider, delivered before you arrive — no shop stop.",
+    yesLabel: "Fit us",
+    passLabel: "Bringing ours",
+    serviceSlug: "bike-rental",
+    interestLabel: "Bike fitting",
+  },
+  {
+    key: "fly-fishing",
+    eyebrow: "The water",
+    question: "A guided morning on the river — rod, waders, and a guide who knows every bend?",
+    detail: "Everything provided — first cast by nine.",
+    yesLabel: "Interested",
+    passLabel: "Not this trip",
+    serviceSlug: "guided-fly-fishing",
+    interestLabel: "Fly fishing",
+  },
+  {
+    key: "ebike",
+    eyebrow: "The valley",
+    question: "A sunset e-bike loop through the aspens — should we hold a night?",
+    detail: "Guided, at golden hour — the easy kind of unforgettable.",
+    yesLabel: "Hold it",
+    passLabel: "Not this trip",
+    serviceSlug: "sunset-ebike-tour",
+    interestLabel: "Sunset e-bike",
+  },
+];
+
+/**
+ * The question set for a season — stay dates pick it for World A
+ * (staySeason), today's date for World B (seasonForDate). The anchors
+ * (car, kitchen) open both; chef closes both.
+ */
+export function intakeQuestionsFor(season: "WINTER" | "SUMMER"): IntakeQuestion[] {
+  return season === "WINTER"
+    ? [Q_AIRPORT, Q_KITCHEN, ...WINTER_ONLY, Q_CHEF]
+    : [Q_AIRPORT, Q_KITCHEN, ...SUMMER_ONLY, Q_CHEF];
+}
+
+/**
+ * Every question across both seasons — the lookup table for stored answers
+ * (ops chips, notifications, answer parsing). Keys are unique across
+ * seasons; a stored answer resolves regardless of which season asked it.
+ */
+export const INTAKE_QUESTIONS: IntakeQuestion[] = [
+  Q_AIRPORT,
+  Q_KITCHEN,
+  ...WINTER_ONLY,
+  ...SUMMER_ONLY,
+  Q_CHEF,
 ];
 
 export type IntakeAnswerValue = "interested" | "declined";
