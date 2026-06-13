@@ -11,6 +11,7 @@ import {
 import { interestedSlugs, parseIntakeAnswers } from "@/lib/intakeFlow";
 import { buildToken } from "@/lib/tokens";
 import { getGuestEmailConfig, sendWelcomeEmail } from "@/lib/guestEmail";
+import { recordTouch } from "@/lib/touchpoints";
 
 /**
  * Stay creation — the two ops front doors converge here. Entry A (manual
@@ -188,6 +189,27 @@ export async function submitStayForm(
       emailLine = "No welcome email — no email address on file.";
     } else {
       const result = await sendWelcomeEmail({ guest, stay, property, link: guestLink });
+      if (result.sent) {
+        // Touchpoint #1 of the cadence — recorded so the stay's Touchpoints
+        // panel reads honestly and never offers a double-send. Best-effort:
+        // the stay is already created and the email already sent, so a
+        // touch-log failure must NOT throw and unwind that (the same invariant
+        // the surrounding block keeps for the send itself). Worst case the
+        // panel just re-offers the welcome — harmless next to a lost stay.
+        try {
+          await recordTouch({
+            stayId: stay.id,
+            kind: "WELCOME",
+            channel: result.mode === "resend" ? "email" : result.mode,
+            sentTo: result.to,
+          });
+        } catch (err) {
+          console.error(
+            "[ops] welcome touch-record failed (stay created + email sent):",
+            err,
+          );
+        }
+      }
       emailLine = result.sent
         ? result.mode === "resend"
           ? `Welcome email sent to ${result.to}.`

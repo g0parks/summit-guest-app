@@ -74,6 +74,15 @@ enum ChangeStatus {
   DECLINED
 }
 
+/// The decided pre-arrival cadence (Ops Decisions): at booking · ~2wk
+/// post-booking · ~2wk pre-arrival. Operator-TRIGGERED, never automated —
+/// the system surfaces what's due; a human sends it.
+enum TouchKind {
+  WELCOME
+  PLAN_AHEAD
+  PRE_ARRIVAL
+}
+
 enum TabItemStatus {
   PENDING
   CHARGED
@@ -90,6 +99,22 @@ enum PerkClaimStatus {
   CLAIMED
   FULFILLED
   CANCELLED
+}
+
+/// One sent cadence touch per stay per kind — the record that keeps the
+/// Touchpoints panel honest ("sent Mar 3 · email") and double-sends
+/// impossible. Channel "console" = the zero-config dev fallback printed
+/// the email instead of Resend delivering it.
+model GuestTouch {
+  id        String    @id @default(cuid())
+  stayId    String
+  stay      Stay      @relation(fields: [stayId], references: [id])
+  kind      TouchKind
+  channel   String    @default("email") // "email" | "console"
+  sentTo    String?
+  createdAt DateTime  @default(now())
+
+  @@unique([stayId, kind])
 }
 
 /// Partner PM brand — the theming resolution point. Co-brand renders
@@ -204,6 +229,7 @@ model Stay {
   perkClaims      PerkClaim[]
   tripIntakes     TripIntake[]
   changeRequests  ChangeRequest[]
+  guestTouches    GuestTouch[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }

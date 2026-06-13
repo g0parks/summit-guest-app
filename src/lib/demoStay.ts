@@ -270,6 +270,7 @@ export async function cleanupDemoStays(prisma: PrismaClient): Promise<number> {
   const where = { stayId: { in: stayIds } };
 
   // Children → stay → orphaned parents (FK-safe).
+  await prisma.guestTouch.deleteMany({ where });
   await prisma.changeRequest.deleteMany({ where });
   await prisma.perkClaim.deleteMany({ where });
   await prisma.tabLineItem.deleteMany({ where });

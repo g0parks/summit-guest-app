@@ -1,0 +1,17 @@
+/* Book-only styles — kept out of ops.module.css so concurrent builds never
+   collide on the shared sheet. */
+
+/* The paste-ready PM recap — monospace block, prose-friendly wrapping. */
+.recap {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: break-word;
+  background: #f3f0e9;
+  border: 1px dashed #d9d4c9;
+  padding: 8px 10px;
+  margin: 6px 0 8px;
+}
