@@ -26,7 +26,16 @@ export default async function OpsLayout({
         <Link href="/ops" className={styles.brand}>
           SUMMIT OPS
         </Link>
-        <span className={styles.topbarNote}>internal — fulfillment console</span>
+        <span className={styles.topbarNote}>
+          <Link href="/ops" className={styles.link}>
+            queues
+          </Link>
+          {" · "}
+          <Link href="/ops/book" className={styles.link}>
+            the book
+          </Link>
+          {" · internal"}
+        </span>
       </header>
       {children}
     </div>
