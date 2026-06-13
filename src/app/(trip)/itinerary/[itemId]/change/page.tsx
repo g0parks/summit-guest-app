@@ -58,10 +58,9 @@ export default async function ChangeItemPage({
     );
   }
 
-  const { canMove, canCancel } = changeWindows(
-    item.serviceRequest?.service,
-    item.startsAt,
-  );
+  const { canMove, canCancel } = changeWindows(item.serviceRequest?.service, item.startsAt, {
+    requestStatus: item.serviceRequest?.status,
+  });
 
   // ── No in-app window: the quiet escape hatch, by doctrine ──
   if (!canMove && !canCancel) {

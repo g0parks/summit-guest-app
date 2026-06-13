@@ -82,9 +82,11 @@ draft carries `/t/<token>?next=/requests/<id>`; the token route validates
   item + the home "Next up" card). Options gate on the linked service's
   cutoffs via `changeWindows()` (`src/lib/changePolicy.ts`): Move (date/time,
   wall-clock strings in property tz) / Cancel / Something else (note).
-  **Null cutoff or past cutoff = ONLY the quiet texting escape hatch** —
-  doctrine, not a fallback. Unlinked items (manual itinerary entries) have no
-  service ⇒ always concierge-only.
+  **Null cutoff, past cutoff, or a delivered/terminal booking = ONLY the quiet
+  texting escape hatch** — doctrine, not a fallback (in-app change needs the
+  linked request pre-delivery: `isChangeableStatus` = CONFIRMED/SCHEDULED,
+  added 2026-06-13). Unlinked items (manual itinerary entries) have no service
+  ⇒ always concierge-only.
 - `createChangeRequest` (`src/app/actions/changes.ts`): re-checks the gate
   server-side, dedupes against open changes, sets
   `itineraryItem.changePending` (the guest's "Being rearranged" chip), notifies
@@ -94,6 +96,12 @@ draft carries `/t/<token>?next=/requests/<id>`; the token route validates
   the chip, stamps APPLIED + resolvedAt), `applyChangeCancel` (standing cancel
   semantics: request → CANCELLED where allowed + note stamped, PENDING lines
   voided, item deleted), `declineChangeRequest` (item stands, chip clears).
+  **Each resolver claims the row first via a guarded `updateMany(status: OPEN)`
+  inside a `$transaction` (2026-06-13)** — exactly one wins, so the
+  APPLIED/DECLINED label can never disagree with what happened to the item
+  (internal == external). `applyChangeCancel` refuses outright when the request
+  is no longer cancellable (delivered): it never voids an owed bill or deletes a
+  delivered item — the operator declines the stale ask instead.
 - **FK caveat:** `ChangeRequest.itineraryItemId` is a required relation with no
   cascade — anything that deletes an itinerary item must delete its change rows
   first (`setRequestStatus`, `deleteItineraryItem`, `applyChangeCancel`, demo GC
@@ -135,5 +143,14 @@ ask.
 
 Stay-level parameters re-pricing the menu (has-rental-car) · planning-horizon
 attribute (in-stay spontaneous dishes) · perks-as-drinks · outbound SMS infra
-(scoped cadence plan first) · charge/service-fee consent moment (Stripe) ·
+(scoped cadence plan first) · **deposit + refund model** (refundable deposit;
+Summit refund deadline set inside the vendor's = the buffer + forces early
+commitment; new per-service deposit/refund/modify fields; Stripe hold/capture) ·
+**policy-consent moment** (surfaced at the deposit/accept tap + the bundled
+folio email; no per-booking confirmation email — decided 2026-06-13) ·
+**view-only itinerary link + party-member self-fill forms** (roadmap) ·
 chef-designed execution-schema graduation per the menu doctrine.
+
+Adding a new service touches four places (catalog row · execution schema ·
+`/plan` question · itinerary category) — the operator checklist is
+`docs/adding-a-service.md`.
