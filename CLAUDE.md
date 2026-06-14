@@ -6,6 +6,11 @@ A guest of a partner property manager gets a pre-arrival email with a unique lin
 
 **Target user:** high-spend luxury traveler ($5–20K concierge spend), on their phone in the rental. Experience should feel like a personal concierge in your pocket — calm, premium, effortless — NOT like a booking SaaS dashboard.
 
+## Prime directive (decided 2026-06-14 — how PMs & the public should see Summit)
+Summit turns money the guest was **already going to spend** into a stay they remember — and **gives the credit to the host**. Summit does the work, carries the cost, stays behind the curtain (co-brand quiet, free to the PM); it can afford to give away the credit because it monetizes the guest's spend.
+**The PM is an *owner*-farmer, not a guest-farmer** — their real customer is the property owner who hired them; the guest is their product. So the pitch is a **one-two punch**: jab with **guest retention** (better stays, zero cost/effort — the easy, visible yes), then land the cross with **owner/client retention** (hand them proof their guests were thrilled = ammunition to keep the owner's management contract at renewal). Summit becomes **how the PM keeps their properties.** This is *why* rev-share never comes up — the offer is the PM's whole business surviving, not a fee split; money would only shrink it. (Sell to the PM company's owner/operator; never surface rev-share.)
+**We never buy reviews — we earn them.** The ONLY thing a gift is exchanged for is honest **first-party feedback** ("tell us how we did" — better data than a star rating, and the proof we hand the host). Platform reviews stay **organic + ungated** (incentivized/gated public reviews violate Airbnb/VRBO/Google + the FTC 2024 review rule — penalty lands on the *PM's* listing).
+
 ## Positioning & roadmap (decided — do not regress)
 - **Catalog leads with L1 essentials** (airport transfer, ski/bike rental, local experiences, grocery) — the demand-router core where margin + frequency live. Chef / heli / sommelier are **L2 "Elevated,"** sorted below the fold. Don't let splashy one-offs lead.
 - **Lift tickets are NOT an exclusive moat** — just easy acquisition at a markup (CAC). Don't build "exclusive/gated access" UI around them.
