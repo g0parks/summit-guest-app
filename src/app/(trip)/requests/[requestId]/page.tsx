@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStay } from "@/lib/session";
-import { getRequestForWizard } from "@/lib/queries";
+import { getBarSeeds, getRequestForWizard } from "@/lib/queries";
 import { parseRequestDetails } from "@/lib/serviceForm";
+import { barCadence, describeBarFees, isFeeStructureService } from "@/lib/barPricing";
 import { dayKey, timeValue } from "@/lib/dates";
 import { getStayPhase } from "@/lib/stayPhase";
 import RequestWizard from "@/components/requests/RequestWizard";
@@ -36,6 +37,20 @@ export default async function RequestPage({
     for (const d of parseRequestDetails(request.detailsJson)) {
       if (d.name) details[d.name] = d.value;
     }
+
+    // Bar (fee-structure): which moments surface is seeded by trip signals,
+    // and the confirm screen discloses the fee SHAPE for the derived cadence.
+    const isBar = isFeeStructureService(service.slug);
+    const seeds = isBar ? getBarSeeds(stay, tz) : {};
+    let feeStructure: { lines: string[] } | null = null;
+    if (isBar) {
+      const phase = getStayPhase(stay, tz);
+      const cadence = barCadence({ phase, now: new Date(), tz });
+      // In-stay but not same-day (after cutoff or shops closed) → graceful line.
+      const sameDayBlocked = phase === "IN_STAY" && cadence === "PLANNED";
+      feeStructure = { lines: describeBarFees(cadence, { sameDayBlocked }) };
+    }
+
     return (
       <RequestWizard
         requestId={request.id}
@@ -57,6 +72,8 @@ export default async function RequestPage({
           notes: request.notes,
           details,
         }}
+        seeds={seeds}
+        feeStructure={feeStructure}
       />
     );
   }

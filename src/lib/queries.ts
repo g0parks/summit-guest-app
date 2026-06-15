@@ -2,6 +2,7 @@ import "server-only";
 import type { Season } from "@prisma/client";
 import { prisma } from "./db";
 import { interestedSlugs, parseIntakeAnswers } from "./intakeFlow";
+import { getStayPhase } from "./stayPhase";
 
 /** Request statuses the guest still has a move on (wizard / approval). */
 export const OPEN_REQUEST_STATUSES = ["SIGNALED", "READY", "QUOTED"] as const;
@@ -135,6 +136,21 @@ export async function getOpenRequests(stayId: string) {
 
 export async function getServiceBySlug(slug: string) {
   return prisma.service.findUnique({ where: { slug } });
+}
+
+/**
+ * Trip-derived seeds for the bar's discovery (Alcohol spec) — the read-only
+ * visibility inputs that decide WHICH moments surface, never pre-filling the
+ * order. Today there's one: `phase` hides the "arrival" moment once the guest
+ * is in-house ("when you walk in" has passed). Computed identically wherever
+ * the bar flow is evaluated (the wizard page + the save action) so client and
+ * server agree. Pure — no DB; lives here as the single seed definition.
+ */
+export function getBarSeeds(
+  stay: { arrivalDate: Date; departureDate: Date },
+  timezone: string,
+): Record<string, string> {
+  return { phase: getStayPhase(stay, timezone) };
 }
 
 /** Running tab: line items, card(s) on file, and pending/charged totals. */

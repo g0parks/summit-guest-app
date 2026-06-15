@@ -23,6 +23,7 @@ import {
 } from "@/lib/dates";
 import { interestedLabels, parseIntakeAnswers } from "@/lib/intakeFlow";
 import { isFixedPrice } from "@/lib/catalog";
+import { isFeeStructureService } from "@/lib/barPricing";
 import { isChangeableStatus } from "@/lib/changePolicy";
 import {
   clampParty,
@@ -31,6 +32,7 @@ import {
   serviceFlow,
 } from "@/lib/serviceForm";
 import QuoteForm from "@/components/ops/QuoteForm";
+import BarPriceForm from "@/components/ops/BarPriceForm";
 import NudgeButton from "@/components/ops/NudgeButton";
 import ItineraryItemForm from "@/components/ops/ItineraryItemForm";
 import styles from "./ops.module.css";
@@ -87,6 +89,11 @@ function requestTitle(r: QueueRequest): string {
 /** Ops-glance summary of what the guest still owes the wizard. */
 function missingFor(r: QueueRequest): string {
   if (!r.service) return "—";
+  // Seeds intentionally omitted (defaults to {}): a seed-gated step is then
+  // treated as hidden, which is correct here because no seed-gated step in any
+  // flow carries a REQUIRED field — the bar's required fields (mode, freeform)
+  // gate on real answers, not seeds. If a seed-gated step ever gains a required
+  // field, thread getBarSeeds() through here to keep this count honest.
   return missingSummary(
     serviceFlow(r.service.slug),
     parseRequestDetails(r.detailsJson),
@@ -271,10 +278,12 @@ export default async function OpsOverviewPage() {
             </thead>
             <tbody>
               {queues.readyToRoute.map((r) => {
-                // The two pricing paths: only un-priced (QUOTE / custom)
-                // requests take a quote. Fixed-price never lands here.
+                // The pricing paths: fixed-price never lands here. Un-priced
+                // QUOTE/custom requests take a quote; the bar (fee-structure)
+                // takes a bottle-cost → computed-charge (no second guest tap).
                 const quotable =
                   !r.service || !isFixedPrice(r.service.priceUnit, r.service.priceAmount);
+                const bar = isFeeStructureService(r.service?.slug);
                 return (
                   <tr key={r.id}>
                     <td>{requestTitle(r)}</td>
@@ -285,7 +294,12 @@ export default async function OpsOverviewPage() {
                     <td className={styles.small}>{r.notes ?? "—"}</td>
                     <td>
                       <div className={styles.actionsRow}>
-                        {quotable && <QuoteForm requestId={r.id} />}
+                        {quotable &&
+                          (bar ? (
+                            <BarPriceForm requestId={r.id} />
+                          ) : (
+                            <QuoteForm requestId={r.id} />
+                          ))}
                         <Link href={`/ops/stays/${r.stayId}`} className={styles.link}>
                           open
                         </Link>

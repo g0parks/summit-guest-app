@@ -158,6 +158,32 @@ const CATALOG = [
     requiresPartySize: false,
     sortOrder: 10,
   },
+  {
+    // The bar as DISCOVERY (Alcohol spec 2026-06-15). Fee-structure pricing
+    // (src/lib/barPricing.ts): priceUnit QUOTE + null amount keeps it off the
+    // auto-bill path and completes it to READY, but isFeeStructureService —
+    // NOT the quote-wait — drives the operator action (curate bottles → price
+    // → CONFIRMED, no second guest tap). Moments are seeded by trip signals;
+    // a human curates the bottles. No date — pre-arrival rides the grocery
+    // put-away, same-day is a separate run derived from the cutoff.
+    slug: "bar-stocking",
+    name: "Bar Stocking",
+    category: "PROVISIONING" as const,
+    shortDesc: "The bar, curated to your taste — bottles a person picks, put away before you pour.",
+    longDesc:
+      "Tell us the moments — a bottle chilling on arrival, cocktails by the hot tub, the wine for the table — and a person curates the bottles to match. Your bottles at our cost, plus a service fee; same-day when we can. It all rides your tab.",
+    priceAmount: null,
+    priceUnit: "QUOTE" as const,
+    priceNote: "Priced to your order",
+    leadTimeHours: 24,
+    season: "ALL_YEAR" as const,
+    moveCutoffHours: null, // alcohol changes go through the concierge (by doctrine)
+    cancelCutoffHours: null,
+    requiresDate: false,
+    requiresTime: false,
+    requiresPartySize: false,
+    sortOrder: 20,
+  },
   // ── Elevated (L2) — relationship heat, not the margin core. ──
   {
     slug: "in-residence-massage",

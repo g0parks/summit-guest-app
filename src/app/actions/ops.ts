@@ -9,6 +9,12 @@ import { isFixedPrice } from "@/lib/catalog";
 import { parseMoneyCents } from "@/lib/money";
 import { withVendorCostNote } from "@/lib/vendorNote";
 import { zonedDateTime } from "@/lib/dates";
+import { parseRequestDetails } from "@/lib/serviceForm";
+import {
+  cadenceFromLabel,
+  computeBarChargeCents,
+  isFeeStructureService,
+} from "@/lib/barPricing";
 
 /**
  * Operator fulfillment actions. Every action gates on requireOperator() and,
@@ -79,6 +85,17 @@ export async function quoteRequest(
       error: "Fixed-price services confirm on completion — nothing to quote.",
     };
   }
+  // Fee-structure (bar) orders are priced with priceBarOrder, not quoted: the
+  // guest approved the disclosed STRUCTURE on completion, so they must never
+  // be routed to the QUOTED re-approval surface. (The UI already renders
+  // BarPriceForm, not QuoteForm, for these — this is the symmetric server
+  // guard, mirroring priceBarOrder's non-bar rejection.)
+  if (isFeeStructureService(request.service?.slug)) {
+    return {
+      ok: false,
+      error: "Bar orders are priced with the bar form — the guest approved the structure, not a total.",
+    };
+  }
 
   // Guarded write: if the guest's approval tap lands between the read above
   // and this update, the request is CONFIRMED with a tab line — re-quoting
@@ -96,6 +113,74 @@ export async function quoteRequest(
   if (moved.count === 0) {
     return { ok: false, error: "The guest just approved this one — nothing to re-quote." };
   }
+
+  revalidateSurfaces(request.stayId);
+  return { ok: true };
+}
+
+/**
+ * Price a fee-structure (bar) order. The guest already approved the disclosed
+ * fee STRUCTURE on completion — no quote-wait, no second approval tap — so
+ * this is the operator curating the bottles and entering their pass-through
+ * cost. The charge = cost + the disclosed fees, computed against the
+ * order-time cadence stored on the request (src/lib/barPricing.ts). Creates
+ * the tab line (bottle cost = vendor cost, the fees = net) and moves
+ * READY → CONFIRMED. The Stripe off-session charge drops in here later, behind
+ * the structure-consent seam. Fixed/QUOTE services never reach this path.
+ */
+export async function priceBarOrder(
+  _prev: OpsResult | null,
+  formData: FormData,
+): Promise<OpsResult> {
+  await requireOperator();
+
+  const requestId = String(formData.get("requestId") ?? "");
+  const bottleCostCents = parseMoneyCents(String(formData.get("bottleCost") ?? ""));
+  if (bottleCostCents == null || bottleCostCents <= 0) {
+    return { ok: false, error: "Enter the bottle cost in dollars." };
+  }
+
+  const request = await prisma.serviceRequest.findUnique({
+    where: { id: requestId },
+    include: { service: true, stay: { select: { currency: true } } },
+  });
+  if (!request) return { ok: false, error: "Request not found." };
+  if (!isFeeStructureService(request.service?.slug)) {
+    return { ok: false, error: "This isn't a bar order." };
+  }
+  if (request.status !== "READY") {
+    return { ok: false, error: "Only a bar order awaiting curation can be priced." };
+  }
+
+  const cadence = cadenceFromLabel(
+    parseRequestDetails(request.detailsJson).find((d) => d.name === "cadence")?.value,
+  );
+  const amountCents = computeBarChargeCents(bottleCostCents, cadence);
+
+  // Guarded transition — one updateMany wins the move out of READY, so a
+  // double submit can't stack two tab lines.
+  const moved = await prisma.serviceRequest.updateMany({
+    where: { id: request.id, status: "READY" },
+    data: { status: "CONFIRMED" },
+  });
+  if (moved.count === 0) {
+    return { ok: false, error: "This one's already been priced." };
+  }
+
+  await prisma.tabLineItem.create({
+    data: {
+      stayId: request.stayId,
+      serviceRequestId: request.id,
+      description: "Bar — your bottles & service",
+      amount: amountCents,
+      currency: request.stay.currency,
+      status: "PENDING",
+      // Pass-through bottle cost IS the vendor cost; the fees are the net.
+      vendorCostCents: bottleCostCents,
+      pmShareCents: 0,
+      netCents: computeNetCents(amountCents, bottleCostCents, 0),
+    },
+  });
 
   revalidateSurfaces(request.stayId);
   return { ok: true };

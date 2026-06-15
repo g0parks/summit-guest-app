@@ -9,6 +9,7 @@ import {
   clampParty,
   perPersonName,
   serviceFlow,
+  showIfFields,
   stepVisible,
   type AttachOffer,
   type ServiceField,
@@ -60,8 +61,8 @@ type Screen =
 /** Field names referenced by any showIf — these selects drive conditional steps. */
 function controllerNamesOf(flow: ReturnType<typeof serviceFlow>): Set<string> {
   const names = new Set<string>();
-  for (const step of flow.steps) if (step.showIf) names.add(step.showIf.field);
-  for (const a of flow.attaches ?? []) if (a.showIf) names.add(a.showIf.field);
+  for (const step of flow.steps) for (const f of showIfFields(step.showIf)) names.add(f);
+  for (const a of flow.attaches ?? []) for (const f of showIfFields(a.showIf)) names.add(f);
   return names;
 }
 
@@ -71,12 +72,18 @@ export default function RequestWizard({
   currency,
   backHref,
   defaults,
+  seeds = {},
+  feeStructure = null,
 }: {
   requestId: string;
   service: WizardService;
   currency: string;
   backHref: string;
   defaults: WizardDefaults;
+  /** Trip-derived visibility inputs (bar moments) — read-only, never a guest answer. */
+  seeds?: Record<string, string>;
+  /** Fee-structure (bar) services: the disclosure lines for the confirm screen. */
+  feeStructure?: { lines: string[] } | null;
 }) {
   const flow = useMemo(() => serviceFlow(service.slug), [service.slug]);
   const needsSchedule =
@@ -96,7 +103,12 @@ export default function RequestWizard({
   const controllerNames = useMemo(() => controllerNamesOf(flow), [flow]);
   const [controls, setControls] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
-    for (const name of controllerNamesOf(flow)) init[name] = defaults.details[name] ?? "";
+    // Seeds win: a trip-derived signal (phase, cookOrChef) is a fixed
+    // visibility input the guest never edits; only the real selects (mode)
+    // fall through to saved-detail rehydration.
+    for (const name of controllerNamesOf(flow)) {
+      init[name] = seeds[name] ?? defaults.details[name] ?? "";
+    }
     return init;
   });
   const controlFor = useCallback(
@@ -385,10 +397,20 @@ export default function RequestWizard({
                 {screen.kind === "notes" ? (
                   <>
                     {state && !state.ok && <p className={styles.error}>{state.error}</p>}
-                    {previewCents != null && (
-                      <p className={styles.priceLine}>
-                        {formatMoney(previewCents, currency)} — billed to your tab
-                      </p>
+                    {/* Fee-structure (bar): disclose the SHAPE on the confirm
+                        surface — the guest approves the structure, not a total. */}
+                    {feeStructure ? (
+                      <ul className={styles.feeStructure}>
+                        {feeStructure.lines.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      previewCents != null && (
+                        <p className={styles.priceLine}>
+                          {formatMoney(previewCents, currency)} — billed to your tab
+                        </p>
+                      )
                     )}
                     <button
                       type="submit"
@@ -399,9 +421,11 @@ export default function RequestWizard({
                     >
                       {pending
                         ? "Sending…"
-                        : fixed
-                          ? "Arrange it"
-                          : "Send to your concierge"}
+                        : feeStructure
+                          ? "Set up the bar"
+                          : fixed
+                            ? "Arrange it"
+                            : "Send to your concierge"}
                     </button>
                   </>
                 ) : (

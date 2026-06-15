@@ -66,14 +66,20 @@ export type ServiceField =
 /**
  * Conditional rendering predicate — "show this only if an earlier answer
  * equals X." `field` is a prior step's machine name (by `name`); the match
- * is exact equality. Equals-only by design (no "not"/"in" until a flow
- * needs it). A step/offer with no `showIf` always shows. The SAME predicate
- * gates the client wizard (RequestWizard), the server's detail collection
- * (requests.ts), and completeness (isFlowComplete/missingSummary) — one
- * source of truth so a hidden step is never required of a guest who never
- * saw it.
+ * is exact equality. Equals-only by design (no "not"/"in"). A step/offer with
+ * no `showIf` always shows. The SAME predicate gates the client wizard
+ * (RequestWizard), the server's detail collection (requests.ts), and
+ * completeness (isFlowComplete/missingSummary) — one source of truth so a
+ * hidden step is never required of a guest who never saw it.
+ *
+ * A `ShowIf[]` is AND — every clause must match (the bar's moments gate on
+ * mode AND a trip signal; the extension the equals-only note anticipated).
+ * `field` may name a trip-derived SEED (phase, cookOrChef) injected as a
+ * read-only visibility input, not a guest answer — that's how "which moments
+ * surface" reads the room without pre-filling the order.
  */
 export type ShowIf = { field: string; equals: string };
+export type ShowIfPredicate = ShowIf | ShowIf[];
 
 export type WizardStep = {
   key: string;
@@ -83,8 +89,8 @@ export type WizardStep = {
   question: string;
   /** One quiet supporting line under the question. */
   detail?: string;
-  /** Render + count this step only when a prior answer matches. */
-  showIf?: ShowIf;
+  /** Render + count this step only when a prior answer / seed matches (AND across an array). */
+  showIf?: ShowIfPredicate;
   fields: ServiceField[];
 };
 
@@ -109,8 +115,8 @@ export type AttachOffer = {
   detail?: string;
   /** The opt-in checkbox label. */
   cta: string;
-  /** Offer this only when a prior answer matches. */
-  showIf?: ShowIf;
+  /** Offer this only when a prior answer / seed matches (AND across an array). */
+  showIf?: ShowIfPredicate;
 };
 
 export type ServiceFlowConfig = {
@@ -423,9 +429,189 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
           "One night off the hook — a private chef in your kitchen. No pressure; the groceries are handled either way.",
         cta: "Yes — start a chef night",
       },
+      // The bundled bar attach (Axis A): the compressed "and the bar?" inside
+      // grocery. Opting in spawns a SIGNALED bar order, source-tagged so the
+      // Broker's Book sees grocery as the entry.
+      {
+        name: "barStock",
+        targetSlug: "bar-stocking",
+        source: "grocery-attach",
+        eyebrow: "While you're at it",
+        question: "And a few bottles for the bar?",
+        detail:
+          "Wine for the table, something for the hot tub — a person curates it, put away with the groceries.",
+        cta: "Yes — stock the bar too",
+      },
     ],
     notesPrompt: "Anything else?",
     notesPlaceholder: "Timing, where to leave it, anything at all…",
+  },
+
+  // The bar is DISCOVERY, not order-taking (Alcohol spec 2026-06-15): the
+  // luxury is "I get exactly what I want," and guests don't know what that is
+  // until it's evoked. So the primitive is MOMENTS of the stay, each an opt-in
+  // tap (never pre-selected — the crook test), and a human curates the
+  // bottles. Which moments SURFACE is seeded by trip signals (today: phase —
+  // the arrival moment hides once they're in-house) via showIf against
+  // read-only seeds — reads the room, never pre-fills the order. The bar
+  // stands alone; a chef/cook-in only spawns a bar demand signal via the
+  // cross-attach. Dual-mode (full discovery OR "just tell us"),
+  // never trapped. Pricing is the fee-structure path (src/lib/barPricing.ts) —
+  // the disclosure shows on the confirm surface, never here.
+  "bar-stocking": {
+    steps: [
+      // ── Step 0: the fork — curate together, or just tell us ──
+      {
+        key: "mode",
+        eyebrow: "The bar",
+        question: "Shall we curate the bar with you, or would you rather just tell us?",
+        detail: "Either way, a person picks the bottles — never an algorithm.",
+        fields: [
+          {
+            kind: "select",
+            name: "mode",
+            label: "How we'll do it",
+            options: ["Curate it with us", "Just tell us what we're after"],
+            required: true,
+          },
+        ],
+      },
+
+      // ── Guided lane — the moments. Seeded by trip context (which SHOW). ──
+      {
+        // Arrival only makes sense before they walk in — hidden in-stay.
+        key: "arrival",
+        showIf: [
+          { field: "mode", equals: "Curate it with us" },
+          { field: "phase", equals: "PRE_ARRIVAL" },
+        ],
+        eyebrow: "The arrival",
+        question: "A bottle chilling when you walk in?",
+        detail: "A toast on the counter, or a special red breathing — waiting when you arrive.",
+        fields: [
+          {
+            kind: "select",
+            name: "arrival",
+            label: "Set it up?",
+            options: ["Yes — have it waiting", "Not this one"],
+          },
+          {
+            kind: "text",
+            name: "arrivalNote",
+            label: "Anything in mind?",
+            placeholder: "Champagne to toast, a big Napa cab, something local…",
+          },
+        ],
+      },
+      {
+        key: "nightsEnd",
+        showIf: { field: "mode", equals: "Curate it with us" },
+        eyebrow: "How the nights end",
+        question: "Something for how the nights wind down?",
+        detail: "Fireside après, a nightcap — or cocktails out in the hot tub.",
+        fields: [
+          {
+            kind: "select",
+            name: "nightsEnd",
+            label: "Set it up?",
+            options: ["Yes — sort it", "Not this one"],
+          },
+          {
+            kind: "text",
+            name: "nightsEndNote",
+            label: "Anything in mind?",
+            placeholder: "Old fashioneds, a peaty scotch, margaritas by the tub…",
+          },
+        ],
+      },
+      {
+        // Wine for the table — shown to everyone curating; NOT gated behind a
+        // chef (the bar stands on its own). A chef/cook-in instead spawns a bar
+        // demand signal via the cross-attach, and a future chef refinement can
+        // make this moment cook-aware.
+        key: "dinnerIn",
+        showIf: { field: "mode", equals: "Curate it with us" },
+        eyebrow: "Dinner in",
+        question: "Wine for the table?",
+        detail: "The right bottles for what you're cooking — or what the chef is making.",
+        fields: [
+          {
+            kind: "select",
+            name: "dinnerIn",
+            label: "Set it up?",
+            options: ["Yes — pair the table", "Not this one"],
+          },
+          {
+            kind: "text",
+            name: "dinnerInNote",
+            label: "What's on the menu?",
+            placeholder: "Reds for steak night, a crisp white, a magnum to share…",
+          },
+        ],
+      },
+      {
+        key: "tasteUtah",
+        showIf: { field: "mode", equals: "Curate it with us" },
+        eyebrow: "A taste of Utah",
+        question: "A taste of Utah?",
+        detail: "High West, a local brewery — the pour you talk about back home.",
+        fields: [
+          {
+            kind: "select",
+            name: "tasteUtah",
+            label: "Set it up?",
+            options: ["Yes — surprise us", "Not this one"],
+          },
+          {
+            kind: "text",
+            name: "tasteUtahNote",
+            label: "Anything in mind?",
+            placeholder: "A whiskey flight, local IPAs, dealer's choice…",
+          },
+        ],
+      },
+      {
+        key: "notDrinking",
+        showIf: { field: "mode", equals: "Curate it with us" },
+        eyebrow: "The ones not drinking",
+        question: "Something special for the ones not drinking?",
+        detail: "No one left out — a proper N/A bottle, good mixers, something they'll love.",
+        fields: [
+          {
+            kind: "select",
+            name: "notDrinking",
+            label: "Set it up?",
+            options: ["Yes — include them", "Not this time"],
+          },
+          {
+            kind: "text",
+            name: "notDrinkingNote",
+            label: "Anything in mind?",
+            placeholder: "Fancy N/A bubbles, mocktail makings, the kids' favorites…",
+          },
+        ],
+      },
+
+      // ── Freeform lane — the "just tell us" escape, never trapped ──
+      {
+        key: "freeform",
+        showIf: { field: "mode", equals: "Just tell us what we're after" },
+        eyebrow: "The bar",
+        question: "Tell us what you're after — we'll take it from there.",
+        detail: "However it comes to you: a few bottles, a vibe, a budget.",
+        fields: [
+          {
+            kind: "textarea",
+            name: "freeform",
+            label: "What you're after",
+            placeholder: "A case of good red, tequila for margaritas, a nice N/A option…",
+            required: true,
+          },
+        ],
+      },
+    ],
+    notesPrompt: "Anything else?",
+    notesPlaceholder: "Favorites, what to steer clear of, where to leave it…",
   },
 
   "guided-fly-fishing": {
@@ -540,6 +726,22 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         ],
       },
     ],
+    // chef → wine for the table (Axis A): a chef night is the natural moment
+    // for the bar's dinner-in moment. Spawns a SIGNALED bar order, source
+    // chef-attach. (Targets the bar — keeps alcohol demand in the first-class
+    // service; the existing sommelier pairing stays its own L2 line.)
+    attaches: [
+      {
+        name: "wineForTable",
+        targetSlug: "bar-stocking",
+        source: "chef-attach",
+        eyebrow: "For the table",
+        question: "Wine for the table that night?",
+        detail:
+          "The right bottles for the chef's menu — curated by a person, on your tab with everything else.",
+        cta: "Yes — pair the table",
+      },
+    ],
     notesPlaceholder: "Occasion, kids' plates, timing…",
   },
 
@@ -652,9 +854,21 @@ export function flowAnswers(details: RequestDetail[]): Record<string, string> {
   return out;
 }
 
-/** A step/offer with no showIf always shows; otherwise the answer must match. */
-export function showIfMatches(showIf: ShowIf | undefined, answers: Record<string, string>): boolean {
-  return !showIf || (answers[showIf.field]?.trim() ?? "") === showIf.equals;
+/** A step/offer with no showIf always shows; an array is AND across clauses. */
+export function showIfMatches(
+  showIf: ShowIfPredicate | undefined,
+  answers: Record<string, string>,
+): boolean {
+  if (!showIf) return true;
+  const clauses = Array.isArray(showIf) ? showIf : [showIf];
+  return clauses.every((c) => (answers[c.field]?.trim() ?? "") === c.equals);
+}
+
+/** Every field name any clause of a predicate references — for the wizard's
+ *  controlled-input set (a controller re-derives the screen list live). */
+export function showIfFields(showIf: ShowIfPredicate | undefined): string[] {
+  if (!showIf) return [];
+  return (Array.isArray(showIf) ? showIf : [showIf]).map((c) => c.field);
 }
 
 export function stepVisible(step: WizardStep, answers: Record<string, string>): boolean {
@@ -678,8 +892,9 @@ export function isFlowComplete(
   config: ServiceFlowConfig,
   details: RequestDetail[],
   partySize: number,
+  seeds: Record<string, string> = {},
 ): boolean {
-  const answers = flowAnswers(details);
+  const answers = { ...seeds, ...flowAnswers(details) };
   for (const step of config.steps) {
     if (!stepVisible(step, answers)) continue;
     for (const field of step.fields) {
@@ -710,8 +925,9 @@ export function missingSummary(
   details: RequestDetail[],
   partySize: number,
   missingDate: boolean,
+  seeds: Record<string, string> = {},
 ): string {
-  const answers = flowAnswers(details);
+  const answers = { ...seeds, ...flowAnswers(details) };
   let missing = 0;
   for (const step of config.steps) {
     if (!stepVisible(step, answers)) continue;

@@ -23,6 +23,8 @@ import {
 import { parseVendorCostNote } from "@/lib/vendorNote";
 import { zonedDateTime } from "@/lib/dates";
 import { getStayPhase } from "@/lib/stayPhase";
+import { getBarSeeds } from "@/lib/queries";
+import { barCadence, cadenceLabel, isFeeStructureService } from "@/lib/barPricing";
 
 /**
  * The request lifecycle, guest side (Product Doctrine 2026-06-12):
@@ -92,7 +94,10 @@ export async function createSignal(
       stayId: stay.id,
       serviceId: service.id,
       status: "SIGNALED",
-      source: "catalog",
+      // Axis A attribution: a standalone bar tap is "bar-direct"; everything
+      // else off the catalog is "catalog". (Bundled bar entries arrive
+      // pre-tagged "grocery-attach"/"chef-attach" via the cross-attach.)
+      source: isFeeStructureService(service.slug) ? "bar-direct" : "catalog",
       partySize: stay.partySize ?? undefined,
     },
   });
@@ -124,11 +129,14 @@ async function spawnAttachments(
   formData: FormData,
   details: RequestDetail[],
   stay: { id: string; partySize: number | null },
+  seeds: Record<string, string> = {},
 ): Promise<string[]> {
   const offers = flow.attaches ?? [];
   if (offers.length === 0) return [];
 
-  const answers = flowAnswers(details);
+  // Same seed-merge as the wizard + completeness, so a (future) seed-gated
+  // attach is evaluated against exactly what the guest saw.
+  const answers = { ...seeds, ...flowAnswers(details) };
   const spawned: string[] = [];
   for (const offer of offers) {
     if (!attachVisible(offer, answers)) continue;
@@ -223,9 +231,15 @@ export async function saveRequestDetails(
   // collected so far — a hidden step (one the guest never saw) is never read
   // or required. `answers` accumulates the controlling values (mode, cookIn)
   // so chained gates resolve; it mirrors what the client renders.
+  // Bar discovery seeds trip signals into the answer map (read-only, never a
+  // guest input) so the seed-gated moments the client showed are the ones we
+  // read here — client and server agree on what was visible.
+  const isBar = isFeeStructureService(service.slug);
+  const seeds = isBar ? getBarSeeds(stay, stay.property.timezone) : {};
+
   const flow = serviceFlow(service.slug);
   const details: RequestDetail[] = [];
-  const answers: Record<string, string> = {};
+  const answers: Record<string, string> = { ...seeds };
   for (const step of flow.steps) {
     if (!showIfMatches(step.showIf, answers)) continue;
     for (const field of step.fields) {
@@ -271,9 +285,21 @@ export async function saveRequestDetails(
     }
   }
 
+  // Fee-structure cadence is DERIVED (phase + same-day cutoff) and stored on
+  // the order so ops prices against the order-time cadence — not whenever they
+  // open it. Recorded as a detail (visible to ops, read by priceBarOrder).
+  if (isBar) {
+    const cadence = barCadence({
+      phase: getStayPhase(stay, stay.property.timezone),
+      now: new Date(),
+      tz: stay.property.timezone,
+    });
+    details.push({ name: "cadence", label: "Timing", value: cadenceLabel(cadence) });
+  }
+
   const complete =
     !finishLater &&
-    isFlowComplete(flow, details, clampParty(partySize)) &&
+    isFlowComplete(flow, details, clampParty(partySize), seeds) &&
     (!service.requiresDate || requestedFor !== null);
 
   // ── Graceful exit: store progress, stay SIGNALED ──
@@ -289,10 +315,13 @@ export async function saveRequestDetails(
     });
     // Intent captured mid-flow still spawns its sibling — a chef night ticked
     // before "finish later" is too valuable a signal to drop.
-    const attached = await spawnAttachments(flow, formData, details, {
-      id: stay.id,
-      partySize: partySize ?? null,
-    });
+    const attached = await spawnAttachments(
+      flow,
+      formData,
+      details,
+      { id: stay.id, partySize: partySize ?? null },
+      seeds,
+    );
     return {
       ok: true,
       outcome: "saved",
@@ -355,10 +384,13 @@ export async function saveRequestDetails(
   }
 
   // Opted-into cross-attach siblings (e.g. a chef night) spawn here too.
-  const attached = await spawnAttachments(flow, formData, details, {
-    id: stay.id,
-    partySize: partySize ?? null,
-  });
+  const attached = await spawnAttachments(
+    flow,
+    formData,
+    details,
+    { id: stay.id, partySize: partySize ?? null },
+    seeds,
+  );
 
   // One email, at the actionable moment — not at the tap.
   await notifyOperator({
