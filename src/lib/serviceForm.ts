@@ -22,6 +22,8 @@ export type SubField =
       label: string;
       options: string[];
       required?: boolean;
+      /** Pre-selected option when nothing is saved (e.g. kit-box "default on"). */
+      default?: string;
     }
   | {
       kind: "text";
@@ -61,6 +63,18 @@ export type ServiceField =
       fields: SubField[];
     };
 
+/**
+ * Conditional rendering predicate — "show this only if an earlier answer
+ * equals X." `field` is a prior step's machine name (by `name`); the match
+ * is exact equality. Equals-only by design (no "not"/"in" until a flow
+ * needs it). A step/offer with no `showIf` always shows. The SAME predicate
+ * gates the client wizard (RequestWizard), the server's detail collection
+ * (requests.ts), and completeness (isFlowComplete/missingSummary) — one
+ * source of truth so a hidden step is never required of a guest who never
+ * saw it.
+ */
+export type ShowIf = { field: string; equals: string };
+
 export type WizardStep = {
   key: string;
   /** Quiet uppercase eyebrow above the serif question. */
@@ -69,11 +83,40 @@ export type WizardStep = {
   question: string;
   /** One quiet supporting line under the question. */
   detail?: string;
+  /** Render + count this step only when a prior answer matches. */
+  showIf?: ShowIf;
   fields: ServiceField[];
+};
+
+/**
+ * A cross-sell offer that, when opted into, spawns a SIBLING request for
+ * another service (cook-in → chef). The opt-in IS the demand signal: the
+ * sibling is created SIGNALED — logged, resumeable from the home checklist,
+ * and enrolled in the ops nudge queue — the instant the guest ticks it, even
+ * on a graceful "finish later" exit. Never pre-checked (the crook test:
+ * an offer, never a trap). `source` attributes the demand in the Broker's
+ * Book. Distinct from a plain nav link to another service.
+ */
+export type AttachOffer = {
+  /** Submitted as `attach_<name>` when the guest opts in. */
+  name: string;
+  /** Slug of the service to spawn as a sibling SIGNALED request. */
+  targetSlug: string;
+  /** ServiceRequest.source on the spawned sibling (Broker's Book attribution). */
+  source: string;
+  eyebrow: string;
+  question: string;
+  detail?: string;
+  /** The opt-in checkbox label. */
+  cta: string;
+  /** Offer this only when a prior answer matches. */
+  showIf?: ShowIf;
 };
 
 export type ServiceFlowConfig = {
   steps: WizardStep[];
+  /** Quiet end-of-flow cross-sell offers (spawn siblings on opt-in). */
+  attaches?: AttachOffer[];
   /** Overrides the closing "anything else" notes prompt. */
   notesPrompt?: string;
   notesPlaceholder?: string;
@@ -209,12 +252,36 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
     notesPlaceholder: "Trailers, kid seats, where you're headed…",
   },
 
+  // Grocery is an INTAKE, not a catalog (Two-Heroes doctrine): a store/brand-
+  // agnostic front, a curated package spine, and freeform particulars — a
+  // human fulfills. Dual-mode (guided OR "just send a list"), never trapped:
+  // the `mode` fork gates the two lanes via showIf; both land the same
+  // detailsJson shape. Package contents are placeholder copy (Sam finalizes).
   "grocery-pre-stock": {
     steps: [
+      // ── Step 0: the fork — build together, or just send a list ──
+      {
+        key: "mode",
+        eyebrow: "The kitchen",
+        question: "Shall we build it with you, or would you rather just send a list?",
+        detail: "Either way, it's put away before you walk in.",
+        fields: [
+          {
+            kind: "select",
+            name: "mode",
+            label: "How we'll do it",
+            options: ["Build it with us", "I'll send a list"],
+            required: true,
+          },
+        ],
+      },
+
+      // ── Guided lane ──────────────────────────────────────────────
       {
         key: "package",
-        eyebrow: "The kitchen",
-        question: "How should we stock it?",
+        showIf: { field: "mode", equals: "Build it with us" },
+        eyebrow: "The stocking",
+        question: "Where should we start?",
         detail: "Built by people who know what a mountain morning needs.",
         fields: [
           {
@@ -222,9 +289,10 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
             name: "package",
             label: "Stocking",
             options: [
-              "The Essentials — coffee, breakfast, fruit, snacks, water",
-              "The Family Table — the Essentials, doubled, plus kids' staples",
+              "Essentials — coffee, breakfast, fruit, snacks, water",
+              "Family Table — the Essentials, doubled, plus kids' staples",
               "Après — charcuterie, wine, fireside things",
+              "Local Utah — the best of the valley's makers",
               "Tailored — tell us below",
             ],
             required: true,
@@ -232,7 +300,86 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         ],
       },
       {
-        key: "dietary",
+        key: "kit",
+        showIf: { field: "mode", equals: "Build it with us" },
+        eyebrow: "The basics",
+        question: "We'll tuck in the basics — salt, pepper, oil, foil, coffee filters.",
+        detail: "On us to think of it. Leave it on, or skip if the kitchen's already set.",
+        fields: [
+          {
+            kind: "select",
+            name: "kitBox",
+            label: "The starter kit",
+            options: ["Yes — include it", "No need"],
+            default: "Yes — include it",
+          },
+        ],
+      },
+      {
+        key: "cookIn",
+        showIf: { field: "mode", equals: "Build it with us" },
+        eyebrow: "The plan",
+        question: "Cooking in, or just provisions and the basics?",
+        fields: [
+          {
+            kind: "select",
+            name: "cookIn",
+            label: "The kitchen plan",
+            options: ["Cooking in", "Just provisions"],
+          },
+        ],
+      },
+      {
+        key: "cooking",
+        showIf: { field: "cookIn", equals: "Cooking in" },
+        eyebrow: "The menu",
+        question: "What are you thinking of making?",
+        detail: "We'll make sure the basics cover those dishes — no need to think it through.",
+        fields: [
+          {
+            kind: "textarea",
+            name: "cookingPlans",
+            label: "On the menu",
+            placeholder: "Pasta night, taco Tuesday, a big breakfast spread…",
+          },
+        ],
+      },
+      {
+        key: "particulars",
+        showIf: { field: "mode", equals: "Build it with us" },
+        eyebrow: "The particulars",
+        question: "The handful of things that must be there?",
+        detail: "Brands you love, the wine, anything to keep clear of.",
+        fields: [
+          {
+            kind: "textarea",
+            name: "particulars",
+            label: "Particulars",
+            placeholder: "Oat milk not dairy, the good olive oil, nut allergy…",
+          },
+        ],
+      },
+
+      // ── Freeform lane ────────────────────────────────────────────
+      {
+        key: "list",
+        showIf: { field: "mode", equals: "I'll send a list" },
+        eyebrow: "Your list",
+        question: "Tell us what you need — we'll handle the rest.",
+        detail: "However it comes to you: brands, rough quantities, the general idea.",
+        fields: [
+          {
+            kind: "textarea",
+            name: "list",
+            label: "Your list",
+            placeholder: "Coffee, eggs, the kids' cereal, a few good bottles of red…",
+            required: true,
+          },
+        ],
+      },
+      {
+        key: "freeformDietary",
+        showIf: { field: "mode", equals: "I'll send a list" },
         eyebrow: "The table",
         question: "Anything we should know about the table?",
         fields: [
@@ -244,9 +391,41 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
           },
         ],
       },
+      {
+        key: "freeformKit",
+        showIf: { field: "mode", equals: "I'll send a list" },
+        eyebrow: "The basics",
+        question: "Want us to tuck in the basics too?",
+        detail: "Salt, pepper, oil, foil, coffee filters — on us to think of it.",
+        fields: [
+          {
+            kind: "select",
+            name: "kitBox",
+            label: "The starter kit",
+            options: ["Yes — include it", "No need"],
+            default: "Yes — include it",
+          },
+        ],
+      },
     ],
-    notesPrompt: "Anything particular?",
-    notesPlaceholder: "Brands you love, oat milk not dairy, ribeyes for Thursday…",
+    // Cooking in → quietly offer a chef night (the crook, not a trap): the
+    // opt-in spawns a SIGNALED private-chef-dinner sibling, source-tagged so
+    // the Broker's Book sees grocery as the demand origin.
+    attaches: [
+      {
+        name: "chefNight",
+        targetSlug: "private-chef-dinner",
+        source: "grocery-upsell",
+        showIf: { field: "cookIn", equals: "Cooking in" },
+        eyebrow: "While you're at it",
+        question: "Want a chef to take one night?",
+        detail:
+          "One night off the hook — a private chef in your kitchen. No pressure; the groceries are handled either way.",
+        cta: "Yes — start a chef night",
+      },
+    ],
+    notesPrompt: "Anything else?",
+    notesPlaceholder: "Timing, where to leave it, anything at all…",
   },
 
   "guided-fly-fishing": {
@@ -464,17 +643,45 @@ function valueOf(details: RequestDetail[], name: string): string {
   return details.find((d) => d.name === name)?.value?.trim() ?? "";
 }
 
+/** Answer lookup (machine name → value) for evaluating showIf predicates. */
+export function flowAnswers(details: RequestDetail[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const d of details) {
+    if (d.name) out[d.name] = d.value;
+  }
+  return out;
+}
+
+/** A step/offer with no showIf always shows; otherwise the answer must match. */
+export function showIfMatches(showIf: ShowIf | undefined, answers: Record<string, string>): boolean {
+  return !showIf || (answers[showIf.field]?.trim() ?? "") === showIf.equals;
+}
+
+export function stepVisible(step: WizardStep, answers: Record<string, string>): boolean {
+  return showIfMatches(step.showIf, answers);
+}
+
+export function attachVisible(attach: AttachOffer, answers: Record<string, string>): boolean {
+  return showIfMatches(attach.showIf, answers);
+}
+
 /**
  * Config-driven completeness — the gate that advances SIGNALED onward.
  * Required plain fields must be present; perPerson groups need every
- * required subfield for each of `partySize` people.
+ * required subfield for each of `partySize` people. HIDDEN steps (showIf
+ * unmatched) are skipped entirely — we never require an answer the guest
+ * never saw. showIf is evaluated against the answers we already have, walked
+ * in step order so chained gates resolve (mode → reveals cookIn → reveals
+ * "what are you making").
  */
 export function isFlowComplete(
   config: ServiceFlowConfig,
   details: RequestDetail[],
   partySize: number,
 ): boolean {
+  const answers = flowAnswers(details);
   for (const step of config.steps) {
+    if (!stepVisible(step, answers)) continue;
     for (const field of step.fields) {
       if (field.kind === "perPerson") {
         for (let p = 1; p <= clampParty(partySize); p++) {
@@ -504,8 +711,10 @@ export function missingSummary(
   partySize: number,
   missingDate: boolean,
 ): string {
+  const answers = flowAnswers(details);
   let missing = 0;
   for (const step of config.steps) {
+    if (!stepVisible(step, answers)) continue;
     for (const field of step.fields) {
       if (field.kind === "perPerson") {
         for (let p = 1; p <= clampParty(partySize); p++) {

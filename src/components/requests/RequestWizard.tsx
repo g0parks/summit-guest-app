@@ -1,13 +1,16 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useCallback, useMemo, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import type { PriceUnit } from "@prisma/client";
 import { saveRequestDetails, type WizardResult } from "@/app/actions/requests";
 import {
+  attachVisible,
   clampParty,
   perPersonName,
   serviceFlow,
+  stepVisible,
+  type AttachOffer,
   type ServiceField,
   type SubField,
   type WizardStep,
@@ -51,7 +54,16 @@ type Screen =
   | { key: string; kind: "schedule" }
   | { key: string; kind: "fields"; step: WizardStep }
   | { key: string; kind: "person"; step: WizardStep; group: PerPersonField; person: number }
+  | { key: string; kind: "attach"; attach: AttachOffer }
   | { key: string; kind: "notes" };
+
+/** Field names referenced by any showIf — these selects drive conditional steps. */
+function controllerNamesOf(flow: ReturnType<typeof serviceFlow>): Set<string> {
+  const names = new Set<string>();
+  for (const step of flow.steps) if (step.showIf) names.add(step.showIf.field);
+  for (const a of flow.attaches ?? []) if (a.showIf) names.add(a.showIf.field);
+  return names;
+}
 
 export default function RequestWizard({
   requestId,
@@ -77,10 +89,32 @@ export default function RequestWizard({
     null,
   );
 
+  // Conditional steps: the controlling answers (e.g. mode, cookIn) live in
+  // state so changing one re-derives the screen list — hidden steps drop out
+  // (their inputs unmount, so nothing hidden is submitted). The same showIf
+  // runs server-side, so client and server agree on what was shown.
+  const controllerNames = useMemo(() => controllerNamesOf(flow), [flow]);
+  const [controls, setControls] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const name of controllerNamesOf(flow)) init[name] = defaults.details[name] ?? "";
+    return init;
+  });
+  const controlFor = useCallback(
+    (name: string) =>
+      controllerNames.has(name)
+        ? {
+            value: controls[name] ?? "",
+            onChange: (v: string) => setControls((c) => ({ ...c, [name]: v })),
+          }
+        : undefined,
+    [controllerNames, controls],
+  );
+
   const screens = useMemo(() => {
     const list: Screen[] = [];
     if (needsSchedule) list.push({ key: "schedule", kind: "schedule" });
     for (const step of flow.steps) {
+      if (!stepVisible(step, controls)) continue;
       const group = step.fields.find((f): f is PerPersonField => f.kind === "perPerson");
       if (group) {
         for (let p = 1; p <= party; p++) {
@@ -90,9 +124,14 @@ export default function RequestWizard({
         list.push({ key: step.key, kind: "fields", step });
       }
     }
+    for (const attach of flow.attaches ?? []) {
+      if (attachVisible(attach, controls)) {
+        list.push({ key: `attach:${attach.name}`, kind: "attach", attach });
+      }
+    }
     list.push({ key: "notes", kind: "notes" });
     return list;
-  }, [flow, needsSchedule, party]);
+  }, [flow, needsSchedule, party, controls]);
 
   // Party can shrink the screen list mid-flow — never strand the index.
   const current = Math.min(idx, screens.length - 1);
@@ -131,6 +170,13 @@ export default function RequestWizard({
       },
     }[state.outcome];
 
+    // Honest note when a cross-attach sibling was just started (it's SIGNALED,
+    // not booked) — the guest finishes it from the home checklist.
+    const attachNote =
+      state.attached && state.attached.length > 0
+        ? `We've also started ${state.attached.join(" & ")} — finish it from your trip page when you're ready.`
+        : null;
+
     return (
       <main className={styles.page}>
         <div className={`${styles.screen} ${styles.active}`}>
@@ -138,6 +184,7 @@ export default function RequestWizard({
             <span className="eyebrow">{service.name}</span>
             <h1 className={styles.headline}>{close.headline}</h1>
             <p className={styles.detail}>{close.detail}</p>
+            {attachNote && <p className={styles.detail}>{attachNote}</p>}
             <div className={styles.doneLinks}>
               {close.links.map((l) => (
                 <Link key={l.href} href={l.href} className={styles.quietLink}>
@@ -254,7 +301,12 @@ export default function RequestWizard({
                             f.kind !== "perPerson",
                         )
                         .map((field) => (
-                          <Field key={field.name} field={field} saved={defaults.details} />
+                          <Field
+                            key={field.name}
+                            field={field}
+                            saved={defaults.details}
+                            control={controlFor(field.name)}
+                          />
                         ))}
                     </div>
                   </>
@@ -285,6 +337,27 @@ export default function RequestWizard({
                           saved={defaults.details}
                         />
                       ))}
+                    </div>
+                  </>
+                )}
+
+                {screen.kind === "attach" && (
+                  <>
+                    <span className="eyebrow">{screen.attach.eyebrow}</span>
+                    <h1 className={styles.question}>{screen.attach.question}</h1>
+                    {screen.attach.detail && (
+                      <p className={styles.detail}>{screen.attach.detail}</p>
+                    )}
+                    <div className={styles.fields}>
+                      <label className={styles.checkRow}>
+                        <input
+                          type="checkbox"
+                          name={`attach_${screen.attach.name}`}
+                          value="yes"
+                          className={styles.checkbox}
+                        />
+                        <span>{screen.attach.cta}</span>
+                      </label>
                     </div>
                   </>
                 )}
@@ -354,14 +427,20 @@ export default function RequestWizard({
   );
 }
 
-/* ── field renderers — uncontrolled, rehydrated from saved details ── */
+/* ── field renderers — uncontrolled, rehydrated from saved details ──
+ * Exception: a field that drives a showIf (a "controller", e.g. mode/cookIn)
+ * is rendered CONTROLLED so changing it re-derives the screen list. */
+
+type Control = { value: string; onChange: (v: string) => void };
 
 function Field({
   field,
   saved,
+  control,
 }: {
   field: Exclude<ServiceField, PerPersonField>;
   saved: Record<string, string>;
+  control?: Control;
 }) {
   if (field.kind === "checkboxes") {
     const picked = (saved[field.name] ?? "").split(";").map((s) => s.trim());
@@ -396,28 +475,32 @@ function Field({
       </label>
     );
   }
-  return <SubFieldInput sub={field} name={field.name} saved={saved} />;
+  return <SubFieldInput sub={field} name={field.name} saved={saved} control={control} />;
 }
 
 function SubFieldInput({
   sub,
   name,
   saved,
+  control,
 }: {
   sub: SubField;
   name: string;
   saved: Record<string, string>;
+  control?: Control;
 }) {
   if (sub.kind === "select") {
+    // A default pre-selects an option (kit-box "on") and drops the empty
+    // placeholder; a controller binds value/onChange so showIf reacts live.
+    const hasDefault = sub.default != null;
+    const binding = control
+      ? { value: control.value, onChange: (e: ChangeEvent<HTMLSelectElement>) => control.onChange(e.target.value) }
+      : { defaultValue: saved[name] ?? sub.default ?? "" };
     return (
       <label className={styles.fieldLabel}>
         <span>{sub.label}</span>
-        <select
-          name={`detail_${name}`}
-          defaultValue={saved[name] ?? ""}
-          className={styles.input}
-        >
-          <option value="">Choose…</option>
+        <select name={`detail_${name}`} className={styles.input} {...binding}>
+          {!hasDefault && <option value="">Choose…</option>}
           {sub.options.map((opt) => (
             <option key={opt} value={opt}>
               {opt}
@@ -427,14 +510,17 @@ function SubFieldInput({
       </label>
     );
   }
+  const textBinding = control
+    ? { value: control.value, onChange: (e: ChangeEvent<HTMLInputElement>) => control.onChange(e.target.value) }
+    : { defaultValue: saved[name] ?? "" };
   return (
     <label className={styles.fieldLabel}>
       <span>{sub.label}</span>
       <input
         name={`detail_${name}`}
-        defaultValue={saved[name] ?? ""}
         placeholder={sub.placeholder}
         className={styles.input}
+        {...textBinding}
       />
     </label>
   );
