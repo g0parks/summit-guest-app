@@ -2,6 +2,16 @@
 
 **Status:** approved 2026-06-14 (advisor session). Build in fresh sessions, branched off `main`. Spec is self-contained — do not assume chat context.
 
+> ## ⚠️ ALCOHOL REDIRECTION — RESOLVED 2026-06-15 (Parker) — SUPERSEDES "Alcohol = QUOTE" + any package/tier idea below
+> Alcohol was re-thought as a **discovery experience** — now designed + approved ("with prejudice"). **Build the bar-stocking service from [`2026-06-14-alcohol-discovery.md`](./2026-06-14-alcohol-discovery.md) — the buildable spec — NOT the QUOTE/packages spec in this doc.** (Cross-attach + seed depend on it; ops `hasRentalCar` row + request `source` attribution are independent and already in flight.)
+> - **Not a QUOTE service** (confirmed) **and NOT packages/tiers** — packages are the wrong instinct. The luxury of alcohol is *"I get exactly what I want."*
+> - **Alcohol = a novel discovery experience** — help the guest *discover/articulate* desire; not order-taking, not a configurator, not tiers. "A sort of novel discovery/offering we haven't explored yet." The middle ground = guided discovery that surfaces wants.
+> - **Two psychologies, one backend (Parker's insight):** ideally **bundled into grocery** (low-friction "and the bar?" add); a **standalone** bar request "invokes separate psychology" — deliberate, premium, where **willingness-to-pay capture + same-day rush** live. Demand/supply differs from experiences, esp. same-day.
+> - **Economics:** a "taxed-if-willing, not exploited" segment (milk-not-meat still holds; distinct from experience pricing).
+> - **Numbers — FLAGGED for future review, NOT locked:** same-day **floor $350 pre-fees** (the gate; maybe lower); **rush = 50%** of order; **default alcohol markup = 20%**.
+> - **Ownership:** **Parker owns the stack — he finalizes, NOT Sam.** Sam's grocery-fulfillment role is under review; **Parker owns grocery for now.**
+> - **Full discovery thinking → [`2026-06-14-alcohol-discovery.md`](./2026-06-14-alcohol-discovery.md)** (Parker deliberating separately).
+
 ## Why (the doctrine this serves)
 - **Two heroes.** Transport + grocery are the universal front doors (Abode reach: grocery 54%, transport 39%) — the only two that carry both PC seasons. They get top billing; the seasonal hero (ski winter / bike summer) is #3; everything else is the warm-attach tail. They are *not* the whale-minters (chef/ski-lessons are) — so the heroes' job is universal adoption + opening the tab, and the attach hooks (chef, bar) ride off them.
 - **Grocery is an INTAKE, not a catalog.** Never out-catalog a funded competitor. Store/brand-agnostic front + curated package spine + freeform particulars; a human (centaur-assisted later) fulfills. No SKU API. See `memory/grocery-transport-mvp-shape.md`.
@@ -100,7 +110,7 @@ Dual-mode, same `showIf` machinery. The guided prompts are **demand generation**
 
 ## Seed (`prisma/seed.ts`)
 - Ensure grocery (`grocery-pre-stock`), transport (`airport-transfer-slc`), seasonal (ski-rental WINTER / bike-rental SUMMER), and the new `bar-stocking` services exist with correct `category` + `season`.
-- Package + kit-box contents = **placeholder copy** (Sam finalizes).
+- Package + kit-box contents = **placeholder copy** (**Parker owns/finalizes — NOT Sam**; Sam's grocery role under review).
 - Confirm `CATEGORY_ORDER` + season gating render correctly across a winter and a summer demo stay.
 
 ## Build phases (one PR each, off `main`)
@@ -116,6 +126,6 @@ Dual-mode, same `showIf` machinery. The guided prompts are **demand generation**
 - Alcohol: a **full first-class service** (intake → QUOTE → ops → tab → manual fulfillment), not a stub. Like every service, no vendor automation is wired (manual fulfillment, clean seam). Compliance is Parker's operational concern — don't assert a compliant delivery path in code, but don't half-build the service either.
 
 ## Open (non-blocking) follow-ups
-- Package + kit-box contents (Sam).
+- Package + kit-box contents (**Parker owns/finalizes — NOT Sam**).
 - Whether alcohol earns its own `/plan` question (v1: catalog + grocery attach only; revisit).
-- Which operator executes grocery at launch (Grocery Girls) — business, not build.
+- Which operator executes grocery at launch (Grocery Girls) — business, not build. **Parker owns grocery for now; where Sam sits in grocery fulfillment is under review.**
