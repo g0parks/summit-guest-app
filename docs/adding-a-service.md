@@ -16,6 +16,17 @@ row alone makes it show up; the rest shapes how it behaves. Terse on purpose.
 | `requiresDate` · `requiresTime` · `requiresPartySize` | wizard prompts. **Set `requiresPartySize: true` if the execution schema uses a per-person repeater** — or it won't know how many to render. |
 | `sortOrder` · `isActive` | order within section / visibility |
 
+**A third pricing path — fee-structure (the bar).** Some services have neither a
+fixed price nor a quotable total: the guest approves a disclosed fee *shape*,
+and a human prices the order after curating it. These carry `priceUnit QUOTE`
+(null amount) so they complete to **READY** without auto-billing, but
+`isFeeStructureService(slug)` (`src/lib/barPricing.ts`) — not the quote-wait —
+drives the operator action: a `BarPriceForm` (cost → computed charge →
+CONFIRMED) instead of a `QuoteForm`, and there's no QUOTED re-approval (the
+structure consent was the wizard completion). Config (markup / rush / floor /
+cutoff) and the charge math live in `barPricing.ts`. Today this is `bar-stocking`
+only; add to the `isFeeStructureService` check to extend it.
+
 ## 2. Execution schema — `src/lib/serviceForm.ts` (`FLOWS`, slug-keyed)
 
 Optional. No entry = "scheduling + a notes box." Add steps/fields (incl.
