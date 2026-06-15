@@ -89,6 +89,11 @@ function requestTitle(r: QueueRequest): string {
 /** Ops-glance summary of what the guest still owes the wizard. */
 function missingFor(r: QueueRequest): string {
   if (!r.service) return "—";
+  // Seeds intentionally omitted (defaults to {}): a seed-gated step is then
+  // treated as hidden, which is correct here because no seed-gated step in any
+  // flow carries a REQUIRED field — the bar's required fields (mode, freeform)
+  // gate on real answers, not seeds. If a seed-gated step ever gains a required
+  // field, thread getBarSeeds() through here to keep this count honest.
   return missingSummary(
     serviceFlow(r.service.slug),
     parseRequestDetails(r.detailsJson),

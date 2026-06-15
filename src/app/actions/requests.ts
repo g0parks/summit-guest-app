@@ -129,11 +129,14 @@ async function spawnAttachments(
   formData: FormData,
   details: RequestDetail[],
   stay: { id: string; partySize: number | null },
+  seeds: Record<string, string> = {},
 ): Promise<string[]> {
   const offers = flow.attaches ?? [];
   if (offers.length === 0) return [];
 
-  const answers = flowAnswers(details);
+  // Same seed-merge as the wizard + completeness, so a (future) seed-gated
+  // attach is evaluated against exactly what the guest saw.
+  const answers = { ...seeds, ...flowAnswers(details) };
   const spawned: string[] = [];
   for (const offer of offers) {
     if (!attachVisible(offer, answers)) continue;
@@ -312,10 +315,13 @@ export async function saveRequestDetails(
     });
     // Intent captured mid-flow still spawns its sibling — a chef night ticked
     // before "finish later" is too valuable a signal to drop.
-    const attached = await spawnAttachments(flow, formData, details, {
-      id: stay.id,
-      partySize: partySize ?? null,
-    });
+    const attached = await spawnAttachments(
+      flow,
+      formData,
+      details,
+      { id: stay.id, partySize: partySize ?? null },
+      seeds,
+    );
     return {
       ok: true,
       outcome: "saved",
@@ -378,10 +384,13 @@ export async function saveRequestDetails(
   }
 
   // Opted-into cross-attach siblings (e.g. a chef night) spawn here too.
-  const attached = await spawnAttachments(flow, formData, details, {
-    id: stay.id,
-    partySize: partySize ?? null,
-  });
+  const attached = await spawnAttachments(
+    flow,
+    formData,
+    details,
+    { id: stay.id, partySize: partySize ?? null },
+    seeds,
+  );
 
   // One email, at the actionable moment — not at the tap.
   await notifyOperator({

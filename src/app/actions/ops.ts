@@ -85,6 +85,17 @@ export async function quoteRequest(
       error: "Fixed-price services confirm on completion — nothing to quote.",
     };
   }
+  // Fee-structure (bar) orders are priced with priceBarOrder, not quoted: the
+  // guest approved the disclosed STRUCTURE on completion, so they must never
+  // be routed to the QUOTED re-approval surface. (The UI already renders
+  // BarPriceForm, not QuoteForm, for these — this is the symmetric server
+  // guard, mirroring priceBarOrder's non-bar rejection.)
+  if (isFeeStructureService(request.service?.slug)) {
+    return {
+      ok: false,
+      error: "Bar orders are priced with the bar form — the guest approved the structure, not a total.",
+    };
+  }
 
   // Guarded write: if the guest's approval tap lands between the read above
   // and this update, the request is CONFIRMED with a tab line — re-quoting
