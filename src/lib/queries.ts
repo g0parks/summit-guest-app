@@ -2,7 +2,6 @@ import "server-only";
 import type { Season } from "@prisma/client";
 import { prisma } from "./db";
 import { interestedSlugs, parseIntakeAnswers } from "./intakeFlow";
-import { flowAnswers, parseRequestDetails } from "./serviceForm";
 import { getStayPhase } from "./stayPhase";
 
 /** Request statuses the guest still has a move on (wizard / approval). */
@@ -142,43 +141,16 @@ export async function getServiceBySlug(slug: string) {
 /**
  * Trip-derived seeds for the bar's discovery (Alcohol spec) — the read-only
  * visibility inputs that decide WHICH moments surface, never pre-filling the
- * order. `phase` hides the arrival moment once the guest is in-house;
- * `cookOrChef` surfaces the dinner-in (table-wine) moment only when there's a
- * cook-in or chef signal. Computed identically wherever the bar flow is
- * evaluated (the wizard page + the save action) so client and server agree.
+ * order. Today there's one: `phase` hides the "arrival" moment once the guest
+ * is in-house ("when you walk in" has passed). Computed identically wherever
+ * the bar flow is evaluated (the wizard page + the save action) so client and
+ * server agree. Pure — no DB; lives here as the single seed definition.
  */
-export async function getBarSeeds(
-  stay: { id: string; arrivalDate: Date; departureDate: Date },
+export function getBarSeeds(
+  stay: { arrivalDate: Date; departureDate: Date },
   timezone: string,
-): Promise<Record<string, string>> {
-  const signals = await prisma.serviceRequest.findMany({
-    where: {
-      stayId: stay.id,
-      // Any live signal counts — a chef or cook-in still in motion implies a
-      // dinner-in worth surfacing the table-wine moment for.
-      status: { in: ["SIGNALED", "READY", "QUOTED", "CONFIRMED", "SCHEDULED"] },
-      service: { slug: { in: ["private-chef-dinner", "grocery-pre-stock"] } },
-    },
-    include: { service: { select: { slug: true } } },
-  });
-
-  let cookOrChef = false;
-  for (const r of signals) {
-    if (r.service?.slug === "private-chef-dinner") {
-      cookOrChef = true;
-      break;
-    }
-    // A grocery run only implies a dinner-in when they're cooking in.
-    if (flowAnswers(parseRequestDetails(r.detailsJson)).cookIn === "Cooking in") {
-      cookOrChef = true;
-      break;
-    }
-  }
-
-  return {
-    phase: getStayPhase(stay, timezone),
-    cookOrChef: cookOrChef ? "yes" : "no",
-  };
+): Record<string, string> {
+  return { phase: getStayPhase(stay, timezone) };
 }
 
 /** Running tab: line items, card(s) on file, and pending/charged totals. */

@@ -41,14 +41,15 @@ export default async function RequestPage({
     // Bar (fee-structure): which moments surface is seeded by trip signals,
     // and the confirm screen discloses the fee SHAPE for the derived cadence.
     const isBar = isFeeStructureService(service.slug);
-    const seeds = isBar ? await getBarSeeds(stay, tz) : {};
-    const feeStructure = isBar
-      ? {
-          lines: describeBarFees(
-            barCadence({ phase: getStayPhase(stay, tz), now: new Date(), tz }),
-          ),
-        }
-      : null;
+    const seeds = isBar ? getBarSeeds(stay, tz) : {};
+    let feeStructure: { lines: string[] } | null = null;
+    if (isBar) {
+      const phase = getStayPhase(stay, tz);
+      const cadence = barCadence({ phase, now: new Date(), tz });
+      // In-stay but not same-day (after cutoff or shops closed) → graceful line.
+      const sameDayBlocked = phase === "IN_STAY" && cadence === "PLANNED";
+      feeStructure = { lines: describeBarFees(cadence, { sameDayBlocked }) };
+    }
 
     return (
       <RequestWizard

@@ -39,9 +39,13 @@ export function isFeeStructureService(slug: string | null | undefined): boolean 
  */
 export const BAR_PRICING = {
   markupBps: 2000, // 20% base service fee on every order
-  rushBps: 5000, // +50% on same-day orders only
-  floorCents: 35000, // $350 same-day pre-fee minimum
+  rushBps: 5000, // +50% same-day rush — a real drop-everything service (milk)
+  floorCents: 25000, // $250 same-day MINIMUM CHARGE (post-fee) — what we disclose
   sameDayCutoffHour: 14, // 2pm property-local — past it, no same-day promise
+  // DABS gate: Utah state liquor stores are closed Sundays, so no same-day run
+  // then (it degrades to the first open day). Operational + config-tunable; a
+  // future on-hand stock would bypass this. Weekday via Intl en-US "short".
+  closedDays: ["Sun"] as readonly string[],
 } as const;
 
 /** Axis B (the spec): planned rides the put-away; same-day carries rush + floor. */
@@ -64,16 +68,32 @@ export function pastSameDayCutoff(now: Date, tz: string): boolean {
   return localHour(now, tz) >= BAR_PRICING.sameDayCutoffHour;
 }
 
+/** Property-local weekday short name ("Sun", "Mon", …). */
+function localWeekday(now: Date, tz: string): string {
+  return new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(now);
+}
+
+/** A day the supplier (DABS) is closed — no same-day run is possible. */
+export function isClosedDay(now: Date, tz: string): boolean {
+  return BAR_PRICING.closedDays.includes(localWeekday(now, tz));
+}
+
+/** Same-day is on the table only when the shops are open AND it's before cutoff. */
+export function sameDayAvailable(now: Date, tz: string): boolean {
+  return !isClosedDay(now, tz) && !pastSameDayCutoff(now, tz);
+}
+
 /**
  * Cadence is DERIVED, never asked (the spec): pre-arrival always rides the
  * grocery put-away (planned — premium in feel for a standalone order, but no
- * rush, there was lead time). In-stay is same-day until the cutoff, then it
- * degrades gracefully to a planned next-morning run. Rush + floor fire only on
- * the scarce thing — "it's 5pm, we want margaritas by the hot tub tonight".
+ * rush, there was lead time). In-stay is same-day only while the shops are open
+ * and it's before the cutoff; otherwise it degrades gracefully to a planned
+ * next-open-day run. Rush + floor fire only on the scarce thing — "it's 5pm, we
+ * want margaritas by the hot tub tonight".
  */
 export function barCadence(input: { phase: StayPhase; now: Date; tz: string }): BarCadence {
   if (input.phase !== "IN_STAY") return "PLANNED";
-  return pastSameDayCutoff(input.now, input.tz) ? "PLANNED" : "SAME_DAY";
+  return sameDayAvailable(input.now, input.tz) ? "SAME_DAY" : "PLANNED";
 }
 
 /**
@@ -84,10 +104,13 @@ export function barCadence(input: { phase: StayPhase; now: Date; tz: string }): 
  */
 export function computeBarChargeCents(bottleCostCents: number, cadence: BarCadence): number {
   const { markupBps, rushBps, floorCents } = BAR_PRICING;
-  const base = cadence === "SAME_DAY" ? Math.max(bottleCostCents, floorCents) : bottleCostCents;
-  const marked = base * (1 + markupBps / 10000);
-  const withRush = cadence === "SAME_DAY" ? marked * (1 + rushBps / 10000) : marked;
-  return Math.round(withRush);
+  const marked = bottleCostCents * (1 + markupBps / 10000);
+  if (cadence !== "SAME_DAY") return Math.round(marked);
+  // Same-day adds the rush; the floor is the real MINIMUM CHARGE (post-fee), so
+  // "starts at $250" is literally what a guest pays — never an understated
+  // pre-fee number. The rush dominates above ~$140 of bottles.
+  const withRush = marked * (1 + rushBps / 10000);
+  return Math.max(Math.round(withRush), floorCents);
 }
 
 /**
@@ -96,20 +119,29 @@ export function computeBarChargeCents(bottleCostCents: number, cadence: BarCaden
  * the policy shape IS disclosed). Honest because discovery delivers exactly
  * what they wanted — that's what keeps the premium milk, not meat.
  */
-export function describeBarFees(cadence: BarCadence): string[] {
+export function describeBarFees(
+  cadence: BarCadence,
+  opts: { sameDayBlocked?: boolean } = {},
+): string[] {
   if (cadence === "SAME_DAY") {
     return [
       "Your bottles, at our cost",
-      "Plus our service fee and a same-day fee",
-      `Same-day orders start at ${formatMoney(BAR_PRICING.floorCents)}`,
+      "Plus our service, and a same-day rush — we drop everything to get it to you tonight",
+      `Same-day starts at ${formatMoney(BAR_PRICING.floorCents)}`,
       "It all rides your tab — nothing to pay now",
     ];
   }
-  return [
+  const lines = [
     "Your bottles, at our cost",
     "Plus our service fee",
     "It all rides your tab — nothing to pay now",
   ];
+  // In-stay, but the same-day run isn't on (after cutoff, or the shops are
+  // closed today) — say so warmly instead of silently dropping it.
+  if (opts.sameDayBlocked) {
+    lines.unshift("Same-day's wrapped for today — we'll have it to you first thing");
+  }
+  return lines;
 }
 
 /** The value stored on the request so ops prices against the order-time

@@ -235,7 +235,7 @@ export async function saveRequestDetails(
   // guest input) so the seed-gated moments the client showed are the ones we
   // read here — client and server agree on what was visible.
   const isBar = isFeeStructureService(service.slug);
-  const seeds = isBar ? await getBarSeeds(stay, stay.property.timezone) : {};
+  const seeds = isBar ? getBarSeeds(stay, stay.property.timezone) : {};
 
   const flow = serviceFlow(service.slug);
   const details: RequestDetail[] = [];

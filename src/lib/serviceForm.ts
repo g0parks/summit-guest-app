@@ -451,9 +451,11 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
   // luxury is "I get exactly what I want," and guests don't know what that is
   // until it's evoked. So the primitive is MOMENTS of the stay, each an opt-in
   // tap (never pre-selected — the crook test), and a human curates the
-  // bottles. Which moments SURFACE is seeded by trip signals (phase, a
-  // cook-in/chef signal) via showIf against read-only seeds — reads the room,
-  // never pre-fills the order. Dual-mode (full discovery OR "just tell us"),
+  // bottles. Which moments SURFACE is seeded by trip signals (today: phase —
+  // the arrival moment hides once they're in-house) via showIf against
+  // read-only seeds — reads the room, never pre-fills the order. The bar
+  // stands alone; a chef/cook-in only spawns a bar demand signal via the
+  // cross-attach. Dual-mode (full discovery OR "just tell us"),
   // never trapped. Pricing is the fee-structure path (src/lib/barPricing.ts) —
   // the disclosure shows on the confirm surface, never here.
   "bar-stocking": {
@@ -523,13 +525,12 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         ],
       },
       {
-        // Surfaces only with a cook-in or chef signal (the spec's flagship
-        // seed: cook-in → the wine for the table).
+        // Wine for the table — shown to everyone curating; NOT gated behind a
+        // chef (the bar stands on its own). A chef/cook-in instead spawns a bar
+        // demand signal via the cross-attach, and a future chef refinement can
+        // make this moment cook-aware.
         key: "dinnerIn",
-        showIf: [
-          { field: "mode", equals: "Curate it with us" },
-          { field: "cookOrChef", equals: "yes" },
-        ],
+        showIf: { field: "mode", equals: "Curate it with us" },
         eyebrow: "Dinner in",
         question: "Wine for the table?",
         detail: "The right bottles for what you're cooking — or what the chef is making.",
