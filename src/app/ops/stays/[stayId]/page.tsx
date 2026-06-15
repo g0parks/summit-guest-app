@@ -66,6 +66,19 @@ const REQUEST_BADGE: Record<RequestStatus, string> = {
   EXPIRED: styles.badgeVoid!,
 };
 
+/**
+ * Where a request's demand originated, humanized for the stay view (the ops
+ * queue shows the raw value). Cross-attach siblings carry their origin so the
+ * Broker's Book can attribute demand; an unknown source falls back to its raw
+ * string.
+ */
+const REQUEST_SOURCE_LABEL: Record<string, string> = {
+  catalog: "catalog",
+  intake: "trip intake",
+  ops: "operator",
+  "grocery-upsell": "grocery → chef",
+};
+
 const LINE_BADGE: Record<TabItemStatus, string> = {
   PENDING: styles.badgeAction!,
   CHARGED: styles.badgeOk!,
@@ -161,6 +174,16 @@ export default async function OpsStayPage({
           </dd>
           <dt>Party</dt>
           <dd>{stay.partySize ?? "—"}</dd>
+          <dt>Rental car</dt>
+          <dd>
+            {stay.hasRentalCar == null ? (
+              <span className={styles.muted}>not asked</span>
+            ) : stay.hasRentalCar ? (
+              "Has a car"
+            ) : (
+              "No car — needs rides"
+            )}
+          </dd>
           <dt>Email</dt>
           <dd>{stay.guest.email ?? <span className={styles.muted}>none</span>}</dd>
           <dt>Phone</dt>
@@ -254,7 +277,8 @@ export default async function OpsStayPage({
                   {r.status}
                 </span>
                 <span className={`${styles.muted} ${styles.small}`}>
-                  requested {when(r.createdAt)}
+                  requested {when(r.createdAt)} · via{" "}
+                  {REQUEST_SOURCE_LABEL[r.source] ?? r.source}
                 </span>
               </div>
               <p className={styles.small}>
