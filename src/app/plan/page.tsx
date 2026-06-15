@@ -1,8 +1,8 @@
 import { getActiveStay } from "@/lib/session";
 import { getConciergeContact, intakeFollowupMessage } from "@/lib/concierge";
 import { formatDateRange } from "@/lib/dates";
-import { seasonForDate, staySeason } from "@/lib/stayPhase";
-import { intakeQuestionsFor } from "@/lib/intakeFlow";
+import { getStayPhase, seasonForDate, staySeason } from "@/lib/stayPhase";
+import { intakeQuestionsFor, RENTAL_CAR_QUESTION } from "@/lib/intakeFlow";
 import IntakeFlow from "@/components/intake/IntakeFlow";
 
 export const dynamic = "force-dynamic";
@@ -42,9 +42,17 @@ export default async function PlanPage({
     ? staySeason(active.stay, active.stay.property.timezone)
     : seasonForDate(new Date());
 
+  // The rental-car parameter writes to Stay.hasRentalCar, so we only ask it
+  // for a known stay that's still ahead of / during the trip (World A,
+  // not departed). World B has no Stay to write to — captured at conversion.
+  const captureRentalCar =
+    active != null &&
+    getStayPhase(active.stay, active.stay.property.timezone) !== "POST_STAY";
+
   return (
     <IntakeFlow
       questions={intakeQuestionsFor(season)}
+      rentalCarQuestion={captureRentalCar ? RENTAL_CAR_QUESTION : null}
       knownStay={
         active
           ? {

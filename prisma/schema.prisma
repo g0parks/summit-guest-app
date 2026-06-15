@@ -220,6 +220,7 @@ model Stay {
   partySize       Int?
   currency        String           @default("usd")
   status          String           @default("upcoming") // write-only legacy display — phase is DERIVED from dates (src/lib/stayPhase.ts)
+  hasRentalCar    Boolean? // captured pre-arrival (/plan or in-app fallback); null = not yet asked. Re-prices the distance-activity menu in v2 — stored, not acted on in v1.
   isDemo          Boolean          @default(false) // /demo sandbox — cleanup-eligible, [DEMO]-tagged notifications
   accessTokens    AccessToken[]
   itineraryItems  ItineraryItem[]

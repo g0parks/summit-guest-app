@@ -11,12 +11,13 @@ export const CATEGORY_LABEL: Record<ServiceCategory, string> = {
   OTHER: "More",
 };
 
-// L1 essentials lead (TRANSPORT / ACTIVITY+experiences / PROVISIONING); the
-// elevated L2 (WELLNESS / DINING) and on-request (OTHER) fall below the fold.
+// The two heroes lead (TRANSPORT #1, PROVISIONING #2) — the universal front
+// doors that carry both PC seasons; the seasonal hero (ski/bike ACTIVITY) is
+// #3. The elevated L2 (WELLNESS / DINING) and on-request (OTHER) fall below.
 export const CATEGORY_ORDER: ServiceCategory[] = [
   "TRANSPORT",
-  "ACTIVITY",
   "PROVISIONING",
+  "ACTIVITY",
   "WELLNESS",
   "DINING",
   "HOUSEHOLD",

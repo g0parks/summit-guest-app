@@ -3,7 +3,11 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { submitTripIntake, type IntakeResult } from "@/app/actions/intake";
-import type { IntakeAnswerValue, IntakeQuestion } from "@/lib/intakeFlow";
+import type {
+  IntakeAnswerValue,
+  IntakeQuestion,
+  ParameterQuestion,
+} from "@/lib/intakeFlow";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import styles from "./IntakeFlow.module.css";
 
@@ -26,6 +30,7 @@ type KnownStay = {
 
 export default function IntakeFlow({
   questions,
+  rentalCarQuestion,
   knownStay,
   utm,
   source,
@@ -35,6 +40,8 @@ export default function IntakeFlow({
 }: {
   /** Season-keyed question set (intakeQuestionsFor) — the server picks. */
   questions: IntakeQuestion[];
+  /** Stay-parameter capture (World A only); null = skip the screen entirely. */
+  rentalCarQuestion: ParameterQuestion | null;
   knownStay: KnownStay | null;
   utm: Record<string, string> | null;
   source: string | null;
@@ -42,15 +49,22 @@ export default function IntakeFlow({
   conciergeEmail: string | null;
   conciergeMessage: string;
 }) {
-  // welcome → q0..qN → capstone → contact (anonymous only); done = state.ok
+  // welcome → airport → [rental car] → rest → capstone → contact (anon only).
+  // The rental-car parameter rides right after "getting there" — it's a
+  // stay fact, not a service interest, so it never enters `answers`.
   const stepKeys = [
     "welcome",
-    ...questions.map((q) => `q:${q.key}`),
+    ...questions.flatMap((q) =>
+      rentalCarQuestion && q.key === "airport-car"
+        ? [`q:${q.key}`, "param:hasRentalCar"]
+        : [`q:${q.key}`],
+    ),
     "capstone",
     ...(knownStay ? [] : ["contact"]),
   ];
   const [stepIdx, setStepIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, IntakeAnswerValue>>({});
+  const [rentalCar, setRentalCar] = useState<"yes" | "no" | "">("");
   const [skippedContact, setSkippedContact] = useState(false);
   const [state, formAction, pending] = useActionState<IntakeResult | null, FormData>(
     submitTripIntake,
@@ -64,6 +78,11 @@ export default function IntakeFlow({
 
   const answerAndAdvance = (key: string, value: IntakeAnswerValue) => {
     setAnswers((a) => ({ ...a, [key]: value }));
+    next();
+  };
+
+  const answerRentalCarAndAdvance = (value: "yes" | "no") => {
+    setRentalCar(value);
     next();
   };
 
@@ -124,6 +143,9 @@ export default function IntakeFlow({
         ))}
         <input type="hidden" name="utm" value={utm ? JSON.stringify(utm) : ""} />
         <input type="hidden" name="source" value={source ?? ""} />
+        {rentalCarQuestion && (
+          <input type="hidden" name="hasRentalCar" value={rentalCar} />
+        )}
 
         {/* ── Welcome — an arrival, not a form ── */}
         <section
@@ -206,6 +228,48 @@ export default function IntakeFlow({
             </div>
           </section>
         ))}
+
+        {/* ── Rental car — a stay parameter, neutral either/or (World A) ── */}
+        {rentalCarQuestion && (
+          <section
+            className={`${styles.screen} ${
+              step === "param:hasRentalCar" ? styles.active : styles.hidden
+            }`}
+          >
+            <header className={styles.topRow}>
+              <button type="button" className={styles.backBtn} onClick={back} aria-label="Back">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M15 6l-6 6 6 6" />
+                </svg>
+              </button>
+            </header>
+            <div className={styles.screenBody}>
+              <span className="eyebrow">{rentalCarQuestion.eyebrow}</span>
+              <h1 className={styles.question}>{rentalCarQuestion.question}</h1>
+              <p className={styles.detail}>{rentalCarQuestion.detail}</p>
+            </div>
+            <div className={styles.screenActions}>
+              <button
+                type="button"
+                className={`${styles.answerBtn} ${
+                  rentalCar === "yes" ? styles.answerChosen : ""
+                }`}
+                onClick={() => answerRentalCarAndAdvance("yes")}
+              >
+                {rentalCarQuestion.trueLabel}
+              </button>
+              <button
+                type="button"
+                className={`${styles.answerBtn} ${
+                  rentalCar === "no" ? styles.answerChosen : ""
+                }`}
+                onClick={() => answerRentalCarAndAdvance("no")}
+              >
+                {rentalCarQuestion.falseLabel}
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* ── Capstone — the open capture ── */}
         <section
