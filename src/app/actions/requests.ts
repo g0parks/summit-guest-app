@@ -10,11 +10,15 @@ import {
   isFixedPrice,
 } from "@/lib/catalog";
 import {
+  attachVisible,
   clampParty,
+  flowAnswers,
   isFlowComplete,
   perPersonName,
   serviceFlow,
+  showIfMatches,
   type RequestDetail,
+  type ServiceFlowConfig,
 } from "@/lib/serviceForm";
 import { parseVendorCostNote } from "@/lib/vendorNote";
 import { zonedDateTime } from "@/lib/dates";
@@ -102,8 +106,59 @@ export type WizardResult =
       outcome: "confirmed" | "ready" | "saved";
       serviceName: string;
       chargedCents: number | null;
+      /** Sibling services just spawned from a cross-attach opt-in (e.g. a chef night). */
+      attached?: string[];
     }
   | { ok: false; error: string };
+
+/**
+ * Cross-attach: an opted-into offer spawns a sibling SIGNALED request for
+ * another service the instant the guest ticks it — even on a "finish later"
+ * exit (intent is a valuable signal; the sibling is logged, resumeable, and
+ * enrolls in the ops nudge queue). Gated by the offer's showIf against the
+ * answers actually given, deduped so a resume never stacks a second open
+ * sibling. Returns the spawned services' display names.
+ */
+async function spawnAttachments(
+  flow: ServiceFlowConfig,
+  formData: FormData,
+  details: RequestDetail[],
+  stay: { id: string; partySize: number | null },
+): Promise<string[]> {
+  const offers = flow.attaches ?? [];
+  if (offers.length === 0) return [];
+
+  const answers = flowAnswers(details);
+  const spawned: string[] = [];
+  for (const offer of offers) {
+    if (!attachVisible(offer, answers)) continue;
+    if (!String(formData.get(`attach_${offer.name}`) ?? "").trim()) continue;
+
+    const target = await prisma.service.findUnique({ where: { slug: offer.targetSlug } });
+    if (!target || !target.isActive) continue;
+
+    const existing = await prisma.serviceRequest.findFirst({
+      where: {
+        stayId: stay.id,
+        serviceId: target.id,
+        status: { in: ["SIGNALED", "READY", "QUOTED"] },
+      },
+    });
+    if (existing) continue;
+
+    await prisma.serviceRequest.create({
+      data: {
+        stayId: stay.id,
+        serviceId: target.id,
+        status: "SIGNALED",
+        source: offer.source,
+        partySize: stay.partySize ?? undefined,
+      },
+    });
+    spawned.push(target.name);
+  }
+  return spawned;
+}
 
 /**
  * The wizard's save. `mode=later` stores whatever's filled and keeps the
@@ -164,9 +219,15 @@ export async function saveRequestDetails(
     : request.partySize ?? stay.partySize ?? null;
 
   // ── Execution details, config-driven (src/lib/serviceForm.ts) ──
+  // Walk steps in order, skipping any whose showIf doesn't match the answers
+  // collected so far — a hidden step (one the guest never saw) is never read
+  // or required. `answers` accumulates the controlling values (mode, cookIn)
+  // so chained gates resolve; it mirrors what the client renders.
   const flow = serviceFlow(service.slug);
   const details: RequestDetail[] = [];
+  const answers: Record<string, string> = {};
   for (const step of flow.steps) {
+    if (!showIfMatches(step.showIf, answers)) continue;
     for (const field of step.fields) {
       if (field.kind === "perPerson") {
         for (let p = 1; p <= clampParty(partySize); p++) {
@@ -194,7 +255,9 @@ export async function saveRequestDetails(
           .map((v) => String(v).trim())
           .filter(Boolean);
         if (picked.length > 0) {
-          details.push({ name: field.name, label: field.label, value: picked.join("; ") });
+          const joined = picked.join("; ");
+          details.push({ name: field.name, label: field.label, value: joined });
+          answers[field.name] = joined;
         }
       } else {
         const value = String(formData.get(`detail_${field.name}`) ?? "").trim();
@@ -202,6 +265,8 @@ export async function saveRequestDetails(
           return { ok: false, error: `Please fill in “${field.label}”.` };
         }
         if (value) details.push({ name: field.name, label: field.label, value });
+        // Record even empty, so a downstream showIf reads the actual answer.
+        answers[field.name] = value;
       }
     }
   }
@@ -222,7 +287,19 @@ export async function saveRequestDetails(
         detailsJson: details.length > 0 ? details : undefined,
       },
     });
-    return { ok: true, outcome: "saved", serviceName: service.name, chargedCents: null };
+    // Intent captured mid-flow still spawns its sibling — a chef night ticked
+    // before "finish later" is too valuable a signal to drop.
+    const attached = await spawnAttachments(flow, formData, details, {
+      id: stay.id,
+      partySize: partySize ?? null,
+    });
+    return {
+      ok: true,
+      outcome: "saved",
+      serviceName: service.name,
+      chargedCents: null,
+      attached,
+    };
   }
 
   // ── Complete: the two pricing paths ──
@@ -277,6 +354,12 @@ export async function saveRequestDetails(
     }
   }
 
+  // Opted-into cross-attach siblings (e.g. a chef night) spawn here too.
+  const attached = await spawnAttachments(flow, formData, details, {
+    id: stay.id,
+    partySize: partySize ?? null,
+  });
+
   // One email, at the actionable moment — not at the tap.
   await notifyOperator({
     type: "service_requested",
@@ -302,6 +385,7 @@ export async function saveRequestDetails(
     outcome: confirmed ? "confirmed" : "ready",
     serviceName: service.name,
     chargedCents,
+    attached,
   };
 }
 
