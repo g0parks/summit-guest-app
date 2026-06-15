@@ -1,0 +1,67 @@
+/* In-app rental-car fallback — a quiet, compact card; never an upsell. */
+
+.prompt {
+  margin-top: 24px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 20px 22px 22px;
+}
+
+.question {
+  margin-top: 10px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.detail {
+  margin-top: 8px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+
+.actions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.choice {
+  flex: 1 1 0;
+  min-width: 140px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease),
+    transform 0.2s var(--ease);
+}
+
+.choice:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.choice:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.choice:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.doneLine {
+  font-size: 15px;
+  color: var(--ink-muted);
+}

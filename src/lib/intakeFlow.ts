@@ -30,6 +30,36 @@ export type IntakeQuestion = {
   interestLabel: string;
 };
 
+/**
+ * A stay PARAMETER, not a service interest — a neutral fact about the trip
+ * (not an offer to presuppose). It writes to a Stay column, never enrolls as
+ * a SIGNALED request, and is deliberately kept OUT of INTAKE_QUESTIONS /
+ * answersJson. Two plain options, no "accept vs. pass" framing.
+ */
+export type ParameterQuestion = {
+  key: "hasRentalCar";
+  eyebrow: string;
+  question: string;
+  detail: string;
+  /** Maps to the boolean — left answer = true, right answer = false. */
+  trueLabel: string;
+  falseLabel: string;
+};
+
+/**
+ * Will the guest have their own car? Captured to re-price the distance-activity
+ * menu later (v2 shuttle nudge). Neutral register — there's no standard to
+ * presuppose, so it's a calm either/or, not a guilt-free opt-out.
+ */
+export const RENTAL_CAR_QUESTION: ParameterQuestion = {
+  key: "hasRentalCar",
+  eyebrow: "Getting around",
+  question: "Will you have a car while you're here?",
+  detail: "If not, we'll make sure you can get wherever you're headed.",
+  trueLabel: "We'll have a car",
+  falseLabel: "No car — get us around",
+};
+
 /* Season-agnostic anchors — the demand-router L1s every trip starts with. */
 
 const Q_AIRPORT: IntakeQuestion = {

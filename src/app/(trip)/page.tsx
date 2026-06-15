@@ -6,6 +6,7 @@ import { getConciergeContact, generalMessage } from "@/lib/concierge";
 import { getStayPhase, daysUntilArrival } from "@/lib/stayPhase";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import NextTripForm from "@/components/trip/NextTripForm";
+import RentalCarPrompt from "@/components/trip/RentalCarPrompt";
 import { formatDateRange, formatTime, relativeDayWord } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import styles from "./page.module.css";
@@ -142,6 +143,10 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
           </p>
         )}
       </section>
+
+      {/* quiet stay-parameter fallback for guests who skipped /plan — captured
+          for the concierge to plan transport; never an upsell, easy to ignore */}
+      {stay.hasRentalCar == null && <RentalCarPrompt />}
 
       <div className={`${styles.actions} reveal reveal-4`}>
         <Link href="/services" className={styles.cta}>

@@ -49,6 +49,12 @@ export async function submitTripIntake(
   const note = field(formData, "note", 4000);
   const source = field(formData, "source", 100);
 
+  // A stay parameter, not a service interest — null when the screen was
+  // skipped or absent (World B has no Stay to write it to). Persisted below.
+  const rentalCarRaw = String(formData.get("hasRentalCar") ?? "");
+  const hasRentalCar =
+    rentalCarRaw === "yes" ? true : rentalCarRaw === "no" ? false : null;
+
   // Attribution only, never access (the AccessToken.utmJson rule).
   let utmJson: Record<string, string> | null = null;
   try {
@@ -108,6 +114,15 @@ export async function submitTripIntake(
       .filter((a) => a.answer === "interested")
       .map((a) => a.serviceSlug);
     await enrollIntakeSignals(prisma, active.stay, interestedServiceSlugs);
+
+    // Only write when the guest actually answered — never clobber a prior
+    // value with null because the screen was absent (World B / departed).
+    if (hasRentalCar !== null) {
+      await prisma.stay.update({
+        where: { id: active.stay.id },
+        data: { hasRentalCar },
+      });
+    }
   }
 
   const interests = interestedLabels(answers);
