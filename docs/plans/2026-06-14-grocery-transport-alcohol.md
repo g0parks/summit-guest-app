@@ -14,7 +14,7 @@
 ### In (v1)
 1. **Catalog + `/plan` reorder** to the two-heroes shape; season-gate the seasonal question.
 2. **Grocery provisioning intake** — rebuild `grocery-pre-stock` from package-picker → dual-mode provisioning intake (mode fork · packages · kit box · cook-in fork · particulars).
-3. **Alcohol/bar intake** — NEW service, dual-mode, presupposing demand-gen prompts; QUOTE-priced; **fulfillment left as a clean facilitation seam** (legal/compliance owned by Parker — do NOT wire vendor fulfillment).
+3. **Alcohol/bar intake** — NEW service, dual-mode, presupposing demand-gen prompts; QUOTE-priced. Built as a **full first-class service** like the others (intake → QUOTE → ops → tab → manual fulfillment). Parker owns alcohol operationally, compliance included — his concern, handled later, and **never a reason to stub or half-build the service** (decided 2026-06-15: "own the alcohol, don't defer").
 4. **`Stay.hasRentalCar`** — capture cleanly (stored), surface nothing yet.
 5. **Cross-attach hooks:** cook-in → chef; grocery → bar; chef → wine pairings.
 6. A reusable **`showIf` conditional-step capability** in `serviceForm.ts` (the forks need it).
@@ -23,7 +23,7 @@
 - Shuttle nudge + menu re-pricing off `hasRentalCar` (distance-activity upsell).
 - Substitution-confirm SMS loop (needs outbound SMS infra + a scoped cadence plan).
 - Mid-stay restock; fridge photo (ops/manual); the intelligence/auto-plan centaur layer.
-- Real Stripe. Alcohol fulfillment wiring + courier/retailer-of-record (Parker's legal gate).
+- Real Stripe. Vendor-automation wiring for ALL services (alcohol included) — the POS principle keeps fulfillment manual until routing data exists. (Alcohol's licensed-retailer/courier compliance is Parker's operational concern, handled later — not a software deferral.)
 
 ## Data model
 
@@ -72,7 +72,7 @@ Dual-mode, same `showIf` machinery. The guided prompts are **demand generation**
 
 **Freeform:** *"Tell us exactly what you'd like."* + particulars.
 
-**Fulfillment seam (DO NOT WIRE):** alcohol is **facilitation, not resale** — the guest's order flows through a licensed retailer (Total Wine / state store), Summit marks up the *service fee*, not the bottle (Utah is a control state; couriers need a DABS license). Capture demand + the order only. Leave an ops note + a clean "route to licensed partner" seam. Compliance/licensing is owned by Parker.
+**Fulfillment = manual, like every service** (the POS principle — no vendor automation is wired anywhere in the app yet; clean seam only). Build the **full service**: intake → QUOTE (operator prices at quote time) → ops → tab → a human fulfills. **Do NOT treat alcohol as a deferred stub — it's first-class.** Compliance is Parker's operational concern; internal context for when he tackles it: Utah is a control state, so facilitation-not-resale (mark up the service fee, not the bottle), and he owns the licensed-retailer/courier structure. The legal gate is operational, never a software blocker.
 
 ## Flow 3 — Transport (small)
 - `catalog.ts` `CATEGORY_ORDER`: `["TRANSPORT","PROVISIONING","ACTIVITY","WELLNESS","DINING","HOUSEHOLD","OTHER"]` (swap PROVISIONING above ACTIVITY → two heroes at #1/#2, seasonal #3).
@@ -113,7 +113,7 @@ Dual-mode, same `showIf` machinery. The guided prompts are **demand generation**
 - No prices anywhere in `/plan` or the intake (interest capture only).
 - Co-brand quiet; never surface rev-share / vendor-funded / `costCents` to guest or PM.
 - Strict TS, no `any`. `npm run lint` + `npm run typecheck` before each commit. Conventional commits, feature branch, per-file change summaries.
-- Alcohol: build the demand intake only; leave fulfillment a seam; do not implement anything that asserts a compliant delivery path.
+- Alcohol: a **full first-class service** (intake → QUOTE → ops → tab → manual fulfillment), not a stub. Like every service, no vendor automation is wired (manual fulfillment, clean seam). Compliance is Parker's operational concern — don't assert a compliant delivery path in code, but don't half-build the service either.
 
 ## Open (non-blocking) follow-ups
 - Package + kit-box contents (Sam).
