@@ -92,6 +92,24 @@ export default async function ServicesPage() {
           </ul>
         </section>
       ))}
+
+      {/* The request box — the long tail the menu can't hold. The waiter saying
+          "we can do that," never a configurator. Quiet, below the menu. */}
+      {!postStay && (
+        <section className={`${styles.section} reveal reveal-5`}>
+          <Link href="/ask" className={styles.card}>
+            <div className={styles.cardBody}>
+              <h3 className={styles.cardName}>Don&rsquo;t see it? Ask us.</h3>
+              <p className={styles.cardDesc}>
+                Anything that&rsquo;s not on the menu — your concierge will arrange it.
+              </p>
+            </div>
+            <svg className={styles.chevron} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </Link>
+        </section>
+      )}
     </main>
   );
 }

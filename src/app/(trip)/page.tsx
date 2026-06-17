@@ -160,6 +160,14 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
         </Link>
       </div>
 
+      {/* The request box — quiet, below the primary action: the long tail the
+          menu can't hold (the in-app door, not the config-gated text line). */}
+      <p className={`${styles.askLine} reveal reveal-4`}>
+        <Link href="/ask" className={styles.interestLink}>
+          Something else? Ask the concierge &rarr;
+        </Link>
+      </p>
+
       {(concierge.phone || concierge.email) && (
         <section className={`${styles.card} reveal reveal-5`}>
           <span className="eyebrow">Your concierge</span>
@@ -283,6 +291,13 @@ async function InStayBody({ active, brand }: { active: ActiveStay; brand: Brand 
           View today&rsquo;s itinerary
         </Link>
       </div>
+
+      {/* The request box — quiet in-app door for anything off the menu. */}
+      <p className={`${styles.askLine} reveal reveal-4`}>
+        <Link href="/ask" className={styles.interestLink}>
+          Something else? Ask the concierge &rarr;
+        </Link>
+      </p>
 
       {/* the Concierge Line — the thread is the interface, this is the door */}
       {(concierge.phone || concierge.email) && (

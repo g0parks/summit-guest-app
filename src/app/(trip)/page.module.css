@@ -222,6 +222,13 @@
   font-weight: 500;
 }
 
+/* request-box entry — quiet, centered under the primary actions */
+.askLine {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 14.5px;
+}
+
 /* ── the pre-arrival checklist — open requests, one tap from done ── */
 .checklist {
   margin-top: 14px;

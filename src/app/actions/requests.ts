@@ -522,3 +522,74 @@ export async function approveQuote(
 
   return { ok: true, serviceName, amountCents };
 }
+
+export type RequestBoxResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * The request box — in-app capture for anything off the 14-service menu (the
+ * "I thought you had it covered" long tail). NOT a configurator: it's the
+ * waiter saying "we can do that." A service-less ServiceRequest
+ * (`serviceId: null`, `source: "request-box"`) lands READY for operator
+ * triage — they quote it (the existing custom-request path) and the guest
+ * approves like any quote. Off-menu arranging carries a concierge fee
+ * (disclosed on the capture screen, never quoted on the spot). Surfaces on the
+ * home checklist (renders `customTitle`) the instant it's sent.
+ */
+export async function createRequestBox(
+  _prev: RequestBoxResult | null,
+  formData: FormData,
+): Promise<RequestBoxResult> {
+  const active = await getActiveStay();
+  if (!active) {
+    return { ok: false, error: "Your session has expired — please reopen your link." };
+  }
+  const { stay } = active;
+
+  if (getStayPhase(stay, stay.property.timezone) === "POST_STAY") {
+    return postStayError();
+  }
+
+  const ask = String(formData.get("ask") ?? "").trim();
+  if (!ask) {
+    return { ok: false, error: "Tell us what you'd like us to arrange." };
+  }
+
+  // A scannable title for the checklist + ops glance; the full text rides
+  // `notes` only when it's longer than the title can hold.
+  const title = ask.length > 120 ? `${ask.slice(0, 117)}…` : ask;
+
+  const dateStr = String(formData.get("date") ?? "").trim();
+  let requestedFor: Date | null = null;
+  if (dateStr) {
+    const d = zonedDateTime(dateStr, "12:00", stay.property.timezone);
+    if (!Number.isNaN(d.getTime())) requestedFor = d;
+  }
+
+  const request = await prisma.serviceRequest.create({
+    data: {
+      stayId: stay.id,
+      serviceId: null,
+      customTitle: title,
+      notes: ask.length > 120 ? ask : null,
+      requestedFor,
+      source: "request-box",
+      status: "READY", // operator triages → quote → guest approves
+      partySize: stay.partySize ?? undefined,
+    },
+  });
+
+  await notifyOperator({
+    type: "service_requested",
+    stayId: stay.id,
+    guestName: `${stay.guest.firstName} ${stay.guest.lastName ?? ""}`.trim(),
+    property: stay.property.name,
+    serviceName: title,
+    requestId: request.id,
+    requestedFor: requestedFor?.toISOString() ?? null,
+    notes: ask.length > 120 ? ask : null,
+    isDemo: stay.isDemo,
+    partnerName: stay.property.partner?.name ?? null,
+  });
+
+  return { ok: true };
+}

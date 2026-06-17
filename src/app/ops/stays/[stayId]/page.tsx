@@ -82,6 +82,7 @@ const REQUEST_SOURCE_LABEL: Record<string, string> = {
   "grocery-attach": "grocery → bar",
   "chef-attach": "chef → wine",
   "bar-direct": "the bar",
+  "request-box": "request box",
 };
 
 const LINE_BADGE: Record<TabItemStatus, string> = {
