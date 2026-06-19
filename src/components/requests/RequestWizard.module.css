@@ -238,18 +238,45 @@
   text-align: center;
 }
 
-/* Fee-structure disclosure (the bar): the shape, calmly stated. */
+/* Fee-structure disclosure: value leads, cost is one calm line, schedule expands. */
 .feeStructure {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+}
+
+.feeLead {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.feeDegraded,
+.feeSummary {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.feeDetails {
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.feeDetails summary {
+  cursor: pointer;
+  color: var(--accent);
   list-style: none;
-  margin: 0;
+}
+
+.feeDetails ul {
+  list-style: none;
+  margin: 8px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--ink-muted);
-  text-align: center;
+  gap: 4px;
 }
 
 .primaryBtn {

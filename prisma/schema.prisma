@@ -27,6 +27,11 @@ enum PriceUnit {
   PER_DAY
   PER_PERSON
   QUOTE
+  // Provisioning (grocery + bar): no fixed price and no quotable total — the
+  // guest consents to a disclosed cost-plus fee SCHEDULE on the confirm screen
+  // (pass-through cost + delivery fee + service % + same-day rush), and a human
+  // prices the order after curating it. See src/lib/provisioningPricing.ts.
+  FEE_STRUCTURE
 }
 
 enum ItineraryCategory {
@@ -258,9 +263,15 @@ model Service {
   shortDesc         String
   longDesc          String?
   heroImage         String?
-  priceAmount       Int? // cents; null for pure QUOTE
+  priceAmount       Int? // cents; null for pure QUOTE / FEE_STRUCTURE
   priceUnit         PriceUnit        @default(FLAT)
   priceNote         String? // "from", "per night", etc.
+  // FEE_STRUCTURE knobs — tunable per service; null falls back to the code
+  // defaults in src/lib/provisioningPricing.ts. (Cadence/cutoff/closed-day
+  // logic stays in code config, not columns.)
+  deliveryFeeCents  Int? // flat delivery/shopping fee
+  serviceFeeBps     Int? // service fee, basis points of pass-through cost (2500 = 25%)
+  rushFeeCents      Int? // flat same-day / late-order rush fee
   leadTimeHours     Int              @default(24)
   season            Season           @default(ALL_YEAR) // stay dates pick the menu (winter/summer)
   moveCutoffHours   Int? // in-app "move it" offered until this many hours before; null = concierge-only

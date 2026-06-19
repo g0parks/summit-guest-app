@@ -24,7 +24,13 @@ import { parseVendorCostNote } from "@/lib/vendorNote";
 import { zonedDateTime } from "@/lib/dates";
 import { getStayPhase } from "@/lib/stayPhase";
 import { getBarSeeds } from "@/lib/queries";
-import { barCadence, cadenceLabel, isFeeStructureService } from "@/lib/barPricing";
+import {
+  BAR_STOCKING_SLUG,
+  closedDaysForService,
+  isFeeStructureService,
+  isRushOrder,
+  rushLabel,
+} from "@/lib/provisioningPricing";
 
 /**
  * The request lifecycle, guest side (Product Doctrine 2026-06-12):
@@ -95,9 +101,11 @@ export async function createSignal(
       serviceId: service.id,
       status: "SIGNALED",
       // Axis A attribution: a standalone bar tap is "bar-direct"; everything
-      // else off the catalog is "catalog". (Bundled bar entries arrive
-      // pre-tagged "grocery-attach"/"chef-attach" via the cross-attach.)
-      source: isFeeStructureService(service.slug) ? "bar-direct" : "catalog",
+      // else off the catalog (grocery included) is "catalog". (Bundled bar
+      // entries arrive pre-tagged "grocery-attach"/"chef-attach" via the
+      // cross-attach.) Keyed on the bar SLUG, not the fee-structure path —
+      // grocery is fee-structure too now, but a grocery tap is "catalog".
+      source: service.slug === BAR_STOCKING_SLUG ? "bar-direct" : "catalog",
       partySize: stay.partySize ?? undefined,
     },
   });
@@ -233,9 +241,12 @@ export async function saveRequestDetails(
   // so chained gates resolve; it mirrors what the client renders.
   // Bar discovery seeds trip signals into the answer map (read-only, never a
   // guest input) so the seed-gated moments the client showed are the ones we
-  // read here — client and server agree on what was visible.
-  const isBar = isFeeStructureService(service.slug);
-  const seeds = isBar ? getBarSeeds(stay, stay.property.timezone) : {};
+  // read here — client and server agree on what was visible. Seeds stay bar-
+  // specific (grocery has no phase-gated steps); the rush derivation below
+  // covers both fee-structure services.
+  const isFee = isFeeStructureService(service.priceUnit);
+  const seeds =
+    service.slug === BAR_STOCKING_SLUG ? getBarSeeds(stay, stay.property.timezone) : {};
 
   const flow = serviceFlow(service.slug);
   const details: RequestDetail[] = [];
@@ -285,16 +296,18 @@ export async function saveRequestDetails(
     }
   }
 
-  // Fee-structure cadence is DERIVED (phase + same-day cutoff) and stored on
-  // the order so ops prices against the order-time cadence — not whenever they
-  // open it. Recorded as a detail (visible to ops, read by priceBarOrder).
-  if (isBar) {
-    const cadence = barCadence({
+  // Fee-structure rush is DERIVED (phase + same-day cutoff + closed days) and
+  // stored on the order so ops prices against the order-time state — not
+  // whenever they open it. Recorded as a detail (visible to ops, read by
+  // priceProvisioningOrder).
+  if (isFee) {
+    const rush = isRushOrder({
       phase: getStayPhase(stay, stay.property.timezone),
       now: new Date(),
       tz: stay.property.timezone,
+      closedDays: closedDaysForService(service.slug),
     });
-    details.push({ name: "cadence", label: "Timing", value: cadenceLabel(cadence) });
+    details.push({ name: "rush", label: "Timing", value: rushLabel(rush) });
   }
 
   const complete =

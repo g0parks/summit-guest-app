@@ -23,7 +23,7 @@ import {
 } from "@/lib/dates";
 import { interestedLabels, parseIntakeAnswers } from "@/lib/intakeFlow";
 import { isFixedPrice } from "@/lib/catalog";
-import { isFeeStructureService } from "@/lib/barPricing";
+import { isFeeStructureService } from "@/lib/provisioningPricing";
 import { isChangeableStatus } from "@/lib/changePolicy";
 import {
   clampParty,
@@ -32,7 +32,7 @@ import {
   serviceFlow,
 } from "@/lib/serviceForm";
 import QuoteForm from "@/components/ops/QuoteForm";
-import BarPriceForm from "@/components/ops/BarPriceForm";
+import ProvisioningPriceForm from "@/components/ops/ProvisioningPriceForm";
 import NudgeButton from "@/components/ops/NudgeButton";
 import ItineraryItemForm from "@/components/ops/ItineraryItemForm";
 import styles from "./ops.module.css";
@@ -279,11 +279,11 @@ export default async function OpsOverviewPage() {
             <tbody>
               {queues.readyToRoute.map((r) => {
                 // The pricing paths: fixed-price never lands here. Un-priced
-                // QUOTE/custom requests take a quote; the bar (fee-structure)
-                // takes a bottle-cost → computed-charge (no second guest tap).
+                // QUOTE/custom requests take a quote; fee-structure (grocery +
+                // bar) takes an order-cost → computed-charge (no second guest tap).
                 const quotable =
                   !r.service || !isFixedPrice(r.service.priceUnit, r.service.priceAmount);
-                const bar = isFeeStructureService(r.service?.slug);
+                const feeStructure = isFeeStructureService(r.service?.priceUnit);
                 return (
                   <tr key={r.id}>
                     <td>{requestTitle(r)}</td>
@@ -295,8 +295,8 @@ export default async function OpsOverviewPage() {
                     <td>
                       <div className={styles.actionsRow}>
                         {quotable &&
-                          (bar ? (
-                            <BarPriceForm requestId={r.id} />
+                          (feeStructure ? (
+                            <ProvisioningPriceForm requestId={r.id} />
                           ) : (
                             <QuoteForm requestId={r.id} />
                           ))}

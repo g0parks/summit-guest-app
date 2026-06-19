@@ -3,7 +3,15 @@ import { notFound } from "next/navigation";
 import { requireStay } from "@/lib/session";
 import { getBarSeeds, getRequestForWizard } from "@/lib/queries";
 import { parseRequestDetails } from "@/lib/serviceForm";
-import { barCadence, describeBarFees, isFeeStructureService } from "@/lib/barPricing";
+import {
+  BAR_STOCKING_SLUG,
+  closedDaysForService,
+  describeFeeStructure,
+  feeStructureCopy,
+  isFeeStructureService,
+  resolveFeeConfig,
+  sameDayAvailable,
+} from "@/lib/provisioningPricing";
 import { dayKey, timeValue } from "@/lib/dates";
 import { getStayPhase } from "@/lib/stayPhase";
 import RequestWizard from "@/components/requests/RequestWizard";
@@ -41,17 +49,32 @@ export default async function RequestPage({
       if (d.name) details[d.name] = d.value;
     }
 
-    // Bar (fee-structure): which moments surface is seeded by trip signals,
-    // and the confirm screen discloses the fee SHAPE for the derived cadence.
-    const isBar = isFeeStructureService(service.slug);
-    const seeds = isBar ? getBarSeeds(stay, tz) : {};
-    let feeStructure: { lines: string[] } | null = null;
-    if (isBar) {
+    // Fee-structure (grocery + bar): the confirm screen discloses the concrete
+    // fee SCHEDULE; the bar's moments are also seeded by trip signals (phase).
+    const isFee = isFeeStructureService(service.priceUnit);
+    const seeds = service.slug === BAR_STOCKING_SLUG ? getBarSeeds(stay, tz) : {};
+    let feeStructure:
+      | (ReturnType<typeof describeFeeStructure> & { closeDetail: string })
+      | null = null;
+    if (isFee) {
       const phase = getStayPhase(stay, tz);
-      const cadence = barCadence({ phase, now: new Date(), tz });
-      // In-stay but not same-day (after cutoff or shops closed) → graceful line.
-      const sameDayBlocked = phase === "IN_STAY" && cadence === "PLANNED";
-      feeStructure = { lines: describeBarFees(cadence, { sameDayBlocked }) };
+      const copy = feeStructureCopy(service.slug);
+      // The graceful "same-day's wrapped → first thing" line is a bar concern
+      // (DABS Sunday + the liquor-store cutoff); grocery makes no same-day
+      // promise in copy, so it never shows it.
+      const sameDayBlocked =
+        service.slug === BAR_STOCKING_SLUG &&
+        phase === "IN_STAY" &&
+        !sameDayAvailable(new Date(), tz, closedDaysForService(service.slug));
+      feeStructure = {
+        ...describeFeeStructure({
+          noun: copy.noun,
+          lead: copy.lead,
+          fees: resolveFeeConfig(service),
+          sameDayBlocked,
+        }),
+        closeDetail: copy.closeDetail,
+      };
     }
 
     return (

@@ -24,9 +24,13 @@ export const CATEGORY_ORDER: ServiceCategory[] = [
   "OTHER",
 ];
 
-/** A fixed-price service auto-confirms; a QUOTE service waits for pricing. */
+/**
+ * A fixed-price service auto-confirms; QUOTE waits for pricing and
+ * FEE_STRUCTURE (grocery + bar) is priced by the operator after the guest
+ * consents to the disclosed schedule — neither is fixed-price.
+ */
 export function isFixedPrice(unit: PriceUnit, amount: number | null): amount is number {
-  return unit !== "QUOTE" && amount != null;
+  return unit !== "QUOTE" && unit !== "FEE_STRUCTURE" && amount != null;
 }
 
 /** Charge for an auto-confirmed request (per-person scales by party size). */

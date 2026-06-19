@@ -1,19 +1,19 @@
 "use client";
 
 import { useActionState } from "react";
-import { priceBarOrder, type OpsResult } from "@/app/actions/ops";
+import { priceProvisioningOrder, type OpsResult } from "@/app/actions/ops";
 import styles from "@/app/ops/ops.module.css";
 
 /**
- * Inline pricing for a READY (fee-structure) bar order. The operator curates
- * the bottles and enters their pass-through cost in dollars; the charge —
- * cost + the disclosed fees, against the order-time cadence — is computed
- * server-side, lands on the tab, and moves the order to CONFIRMED. No second
- * guest tap: they already approved the fee structure on completion.
+ * Inline pricing for a READY fee-structure (grocery + bar) order. The operator
+ * curates/shops the order and enters its pass-through cost in dollars; the
+ * charge — cost + the disclosed fees, against the order-time rush state — is
+ * computed server-side, lands on the tab, and moves the order to CONFIRMED. No
+ * second guest tap: they already approved the fee schedule on completion.
  */
-export default function BarPriceForm({ requestId }: { requestId: string }) {
+export default function ProvisioningPriceForm({ requestId }: { requestId: string }) {
   const [state, action, pending] = useActionState<OpsResult | null, FormData>(
-    priceBarOrder,
+    priceProvisioningOrder,
     null,
   );
 
@@ -23,15 +23,15 @@ export default function BarPriceForm({ requestId }: { requestId: string }) {
     <form action={action} className={styles.inlineForm}>
       <input type="hidden" name="requestId" value={requestId} />
       <input
-        name="bottleCost"
+        name="cost"
         inputMode="decimal"
-        placeholder="bottle cost $"
+        placeholder="order cost $"
         required
         className={styles.input}
-        aria-label="Bottle cost — pass-through (dollars)"
+        aria-label="Order cost — pass-through (dollars)"
       />
       <button type="submit" disabled={pending} className={styles.btn}>
-        {pending ? "Pricing…" : "Price the bar"}
+        {pending ? "Pricing…" : "Price the order"}
       </button>
       {state && !state.ok && <p className={styles.error}>{state.error}</p>}
     </form>
