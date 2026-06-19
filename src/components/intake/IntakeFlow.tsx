@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { submitTripIntake, type IntakeResult } from "@/app/actions/intake";
 import type {
@@ -52,16 +52,6 @@ export default function IntakeFlow({
   // welcome → airport → [rental car] → rest → capstone → contact (anon only).
   // The rental-car parameter rides right after "getting there" — it's a
   // stay fact, not a service interest, so it never enters `answers`.
-  const stepKeys = [
-    "welcome",
-    ...questions.flatMap((q) =>
-      rentalCarQuestion && q.key === "airport-car"
-        ? [`q:${q.key}`, "param:hasRentalCar"]
-        : [`q:${q.key}`],
-    ),
-    "capstone",
-    ...(knownStay ? [] : ["contact"]),
-  ];
   const [stepIdx, setStepIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, IntakeAnswerValue>>({});
   const [rentalCar, setRentalCar] = useState<"yes" | "no" | "">("");
@@ -71,7 +61,32 @@ export default function IntakeFlow({
     null,
   );
 
-  const step = stepKeys[stepIdx] ?? "welcome";
+  // Conditional questions (e.g. the bar, shown only when grocery is declined)
+  // drop in/out of the flow live as answers change.
+  const activeQuestions = useMemo(
+    () =>
+      questions.filter(
+        (q) => !q.showWhenDeclined || answers[q.showWhenDeclined] === "declined",
+      ),
+    [questions, answers],
+  );
+  const stepKeys = useMemo(
+    () => [
+      "welcome",
+      ...activeQuestions.flatMap((q) =>
+        rentalCarQuestion && q.key === "airport-car"
+          ? [`q:${q.key}`, "param:hasRentalCar"]
+          : [`q:${q.key}`],
+      ),
+      "capstone",
+      ...(knownStay ? [] : ["contact"]),
+    ],
+    [activeQuestions, rentalCarQuestion, knownStay],
+  );
+
+  // Clamp: a conditional question dropping out can shrink stepKeys below the
+  // current index — never strand the flow on a missing screen.
+  const step = stepKeys[Math.min(stepIdx, stepKeys.length - 1)] ?? "welcome";
   const conciergeLive = Boolean(conciergePhone || conciergeEmail);
   const next = () => setStepIdx((i) => Math.min(i + 1, stepKeys.length - 1));
   const back = () => setStepIdx((i) => Math.max(i - 1, 0));
@@ -133,7 +148,7 @@ export default function IntakeFlow({
     <main className={styles.page}>
       <form action={formAction} className={styles.form}>
         {/* accumulated answers + attribution ride the one submission */}
-        {questions.map((q) => (
+        {activeQuestions.map((q) => (
           <input
             key={q.key}
             type="hidden"
@@ -175,7 +190,7 @@ export default function IntakeFlow({
         </section>
 
         {/* ── The questions — one per screen, presuppose the standard ── */}
-        {questions.map((q, qi) => (
+        {activeQuestions.map((q, qi) => (
           <section
             key={q.key}
             className={`${styles.screen} ${step === `q:${q.key}` ? styles.active : styles.hidden}`}
@@ -191,8 +206,8 @@ export default function IntakeFlow({
                   <path d="M15 6l-6 6 6 6" />
                 </svg>
               </button>
-              <span className={styles.dots} aria-label={`Question ${qi + 1} of ${questions.length}`}>
-                {questions.map((d, di) => (
+              <span className={styles.dots} aria-label={`Question ${qi + 1} of ${activeQuestions.length}`}>
+                {activeQuestions.map((d, di) => (
                   <span
                     key={d.key}
                     className={`${styles.dot} ${di === qi ? styles.dotOn : ""}`}

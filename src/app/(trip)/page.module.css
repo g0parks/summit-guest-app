@@ -79,6 +79,15 @@
   color: var(--ink-muted);
 }
 
+/* first-landing trust line — who Summit is + how the tab works, co-brand quiet */
+.trustLine {
+  margin-top: 18px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+  max-width: 40ch;
+}
+
 /* ── gift card (Perk Bank hook) ──────────────────────────── */
 .gift {
   margin-top: 34px;

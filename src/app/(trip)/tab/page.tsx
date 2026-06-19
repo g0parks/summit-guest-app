@@ -78,7 +78,7 @@ export default async function TabPage() {
 
       <p className={`${styles.reassure} reveal reveal-4`}>
         Everything you request lands here — no checkout, no wallet. Settle anytime,
-        or we’ll quietly close it out at departure.
+        or we’ll close it out at departure.
       </p>
 
       {(concierge.phone || concierge.email) && (
