@@ -42,7 +42,7 @@ Summit turns money the guest was **already going to spend** into a stay they rem
 - **Reserve internal per-line economics** — tab lines can carry `vendorCostCents` / `pmShareCents` / `netCents` (net target 15–20%); computed + stored internally, NEVER surfaced to guest or PM.
 
 ## Pre-launch gates (MUST clear before the FIRST real guest)
-- **Fork the database — dev vs production.** Local dev and prod currently share ONE Supabase DB, and `npm run db:seed` is a full wipe that's run constantly during dev. Harmless only because prod has no real guests yet; the first real guest + one routine reseed = their data gone. Before launch: stand up a separate dev DB, point local `.env` at it, leave prod's connection string ONLY in Vercel; prod gets `migrate deploy` at deploy time, never `seed`. (See memory: shared-db-risk.)
+- **Database forked — dev vs production (dev done 2026-06-19).** Local `.env` points at a separate `summit-dev` Supabase project; prod's connection strings live ONLY in Vercel. `npm run db:seed` (a full wipe) now only ever hits dev — never run it / point local `.env` at prod. **Still open:** prod has no auto-migrate-on-deploy (build is plain `next build`), so a prod-bound schema change (WS2+) must be applied deliberately. Free path when it's needed: reset the prod DB password ONCE (no real guests yet → harmless), save it, then give Vercel a session-pooler `DIRECT_URL` and run `prisma migrate deploy` — the Vercel build can't reach Supabase's IPv6-only direct host (`db.<ref>.supabase.co`), and the paid IPv4 add-on avoids env edits but isn't worth it. (See memory: shared-db-risk.)
 
 ## The three things the experience must nail (equal priority, one connected flow)
 1. Itinerary view — their trip in one place
