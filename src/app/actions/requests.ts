@@ -469,6 +469,12 @@ export async function approveQuote(
   if (!request || request.stayId !== stay.id) {
     return { ok: false, error: "We couldn’t find that request — please reopen your link." };
   }
+  // Defense-in-depth: a fee-structure (provisioning) order is never quoted — it's
+  // priced by ops via priceProvisioningOrder. Never let one through the
+  // quote-approval path (which would bill a phantom total, skipping the schedule).
+  if (isFeeStructureService(request.service?.priceUnit)) {
+    return { ok: false, error: "This one’s with your concierge — nothing to approve here." };
+  }
   if (request.status !== "QUOTED" || request.quotedAmount == null) {
     return { ok: false, error: "This one isn’t waiting on you — your concierge has it." };
   }

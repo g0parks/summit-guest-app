@@ -5,7 +5,7 @@ import { ItineraryCategory, type PerkClaimStatus, type RequestStatus } from "@pr
 import { prisma } from "@/lib/db";
 import { requireOperator } from "@/lib/opsSession";
 import { getPaymentProvider } from "@/lib/payments";
-import { isFixedPrice } from "@/lib/catalog";
+import { confirmedRequestItineraryData, isFixedPrice } from "@/lib/catalog";
 import { parseMoneyCents } from "@/lib/money";
 import { withVendorCostNote } from "@/lib/vendorNote";
 import { zonedDateTime } from "@/lib/dates";
@@ -188,6 +188,20 @@ export async function priceProvisioningOrder(
       netCents: computeNetCents(amountCents, costCents, 0),
     },
   });
+
+  // Dated provisioning (grocery) belongs on the timeline like any confirmed,
+  // scheduled request — mirrors approveQuote. Dateless (bar) skips it.
+  if (request.requestedFor) {
+    await prisma.itineraryItem.create({
+      data: confirmedRequestItineraryData({
+        stayId: request.stayId,
+        requestId: request.id,
+        service,
+        notes: request.notes,
+        startsAt: request.requestedFor,
+      }),
+    });
+  }
 
   revalidateSurfaces(request.stayId);
   return { ok: true };

@@ -213,7 +213,9 @@ export function describeFeeStructure(input: {
   sameDayBlocked?: boolean;
 }): FeeDisclosure {
   const { noun, fees, lead, sameDayBlocked } = input;
-  const pct = Math.round(fees.serviceFeeBps / 100);
+  // Exact (one-decimal) so the displayed % never disagrees with the charged
+  // rate for a non-round bps (e.g. 1750 → 17.5%, not a rounded 18%).
+  const pct = Number((fees.serviceFeeBps / 100).toFixed(1));
   return {
     lead,
     summary: `Your ${noun} at cost, plus delivery and a service fee — on your tab, nothing to pay now.`,
