@@ -332,6 +332,9 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
             name: "cookIn",
             label: "The kitchen plan",
             options: ["Cooking in", "Just provisions"],
+            // Required so the chef cross-attach (gated on "Cooking in") can't be
+            // silently suppressed by a guest who skips an optional fork.
+            required: true,
           },
         ],
       },

@@ -28,6 +28,10 @@ export type IntakeQuestion = {
   serviceSlug: string;
   /** Short label for ops chips + operator notifications. */
   interestLabel: string;
+  /** Conditional: show ONLY if the named question was DECLINED (evaluated
+   *  client-side against live answers). Used to surface the bar when grocery
+   *  is passed, so alcohol demand isn't lost. Undefined = always shown. */
+  showWhenDeclined?: string;
 };
 
 /**
@@ -82,6 +86,21 @@ const Q_KITCHEN: IntakeQuestion = {
   passLabel: "I'll shop",
   serviceSlug: "grocery-pre-stock",
   interestLabel: "Kitchen stocking",
+};
+
+// Conditional — only when the kitchen question is DECLINED. If they're stocking
+// groceries, the grocery flow's bar cross-attach captures the bar; if they
+// pass, this catches the alcohol demand that would otherwise be lost.
+const Q_BAR: IntakeQuestion = {
+  key: "bar",
+  eyebrow: "The bar",
+  question: "Should the bar be stocked when you arrive?",
+  detail: "Wine for the table, something for the hot tub — a person picks the bottles.",
+  yesLabel: "Stock the bar",
+  passLabel: "We're set",
+  serviceSlug: "bar-stocking",
+  interestLabel: "Bar stocking",
+  showWhenDeclined: "kitchen",
 };
 
 const Q_CHEF: IntakeQuestion = {
@@ -163,8 +182,8 @@ const SUMMER_ONLY: IntakeQuestion[] = [
  */
 export function intakeQuestionsFor(season: "WINTER" | "SUMMER"): IntakeQuestion[] {
   return season === "WINTER"
-    ? [Q_AIRPORT, Q_KITCHEN, ...WINTER_ONLY, Q_CHEF]
-    : [Q_AIRPORT, Q_KITCHEN, ...SUMMER_ONLY, Q_CHEF];
+    ? [Q_AIRPORT, Q_KITCHEN, Q_BAR, ...WINTER_ONLY, Q_CHEF]
+    : [Q_AIRPORT, Q_KITCHEN, Q_BAR, ...SUMMER_ONLY, Q_CHEF];
 }
 
 /**
@@ -175,6 +194,7 @@ export function intakeQuestionsFor(season: "WINTER" | "SUMMER"): IntakeQuestion[
 export const INTAKE_QUESTIONS: IntakeQuestion[] = [
   Q_AIRPORT,
   Q_KITCHEN,
+  Q_BAR,
   ...WINTER_ONLY,
   ...SUMMER_ONLY,
   Q_CHEF,

@@ -1,7 +1,6 @@
 import "server-only";
 import type { Season } from "@prisma/client";
 import { prisma } from "./db";
-import { interestedSlugs, parseIntakeAnswers } from "./intakeFlow";
 import { getStayPhase } from "./stayPhase";
 
 /** Request statuses the guest still has a move on (wizard / approval). */
@@ -75,26 +74,6 @@ export async function getItineraryItemForChange(stayId: string, itemId: string) 
   });
   if (!item || item.stayId !== stayId) return null;
   return item;
-}
-
-/**
- * Pre-arrival planning signals from this stay's latest linked trip intake.
- * Null when there's no intake OR it carries no signal — every surface must
- * render exactly as today in that case (pure degradation).
- */
-export async function getStayIntakeSignals(
-  stayId: string,
-): Promise<{ interestedSlugs: string[]; note: string | null } | null> {
-  const intake = await prisma.tripIntake.findFirst({
-    where: { stayId },
-    orderBy: { createdAt: "desc" },
-  });
-  if (!intake) return null;
-
-  const slugs = interestedSlugs(parseIntakeAnswers(intake.answersJson));
-  if (slugs.length === 0 && !intake.note) return null;
-
-  return { interestedSlugs: slugs, note: intake.note };
 }
 
 /**

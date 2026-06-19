@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireStay } from "@/lib/session";
-import { getItinerary } from "@/lib/queries";
+import { getItinerary, getOpenRequests } from "@/lib/queries";
 import TodayAnchor from "@/components/itinerary/TodayAnchor";
 import {
   dayKey,
@@ -18,7 +18,13 @@ type Item = Awaited<ReturnType<typeof getItinerary>>[number];
 export default async function ItineraryPage() {
   const { stay } = await requireStay();
   const tz = stay.property.timezone;
-  const items = await getItinerary(stay.id);
+  // Confirmed/dated items live on the timeline; SIGNALED/READY/QUOTED intents
+  // aren't scheduled yet — surfaced below so /plan's "on your itinerary"
+  // promise holds the moment a guest signals, not only once it's booked.
+  const [items, openRequests] = await Promise.all([
+    getItinerary(stay.id),
+    getOpenRequests(stay.id),
+  ]);
   const now = Date.now();
 
   // First still-upcoming item — gets the accent treatment.
@@ -96,6 +102,52 @@ export default async function ItineraryPage() {
           </ol>
         </section>
       ))}
+
+      {/* Intents in motion — signaled but not yet scheduled. Quiet, below the
+          dated timeline; graduates onto it when the concierge confirms. */}
+      {openRequests.length > 0 && (
+        <section className={`${styles.day} reveal reveal-5`}>
+          <div className={styles.dayHead}>
+            <span className={styles.dayWord}>Being arranged</span>
+            <span className={styles.dayDate}>not yet scheduled</span>
+          </div>
+          <ol className={styles.timeline}>
+            {openRequests.map((req) => {
+              const cta =
+                req.status === "SIGNALED"
+                  ? "Add details"
+                  : req.status === "QUOTED" && req.quotedAmount
+                    ? "Review & approve"
+                    : "View";
+              return (
+                <li key={req.id} className={styles.item}>
+                  <span className={styles.dot} aria-hidden="true" />
+                  <h2 className={styles.itemTitle}>
+                    {req.service?.name ?? req.customTitle ?? "Your request"}
+                  </h2>
+                  <p className={styles.itemDesc}>
+                    {req.status === "QUOTED" && req.quotedAmount
+                      ? "Priced and ready for your okay"
+                      : "Your concierge is arranging this"}
+                  </p>
+                  <p className={styles.itemAsk}>
+                    <Link href={`/requests/${req.id}`} className={styles.askLink}>
+                      {cta}
+                    </Link>
+                  </p>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
+
+      {items.length === 0 && openRequests.length === 0 && (
+        <p className={`${styles.empty} reveal reveal-2`}>
+          Your itinerary is taking shape. As you plan, everything you arrange
+          shows up here.
+        </p>
+      )}
     </main>
   );
 }

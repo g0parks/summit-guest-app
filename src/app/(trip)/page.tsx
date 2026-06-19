@@ -13,12 +13,20 @@ import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
+/** Cross-attach sources — a sibling Summit started for the guest, not homework
+ *  they opened. Labeled as "we're on it" so the spawned item never surprises. */
+const ATTACH_SOURCES = new Set(["grocery-upsell", "grocery-attach", "chef-attach"]);
+
 /** Checklist state line for an open request — shared by both home phases. */
 function requestChecklistLabel(
-  req: { status: string; quotedAmount: number | null },
+  req: { status: string; quotedAmount: number | null; source: string },
   currency: string,
 ): string {
-  if (req.status === "SIGNALED") return "A few details and it's done";
+  if (req.status === "SIGNALED") {
+    return ATTACH_SOURCES.has(req.source)
+      ? "We've started this for you"
+      : "A few details and it's done";
+  }
   if (req.status === "QUOTED" && req.quotedAmount) {
     return `Approve — ${formatMoney(req.quotedAmount, currency)}`;
   }
@@ -100,6 +108,11 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
           {formatDateRange(stay.arrivalDate, stay.departureDate, tz)}
           {stay.partySize ? ` · ${stay.partySize} guests` : ""}
         </p>
+        <p className={styles.trustLine}>
+          {brand.poweredBy
+            ? `${brand.shortName} partnered with Summit to look after your stay. You ask, we arrange — it all lands on one bill, no checkout.`
+            : "Summit looks after your stay. You ask, we arrange — it all lands on one bill, no checkout."}
+        </p>
       </section>
 
       {/* the pre-arrival gift hook — by design, unchanged across phases */}
@@ -156,14 +169,14 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
       {stay.hasRentalCar == null && <RentalCarPrompt />}
 
       <div className={`${styles.actions} reveal reveal-4`}>
-        <Link href="/services" className={styles.cta}>
+        <Link href="/plan" className={styles.cta}>
           Plan ahead
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M5 12h14M13 6l6 6-6 6" />
           </svg>
         </Link>
-        <Link href="/itinerary" className={styles.secondary}>
-          View itinerary
+        <Link href="/services" className={styles.secondary}>
+          Browse the concierge
         </Link>
       </div>
 
@@ -223,6 +236,11 @@ async function InStayBody({ active, brand }: { active: ActiveStay; brand: Brand 
         <p className={styles.trip}>
           {formatDateRange(stay.arrivalDate, stay.departureDate, tz)}
           {stay.partySize ? ` · ${stay.partySize} guests` : ""}
+        </p>
+        <p className={styles.trustLine}>
+          {brand.poweredBy
+            ? `${brand.shortName} partnered with Summit to look after your stay. You ask, we arrange — it all lands on one bill, no checkout.`
+            : "Summit looks after your stay. You ask, we arrange — it all lands on one bill, no checkout."}
         </p>
       </section>
 
