@@ -13,6 +13,18 @@ import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
+/** Checklist state line for an open request — shared by both home phases. */
+function requestChecklistLabel(
+  req: { status: string; quotedAmount: number | null },
+  currency: string,
+): string {
+  if (req.status === "SIGNALED") return "A few details and it's done";
+  if (req.status === "QUOTED" && req.quotedAmount) {
+    return `Approve — ${formatMoney(req.quotedAmount, currency)}`;
+  }
+  return "Your concierge has this";
+}
+
 /**
  * The trip home, phase-aware (src/lib/stayPhase.ts):
  *  PRE_ARRIVAL — the countdown + plan-ahead funnel (requests stay open).
@@ -114,12 +126,7 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
         {openRequests.length > 0 ? (
           <ul className={styles.checklist}>
             {openRequests.map((req) => {
-              const label =
-                req.status === "SIGNALED"
-                  ? "A few details and it's done"
-                  : req.status === "QUOTED" && req.quotedAmount
-                    ? `Approve — ${formatMoney(req.quotedAmount, stay.currency)}`
-                    : "Being arranged";
+              const label = requestChecklistLabel(req, stay.currency);
               return (
                 <li key={req.id}>
                   <Link href={`/requests/${req.id}`} className={styles.checkRow}>
@@ -198,7 +205,10 @@ async function InStayBody({ active, brand }: { active: ActiveStay; brand: Brand 
   const { stay } = active;
   const { guest, property } = stay;
   const tz = property.timezone;
-  const { nextUp, unclaimedPerk } = await getTripHome(stay.id, property.partnerId);
+  const [{ nextUp, unclaimedPerk }, openRequests] = await Promise.all([
+    getTripHome(stay.id, property.partnerId),
+    getOpenRequests(stay.id),
+  ]);
   const concierge = getConciergeContact();
 
   return (
@@ -278,6 +288,34 @@ async function InStayBody({ active, brand }: { active: ActiveStay; brand: Brand 
           </>
         )}
       </section>
+
+      {/* requests in motion — so a same-day ask the guest just sent shows up
+          where the close screen promised ("on your trip page") */}
+      {openRequests.length > 0 && (
+        <section className={`${styles.card} reveal reveal-3`}>
+          <span className="eyebrow">In motion</span>
+          <ul className={styles.checklist}>
+            {openRequests.map((req) => {
+              const label = requestChecklistLabel(req, stay.currency);
+              return (
+                <li key={req.id}>
+                  <Link href={`/requests/${req.id}`} className={styles.checkRow}>
+                    <span className={styles.checkBody}>
+                      <span className={styles.checkName}>
+                        {req.service?.name ?? req.customTitle ?? "Your request"}
+                      </span>
+                      <span className={styles.checkState}>{label}</span>
+                    </span>
+                    <svg className={styles.checkChevron} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {/* tab lives on the tab page — the home CTA stays above the fold */}
       <div className={`${styles.actions} reveal reveal-4`}>

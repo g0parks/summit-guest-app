@@ -99,7 +99,7 @@ export default async function ServicesPage() {
         <section className={`${styles.section} reveal reveal-5`}>
           <Link href="/ask" className={styles.card}>
             <div className={styles.cardBody}>
-              <h3 className={styles.cardName}>Don&rsquo;t see it? Ask us.</h3>
+              <h3 className={styles.cardName}>Need something else?</h3>
               <p className={styles.cardDesc}>
                 Anything that&rsquo;s not on the menu — your concierge will arrange it.
               </p>
