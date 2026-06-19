@@ -27,12 +27,15 @@ export default async function RequestPage({
   const { requestId } = await params;
   const { stay } = await requireStay();
   const request = await getRequestForWizard(stay.id, requestId);
-  if (!request || !request.service) notFound();
+  if (!request) notFound();
+  // `service` is null for a request-box ask — there's no flow to run, so it
+  // skips the wizard and shows a status screen / the approve moment instead.
   const service = request.service;
+  const title = service?.name ?? request.customTitle ?? "Your request";
   const tz = stay.property.timezone;
   const postStay = getStayPhase(stay, tz) === "POST_STAY";
 
-  if (!postStay && (request.status === "SIGNALED" || request.status === "READY")) {
+  if (!postStay && service && (request.status === "SIGNALED" || request.status === "READY")) {
     const details: Record<string, string> = {};
     for (const d of parseRequestDetails(request.detailsJson)) {
       if (d.name) details[d.name] = d.value;
@@ -79,11 +82,12 @@ export default async function RequestPage({
   }
 
   // ── QUOTED: the approval moment — the guest's yes creates the tab line ──
+  // Works for catalog services AND request-box asks (titled off customTitle).
   if (!postStay && request.status === "QUOTED" && request.quotedAmount != null) {
     return (
       <ApproveQuote
         requestId={request.id}
-        serviceName={service.name}
+        serviceName={title}
         amountCents={request.quotedAmount}
         currency={stay.currency}
       />
@@ -96,30 +100,37 @@ export default async function RequestPage({
         headline: "Your stay has wrapped.",
         detail: "We'd love to arrange this for your next one — the line never closes.",
       }
-    : request.status === "QUOTED"
+    : request.status === "SIGNALED" || request.status === "READY"
       ? {
-          headline: "Being arranged.",
-          detail: "Your concierge is pricing it — you'll hear from us shortly.",
+          // Reached only by a service-less request-box ask (catalog services
+          // in these states render the wizard above).
+          headline: "We've got it.",
+          detail: "Your concierge is arranging this — we'll follow up by end of day.",
         }
-      : request.status === "CONFIRMED" || request.status === "SCHEDULED"
+      : request.status === "QUOTED"
         ? {
-            headline: "Confirmed.",
-            detail: `${service.name} is arranged — you'll find it on your itinerary.`,
+            headline: "Being arranged.",
+            detail: "Your concierge is pricing it — you'll hear from us shortly.",
           }
-        : request.status === "COMPLETED"
+        : request.status === "CONFIRMED" || request.status === "SCHEDULED"
           ? {
-              headline: "All done.",
-              detail: `${service.name} is settled on your tab.`,
+              headline: "Confirmed.",
+              detail: `${title} is arranged — you'll find it on your itinerary.`,
             }
-          : {
-              headline: "This one's closed.",
-              detail: "Anything else you'd like arranged, the concierge is right there.",
-            };
+          : request.status === "COMPLETED"
+            ? {
+                headline: "All done.",
+                detail: `${title} is settled on your tab.`,
+              }
+            : {
+                headline: "This one's closed.",
+                detail: "Anything else you'd like arranged, the concierge is right there.",
+              };
 
   return (
     <main className={styles.page}>
       <div className={`${styles.body} reveal reveal-1`}>
-        <span className="eyebrow">{service.name}</span>
+        <span className="eyebrow">{title}</span>
         <h1 className={styles.headline}>{status.headline}</h1>
         <p className={styles.detail}>{status.detail}</p>
         <div className={styles.links}>
