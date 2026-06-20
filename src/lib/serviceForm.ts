@@ -459,7 +459,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
   // read-only seeds — reads the room, never pre-fills the order. The bar
   // stands alone; a chef/cook-in only spawns a bar demand signal via the
   // cross-attach. Dual-mode (full discovery OR "just tell us"),
-  // never trapped. Pricing is the fee-structure path (src/lib/barPricing.ts) —
+  // never trapped. Pricing is the fee-structure path (src/lib/provisioningPricing.ts) —
   // the disclosure shows on the confirm surface, never here.
   "bar-stocking": {
     steps: [

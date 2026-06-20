@@ -9,7 +9,8 @@ row alone makes it show up; the rest shapes how it behaves. Terse on purpose.
 |---|---|
 | `slug` | unique; the key everything else joins on |
 | `name`, `category`, `shortDesc`, `longDesc?`, `heroImage?` | `category` ∈ `ServiceCategory` — picks the catalog section + itinerary category |
-| `priceAmount` (cents) · `priceUnit` · `priceNote?` | `QUOTE` (amount null) = ops prices it, guest approves; any other unit **with** an amount = fixed-price, auto-confirms on completion |
+| `priceAmount` (cents) · `priceUnit` · `priceNote?` | `QUOTE` (amount null) = ops prices it, guest approves; `FEE_STRUCTURE` (amount null) = the disclosed cost-plus path (see below); any other unit **with** an amount = fixed-price, auto-confirms on completion |
+| `deliveryFeeCents?` · `serviceFeeBps?` · `rushFeeCents?` | `FEE_STRUCTURE` only — the tunable fee schedule; null falls back to `PROVISIONING_FEE_DEFAULTS` |
 | `leadTimeHours` | rendered as "N days notice" |
 | `season` | `WINTER` / `SUMMER` / `ALL_YEAR` — stay dates pick the menu |
 | `moveCutoffHours` · `cancelCutoffHours` | in-app Move/Cancel offered until N hours before start; **null = concierge-only (no in-app option), by doctrine** |

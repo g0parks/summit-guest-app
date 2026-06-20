@@ -82,8 +82,15 @@ export default function RequestWizard({
   defaults: WizardDefaults;
   /** Trip-derived visibility inputs (bar moments) — read-only, never a guest answer. */
   seeds?: Record<string, string>;
-  /** Fee-structure (bar) services: the disclosure lines for the confirm screen. */
-  feeStructure?: { lines: string[] } | null;
+  /** Fee-structure (grocery + bar): the disclosure lines for the confirm
+   *  screen, plus the "you're all set" close detail. */
+  feeStructure?: {
+    lead: string;
+    summary: string;
+    schedule: string[];
+    degraded: string | null;
+    closeDetail: string;
+  } | null;
 }) {
   const flow = useMemo(() => serviceFlow(service.slug), [service.slug]);
   const needsSchedule =
@@ -155,32 +162,42 @@ export default function RequestWizard({
     ? computeChargeCents(service.priceUnit, service.priceAmount as number, party)
     : null;
 
-  // ── The close — three outcomes, one calm screen each ──────────────────
+  // ── The close — one calm screen each ──────────────────────────────────
+  // Fee-structure (grocery + bar) completes to READY (the operator prices it),
+  // but from the guest's side the schedule consent IS the finish — so it closes
+  // "You're all set", not the standard "Consider it underway".
   if (state?.ok) {
-    const close = {
-      confirmed: {
-        headline: "You're all set.",
-        detail:
-          state.chargedCents != null
-            ? `${service.name} is arranged — ${formatMoney(state.chargedCents, currency)} on your tab, and it's on your itinerary.`
-            : `${service.name} is arranged — it's on your itinerary.`,
-        links: [
-          { href: "/tab", label: "View your tab" },
-          { href: "/", label: "Back to your trip" },
-        ],
-      },
-      ready: {
-        headline: "Consider it underway.",
-        detail:
-          "Your concierge is putting it together — you'll see it come to life on your trip page.",
-        links: [{ href: "/", label: "Back to your trip" }],
-      },
-      saved: {
-        headline: "We'll hold it right here.",
-        detail: "Pick it back up anytime from your trip page — nothing is lost.",
-        links: [{ href: "/", label: "Back to your trip" }],
-      },
-    }[state.outcome];
+    const close =
+      feeStructure && state.outcome === "ready"
+        ? {
+            headline: "You're all set.",
+            detail: feeStructure.closeDetail,
+            links: [{ href: "/", label: "Back to your trip" }],
+          }
+        : {
+            confirmed: {
+              headline: "You're all set.",
+              detail:
+                state.chargedCents != null
+                  ? `${service.name} is arranged — ${formatMoney(state.chargedCents, currency)} on your tab, and it's on your itinerary.`
+                  : `${service.name} is arranged — it's on your itinerary.`,
+              links: [
+                { href: "/tab", label: "View your tab" },
+                { href: "/", label: "Back to your trip" },
+              ],
+            },
+            ready: {
+              headline: "Consider it underway.",
+              detail:
+                "Your concierge is putting it together — you'll see it come to life on your trip page.",
+              links: [{ href: "/", label: "Back to your trip" }],
+            },
+            saved: {
+              headline: "We'll hold it right here.",
+              detail: "Pick it back up anytime from your trip page — nothing is lost.",
+              links: [{ href: "/", label: "Back to your trip" }],
+            },
+          }[state.outcome];
 
     // Honest note when a cross-attach sibling was just started (it's SIGNALED,
     // not booked) — the guest finishes it from the home checklist.
@@ -397,14 +414,26 @@ export default function RequestWizard({
                 {screen.kind === "notes" ? (
                   <>
                     {state && !state.ok && <p className={styles.error}>{state.error}</p>}
-                    {/* Fee-structure (bar): disclose the SHAPE on the confirm
-                        surface — the guest approves the structure, not a total. */}
+                    {/* Fee-structure (grocery + bar): the value leads, the cost
+                        is one calm line, and the concrete schedule sits behind a
+                        quiet expand — disclosed, never a bullet-wall above the
+                        button. The guest consents to the structure, not a total. */}
                     {feeStructure ? (
-                      <ul className={styles.feeStructure}>
-                        {feeStructure.lines.map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
+                      <div className={styles.feeStructure}>
+                        <p className={styles.feeLead}>{feeStructure.lead}</p>
+                        {feeStructure.degraded && (
+                          <p className={styles.feeDegraded}>{feeStructure.degraded}</p>
+                        )}
+                        <p className={styles.feeSummary}>{feeStructure.summary}</p>
+                        <details className={styles.feeDetails}>
+                          <summary>See how it&rsquo;s priced</summary>
+                          <ul>
+                            {feeStructure.schedule.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      </div>
                     ) : (
                       previewCents != null && (
                         <p className={styles.priceLine}>
@@ -422,7 +451,7 @@ export default function RequestWizard({
                       {pending
                         ? "Sending…"
                         : feeStructure
-                          ? "Set up the bar"
+                          ? "Set it up"
                           : fixed
                             ? "Arrange it"
                             : "Send to your concierge"}

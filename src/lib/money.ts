@@ -33,11 +33,14 @@ export function formatPriceLabel(
     | "PER_HOUR"
     | "PER_DAY"
     | "PER_PERSON"
-    | "QUOTE",
+    | "QUOTE"
+    | "FEE_STRUCTURE",
   note?: string | null,
   currency = "usd",
 ): string {
-  if (unit === "QUOTE" || amountCents == null) {
+  // QUOTE and FEE_STRUCTURE (grocery + bar) have no upfront amount — the note
+  // ("Priced to your order") stands in for a price the catalog can't show.
+  if (unit === "QUOTE" || unit === "FEE_STRUCTURE" || amountCents == null) {
     return note?.trim() ? note : "Quoted on request";
   }
 

@@ -11,7 +11,7 @@ import {
   updateItineraryItem,
 } from "@/app/actions/ops";
 import QuoteForm from "@/components/ops/QuoteForm";
-import BarPriceForm from "@/components/ops/BarPriceForm";
+import ProvisioningPriceForm from "@/components/ops/ProvisioningPriceForm";
 import ChargeButton from "@/components/ops/ChargeButton";
 import ItineraryItemForm from "@/components/ops/ItineraryItemForm";
 import DeleteItineraryItemButton from "@/components/ops/DeleteItineraryItemButton";
@@ -25,7 +25,7 @@ import {
   tzAbbr,
 } from "@/lib/dates";
 import { isFixedPrice } from "@/lib/catalog";
-import { isFeeStructureService } from "@/lib/barPricing";
+import { isFeeStructureService } from "@/lib/provisioningPricing";
 import { parseRequestDetails } from "@/lib/serviceForm";
 import {
   INTAKE_QUESTIONS,
@@ -301,25 +301,25 @@ export default async function OpsStayPage({
               {r.operatorNote && (
                 <p className={`${styles.small} ${styles.muted}`}>Op note: {r.operatorNote}</p>
               )}
-              {/* Summit owns alcohol fulfillment; the documented fallback is an
-                  ops routing choice, not auto-wired (POS principle). */}
-              {isFeeStructureService(r.service?.slug) && (
+              {/* Summit owns provisioning fulfillment; any vendor routing is an
+                  ops choice, not auto-wired (POS principle). */}
+              {isFeeStructureService(r.service?.priceUnit) && (
                 <p className={`${styles.small} ${styles.muted}`}>
-                  Fulfillment: Summit-owned · fallback: route to grocery
+                  Fulfillment: Summit-owned
                 </p>
               )}
 
               <div className={styles.actionsRow}>
                 {/* The pricing paths: fixed-price never takes a quote. Un-priced
                     QUOTE/custom requests quote (QUOTED keeps the form for
-                    re-quotes); the bar (fee-structure) takes a bottle-cost →
-                    computed charge, READY only — the guest already consented to
-                    the structure, so there's no QUOTED re-approval step. */}
+                    re-quotes); fee-structure (grocery + bar) takes an order-cost
+                    → computed charge, READY only — the guest already consented to
+                    the schedule, so there's no QUOTED re-approval step. */}
                 {(r.status === "READY" || r.status === "QUOTED") &&
                   (!r.service ||
                     !isFixedPrice(r.service.priceUnit, r.service.priceAmount)) &&
-                  (isFeeStructureService(r.service?.slug)
-                    ? r.status === "READY" && <BarPriceForm requestId={r.id} />
+                  (isFeeStructureService(r.service?.priceUnit)
+                    ? r.status === "READY" && <ProvisioningPriceForm requestId={r.id} />
                     : <QuoteForm requestId={r.id} />)}
                 {(NEXT_MOVES[r.status] ?? []).map((next) => (
                   <form key={next} action={setRequestStatus}>

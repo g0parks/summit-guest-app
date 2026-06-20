@@ -5,16 +5,17 @@ import { ItineraryCategory, type PerkClaimStatus, type RequestStatus } from "@pr
 import { prisma } from "@/lib/db";
 import { requireOperator } from "@/lib/opsSession";
 import { getPaymentProvider } from "@/lib/payments";
-import { isFixedPrice } from "@/lib/catalog";
+import { confirmedRequestItineraryData, isFixedPrice } from "@/lib/catalog";
 import { parseMoneyCents } from "@/lib/money";
 import { withVendorCostNote } from "@/lib/vendorNote";
 import { zonedDateTime } from "@/lib/dates";
 import { parseRequestDetails } from "@/lib/serviceForm";
 import {
-  cadenceFromLabel,
-  computeBarChargeCents,
+  computeFeeStructureChargeCents,
   isFeeStructureService,
-} from "@/lib/barPricing";
+  resolveFeeConfig,
+  rushFromLabel,
+} from "@/lib/provisioningPricing";
 
 /**
  * Operator fulfillment actions. Every action gates on requireOperator() and,
@@ -85,15 +86,16 @@ export async function quoteRequest(
       error: "Fixed-price services confirm on completion — nothing to quote.",
     };
   }
-  // Fee-structure (bar) orders are priced with priceBarOrder, not quoted: the
-  // guest approved the disclosed STRUCTURE on completion, so they must never
-  // be routed to the QUOTED re-approval surface. (The UI already renders
-  // BarPriceForm, not QuoteForm, for these — this is the symmetric server
-  // guard, mirroring priceBarOrder's non-bar rejection.)
-  if (isFeeStructureService(request.service?.slug)) {
+  // Fee-structure (grocery + bar) orders are priced with priceProvisioningOrder,
+  // not quoted: the guest approved the disclosed SCHEDULE on completion, so they
+  // must never be routed to the QUOTED re-approval surface. (The UI already
+  // renders ProvisioningPriceForm, not QuoteForm, for these — this is the
+  // symmetric server guard, mirroring priceProvisioningOrder's rejection.)
+  if (isFeeStructureService(request.service?.priceUnit)) {
     return {
       ok: false,
-      error: "Bar orders are priced with the bar form — the guest approved the structure, not a total.",
+      error:
+        "Provisioning orders are priced with the provisioning form — the guest approved the schedule, not a total.",
     };
   }
 
@@ -119,25 +121,26 @@ export async function quoteRequest(
 }
 
 /**
- * Price a fee-structure (bar) order. The guest already approved the disclosed
- * fee STRUCTURE on completion — no quote-wait, no second approval tap — so
- * this is the operator curating the bottles and entering their pass-through
- * cost. The charge = cost + the disclosed fees, computed against the
- * order-time cadence stored on the request (src/lib/barPricing.ts). Creates
- * the tab line (bottle cost = vendor cost, the fees = net) and moves
- * READY → CONFIRMED. The Stripe off-session charge drops in here later, behind
- * the structure-consent seam. Fixed/QUOTE services never reach this path.
+ * Price a fee-structure (grocery + bar) order. The guest already approved the
+ * disclosed fee SCHEDULE on completion — no quote-wait, no second approval tap
+ * — so this is the operator curating/shopping the order and entering its
+ * pass-through cost. The charge = cost + the disclosed fees (the service's
+ * tunable config), computed against the order-time rush state stored on the
+ * request (src/lib/provisioningPricing.ts). Creates the tab line (pass-through
+ * cost = vendor cost, the fees = net) and moves READY → CONFIRMED. The Stripe
+ * off-session charge drops in here later, behind the schedule-consent seam.
+ * Fixed/QUOTE services never reach this path.
  */
-export async function priceBarOrder(
+export async function priceProvisioningOrder(
   _prev: OpsResult | null,
   formData: FormData,
 ): Promise<OpsResult> {
   await requireOperator();
 
   const requestId = String(formData.get("requestId") ?? "");
-  const bottleCostCents = parseMoneyCents(String(formData.get("bottleCost") ?? ""));
-  if (bottleCostCents == null || bottleCostCents <= 0) {
-    return { ok: false, error: "Enter the bottle cost in dollars." };
+  const costCents = parseMoneyCents(String(formData.get("cost") ?? ""));
+  if (costCents == null || costCents <= 0) {
+    return { ok: false, error: "Enter the order cost in dollars." };
   }
 
   const request = await prisma.serviceRequest.findUnique({
@@ -145,17 +148,21 @@ export async function priceBarOrder(
     include: { service: true, stay: { select: { currency: true } } },
   });
   if (!request) return { ok: false, error: "Request not found." };
-  if (!isFeeStructureService(request.service?.slug)) {
-    return { ok: false, error: "This isn't a bar order." };
+  const service = request.service;
+  if (!service || !isFeeStructureService(service.priceUnit)) {
+    return { ok: false, error: "This isn't a provisioning order." };
   }
   if (request.status !== "READY") {
-    return { ok: false, error: "Only a bar order awaiting curation can be priced." };
+    return { ok: false, error: "Only an order awaiting pricing can be priced." };
   }
 
-  const cadence = cadenceFromLabel(
-    parseRequestDetails(request.detailsJson).find((d) => d.name === "cadence")?.value,
+  const rush = rushFromLabel(
+    parseRequestDetails(request.detailsJson).find((d) => d.name === "rush")?.value,
   );
-  const amountCents = computeBarChargeCents(bottleCostCents, cadence);
+  const amountCents = computeFeeStructureChargeCents(costCents, {
+    ...resolveFeeConfig(service),
+    rush,
+  });
 
   // Guarded transition — one updateMany wins the move out of READY, so a
   // double submit can't stack two tab lines.
@@ -171,16 +178,30 @@ export async function priceBarOrder(
     data: {
       stayId: request.stayId,
       serviceRequestId: request.id,
-      description: "Bar — your bottles & service",
+      description: service.name,
       amount: amountCents,
       currency: request.stay.currency,
       status: "PENDING",
-      // Pass-through bottle cost IS the vendor cost; the fees are the net.
-      vendorCostCents: bottleCostCents,
+      // Pass-through cost IS the vendor cost; the fees are the net.
+      vendorCostCents: costCents,
       pmShareCents: 0,
-      netCents: computeNetCents(amountCents, bottleCostCents, 0),
+      netCents: computeNetCents(amountCents, costCents, 0),
     },
   });
+
+  // Dated provisioning (grocery) belongs on the timeline like any confirmed,
+  // scheduled request — mirrors approveQuote. Dateless (bar) skips it.
+  if (request.requestedFor) {
+    await prisma.itineraryItem.create({
+      data: confirmedRequestItineraryData({
+        stayId: request.stayId,
+        requestId: request.id,
+        service,
+        notes: request.notes,
+        startsAt: request.requestedFor,
+      }),
+    });
+  }
 
   revalidateSurfaces(request.stayId);
   return { ok: true };

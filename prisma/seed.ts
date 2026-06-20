@@ -140,15 +140,23 @@ const CATALOG = [
     sortOrder: 50,
   },
   {
+    // Provisioning fee-structure (WS2, src/lib/provisioningPricing.ts):
+    // FEE_STRUCTURE + null amount completes the wizard to READY (the guest
+    // consented to the disclosed cost-plus schedule — no quote, no approve-a-
+    // total step); the operator prices the shopped order (cost + fees) and it
+    // moves to CONFIRMED. Fee knobs below are tunable per service.
     slug: "grocery-pre-stock",
     name: "Grocery Pre-Stock",
     category: "PROVISIONING" as const,
     shortDesc: "Arrive to a stocked kitchen — built by people who know mountain mornings.",
     longDesc:
-      "Pick a stocking style, tell us about the table, and we'll have the kitchen, bar, and pantry put away before you walk in. Priced to your order.",
+      "Pick a stocking style, tell us about the table, and we'll have the kitchen and pantry put away before you walk in. Priced to your order — the groceries, plus a delivery and service fee.",
     priceAmount: null,
-    priceUnit: "QUOTE" as const,
-    priceNote: "Quoted on request",
+    priceUnit: "FEE_STRUCTURE" as const,
+    priceNote: "Priced to your order",
+    deliveryFeeCents: 5000, // $50 — see PROVISIONING_FEE_DEFAULTS
+    serviceFeeBps: 2500, // 25%
+    rushFeeCents: 10000, // $100 same-day / late-order rush
     leadTimeHours: 48,
     season: "ALL_YEAR" as const,
     moveCutoffHours: 48,
@@ -159,22 +167,26 @@ const CATALOG = [
     sortOrder: 10,
   },
   {
-    // The bar as DISCOVERY (Alcohol spec 2026-06-15). Fee-structure pricing
-    // (src/lib/barPricing.ts): priceUnit QUOTE + null amount keeps it off the
-    // auto-bill path and completes it to READY, but isFeeStructureService —
-    // NOT the quote-wait — drives the operator action (curate bottles → price
-    // → CONFIRMED, no second guest tap). Moments are seeded by trip signals;
-    // a human curates the bottles. No date — pre-arrival rides the grocery
-    // put-away, same-day is a separate run derived from the cutoff.
+    // The bar as DISCOVERY (Alcohol spec 2026-06-15). Provisioning fee-structure
+    // (WS2, src/lib/provisioningPricing.ts): FEE_STRUCTURE + null amount
+    // completes the wizard to READY (the guest consented to the disclosed
+    // schedule — no quote, no second tap); the operator prices the curated
+    // order (bottle cost + fees) and it moves to CONFIRMED. Moments are seeded
+    // by trip signals; a human curates the bottles. No date — pre-arrival rides
+    // the grocery put-away, same-day is a separate run derived from the cutoff.
+    // DABS Sunday gate is alcohol-only (closedDaysForService).
     slug: "bar-stocking",
     name: "Bar Stocking",
     category: "PROVISIONING" as const,
     shortDesc: "The bar, curated to your taste — bottles a person picks, put away before you pour.",
     longDesc:
-      "Tell us the moments — a bottle chilling on arrival, cocktails by the hot tub, the wine for the table — and a person curates the bottles to match. Your bottles at our cost, plus a service fee; same-day when we can. It all rides your tab.",
+      "Tell us the moments — a bottle chilling on arrival, cocktails by the hot tub, the wine for the table — and a person curates the bottles to match. Ready when you walk in; the bottles plus a delivery and service fee ride your tab.",
     priceAmount: null,
-    priceUnit: "QUOTE" as const,
+    priceUnit: "FEE_STRUCTURE" as const,
     priceNote: "Priced to your order",
+    deliveryFeeCents: 5000, // $50 — matches grocery (Parker, 2026-06-19)
+    serviceFeeBps: 2500, // 25%
+    rushFeeCents: 10000, // $100 same-day / late-order rush
     leadTimeHours: 24,
     season: "ALL_YEAR" as const,
     moveCutoffHours: null, // alcohol changes go through the concierge (by doctrine)
