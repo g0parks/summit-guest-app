@@ -442,7 +442,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         eyebrow: "While you're at it",
         question: "And a few bottles for the bar?",
         detail:
-          "Wine for the table, something for the hot tub — a person curates it, put away with the groceries.",
+          "Wine, spirits, whatever you'd reach for — put away with the groceries.",
         cta: "Yes — stock the bar too",
       },
     ],
@@ -468,7 +468,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         key: "mode",
         eyebrow: "The bar",
         question: "Shall we curate the bar with you, or would you rather just tell us?",
-        detail: "Either way, a person picks the bottles — never an algorithm.",
+        detail: "Either way, it's chosen to your taste.",
         fields: [
           {
             kind: "select",

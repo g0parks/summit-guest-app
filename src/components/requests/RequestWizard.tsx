@@ -285,7 +285,7 @@ export default function RequestWizard({
                       {service.requiresTime && (
                         <label className={styles.fieldLabel}>
                           <span>
-                            Time <span className={styles.optional}>if you have one in mind</span>
+                            Preferred time <span className={styles.optional}>optional</span>
                           </span>
                           <input
                             type="time"

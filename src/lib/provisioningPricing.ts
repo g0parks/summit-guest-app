@@ -170,7 +170,7 @@ export function feeStructureCopy(slug: string | null | undefined): {
   if (slug === BAR_STOCKING_SLUG) {
     return {
       noun: "bottles",
-      lead: "A bar that's ready when you walk in — bottles a person picks, put away before you pour",
+      lead: "A bar that's ready when you walk in — curated to your taste, put away before you pour",
       closeDetail:
         "Your concierge is curating the bottles — ready for you, on your tab just as we showed you. Nothing to approve, nothing to pay now.",
     };
