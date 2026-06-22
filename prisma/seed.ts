@@ -178,9 +178,9 @@ const CATALOG = [
     slug: "bar-stocking",
     name: "Bar Stocking",
     category: "PROVISIONING" as const,
-    shortDesc: "The bar, curated to your taste — bottles a person picks, put away before you pour.",
+    shortDesc: "The bar, curated to your taste and put away before you pour.",
     longDesc:
-      "Tell us the moments — a bottle chilling on arrival, cocktails by the hot tub, the wine for the table — and a person curates the bottles to match. Ready when you walk in; the bottles plus a delivery and service fee ride your tab.",
+      "Tell us how you like to drink — wine for dinner, the spirits you reach for — and the bar is stocked to your taste and put away before you arrive. The bottles, plus a delivery and service fee, ride your tab.",
     priceAmount: null,
     priceUnit: "FEE_STRUCTURE" as const,
     priceNote: "Priced to your order",

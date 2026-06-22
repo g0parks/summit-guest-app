@@ -95,7 +95,7 @@ const Q_BAR: IntakeQuestion = {
   key: "bar",
   eyebrow: "The bar",
   question: "Should the bar be stocked when you arrive?",
-  detail: "Wine for the table, something for the hot tub — a person picks the bottles.",
+  detail: "Wine, spirits, whatever you'd reach for — chosen to your taste and waiting for you.",
   yesLabel: "Stock the bar",
   passLabel: "We're set",
   serviceSlug: "bar-stocking",

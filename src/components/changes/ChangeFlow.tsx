@@ -150,8 +150,8 @@ export default function ChangeFlow({
               </label>
               <label className={styles.fieldLabel}>
                 <span>
-                  Time ({tzHint}){" "}
-                  <span className={styles.optional}>if you have one in mind</span>
+                  Preferred time ({tzHint}){" "}
+                  <span className={styles.optional}>optional</span>
                 </span>
                 <input type="time" name="requestedTime" className={styles.input} />
               </label>
