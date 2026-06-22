@@ -1,0 +1,102 @@
+/* The welcome threshold — full-screen, no nav, generous air. Mirrors the
+   home topbar lockup so the wordmark reads identically across the seam. */
+
+.page {
+  position: relative;
+  z-index: 1;
+  min-height: 100dvh;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 28px var(--space-page) 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── brand lockup (matches (trip)/page.module.css) ───────────── */
+.lockup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wordmark {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: var(--ink-muted);
+}
+
+.brandLabel {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.brandLogo {
+  height: 22px;
+  width: auto;
+  align-self: flex-start;
+}
+
+.poweredBy {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ── the threshold itself ────────────────────────────────────── */
+.center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 22px;
+  /* sit just above true-center — optically calmer than dead middle */
+  padding-bottom: 9vh;
+}
+
+.greeting {
+  font-family: var(--font-serif);
+  font-size: 44px;
+  line-height: 1.04;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.line {
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+  max-width: 21em;
+}
+
+.cta {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 15px 30px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s var(--ease), transform 0.15s var(--ease);
+}
+
+.cta:hover {
+  background: var(--accent-pressed);
+}
+
+.cta:active {
+  transform: translateY(1px);
+}

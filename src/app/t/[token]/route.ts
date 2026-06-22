@@ -61,8 +61,13 @@ export async function GET(
     },
   });
 
-  const next = safeNextPath(req.nextUrl.searchParams.get("next"));
-  const res = NextResponse.redirect(new URL(next, req.url));
+  const rawNext = req.nextUrl.searchParams.get("next");
+  const next = safeNextPath(rawNext);
+  // First-visit threshold: only on a BARE entry (no deep-link ?next=) and once
+  // per stay. A nudge deep link (confirmation, etc.) must never be interrupted
+  // by an intro — those carry a next and pass straight through.
+  const dest = !rawNext && active.stay.welcomeSeenAt == null ? "/welcome" : next;
+  const res = NextResponse.redirect(new URL(dest, req.url));
   // Session lives through the post-stay window (the recap + return-intent
   // moment); converted/manual tokens expire on the same clock, so after it
   // the link itself resolves to /invalid — a real ending.
