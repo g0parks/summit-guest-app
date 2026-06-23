@@ -81,11 +81,20 @@ export type OperatorEvent =
       note: string | null;
       source: string | null;
       stayId: string | null; // known-guest session, when present
+    })
+  | (DemoContext & {
+      type: "demo_lead";
+      name: string | null;
+      email: string | null;
+      phone: string | null;
+      note?: string | null;
+      stayId: string; // the (live) demo sandbox, for the ops deep link
     });
 
-// onboarding@resend.dev works out of the box but only delivers to the Resend
-// account owner — fine for single-operator MVP. Verified domain = upgrade path.
-const FROM = "Summit Ops <onboarding@resend.dev>";
+// Verified sender on summitluxurylogistics.com (Resend domain verified
+// 2026-06-22), so operator notifications deliver to ANY OPERATOR_EMAIL
+// (e.g. info@) — not just the Resend account owner, as onboarding@resend.dev did.
+const FROM = "Summit Ops <ops@summitluxurylogistics.com>";
 
 export async function notifyOperator(event: OperatorEvent): Promise<void> {
   console.info(`[operator] ${event.type}`, JSON.stringify(event));
@@ -184,6 +193,24 @@ async function buildEmail(
         ``,
         `Stay: ${base}/ops/stays/${event.stayId}`,
       ].join("\n"),
+    };
+  }
+
+  if (event.type === "demo_lead") {
+    const who = event.name || event.email || event.phone || "A prospect";
+    return {
+      subject: `${tag} ★ Demo lead — ${who}`,
+      text: [
+        `Someone left contact from the Aerie demo — a warm PM prospect.`,
+        ``,
+        `Email: ${event.email ?? "—"}`,
+        `Phone: ${event.phone ?? "—"}`,
+        event.note ? `Note:  ${event.note}` : null,
+        ``,
+        `ACTION: reach out — they were exploring the demo. Sell them Aerie.`,
+        ``,
+        `Sandbox: ${base}/ops/stays/${event.stayId}`,
+      ].filter((l): l is string => l !== null).join("\n"),
     };
   }
 

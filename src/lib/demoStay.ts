@@ -24,8 +24,7 @@ export type DemoGuest = {
 
 /** Neutral sandbox guest — PMs hold this link, so no real names. */
 export const SANDBOX_GUEST: DemoGuest = {
-  firstName: "Avery",
-  lastName: "Stone",
+  firstName: "Guest",
   notes: "First time in Park City — keen to ski Empire Pass.",
 };
 
