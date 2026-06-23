@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import BottomNav from "@/components/nav/BottomNav";
+import DemoLeadPrompt from "@/components/demo/DemoLeadPrompt";
 import { getActiveStay } from "@/lib/session";
 import { brandCssVars, resolveBrand } from "@/lib/branding";
 
@@ -28,6 +29,7 @@ export default async function TripLayout({
     <div style={brandCssVars(brand) as React.CSSProperties | undefined}>
       {children}
       <BottomNav />
+      {active?.stay.isDemo ? <DemoLeadPrompt /> : null}
     </div>
   );
 }
