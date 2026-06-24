@@ -4,6 +4,7 @@ import {
   getOpsStays,
   getRecentActivity,
   getRecentIntakes,
+  getRecentLeads,
   getRecentlyDeparted,
 } from "@/lib/opsQueries";
 import {
@@ -114,11 +115,12 @@ function liveTokenId(
 }
 
 export default async function OpsOverviewPage() {
-  const [queues, stays, activity, intakes, departed] = await Promise.all([
+  const [queues, stays, activity, intakes, leads, departed] = await Promise.all([
     getOpsQueues(),
     getOpsStays(),
     getRecentActivity(),
     getRecentIntakes(),
+    getRecentLeads(),
     getRecentlyDeparted(),
   ]);
 
@@ -610,6 +612,64 @@ export default async function OpsOverviewPage() {
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {/* Aerie sales leads — demo pop-up + flyer contact form. PM prospects to
+          reach out to (NOT guests to convert); contact is one-tap clickable. */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Aerie leads — prospects</h2>
+        {leads.length === 0 ? (
+          <p className={styles.empty}>No prospect leads yet.</p>
+        ) : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Source</th>
+                <th>Who</th>
+                <th>Contact</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leads.map((l) => {
+                const inquiry = l.source === "aerie-contact";
+                return (
+                  <tr key={l.id}>
+                    <td className={styles.small} style={{ whiteSpace: "nowrap" }}>
+                      {formatDayLabel(l.createdAt)} · {formatTime(l.createdAt)}
+                    </td>
+                    <td>
+                      <span
+                        className={`${styles.badge} ${inquiry ? styles.badgeAction : styles.badgeNeutral}`}
+                      >
+                        {inquiry ? "INQUIRY ★" : "DEMO"}
+                      </span>
+                    </td>
+                    <td>{l.name ?? <span className={styles.muted}>—</span>}</td>
+                    <td className={styles.small}>
+                      {l.email && (
+                        <a className={styles.link} href={`mailto:${l.email}`}>
+                          {l.email}
+                        </a>
+                      )}
+                      {l.email && l.phone ? " · " : null}
+                      {l.phone && (
+                        <a className={styles.link} href={`tel:${l.phone}`}>
+                          {l.phone}
+                        </a>
+                      )}
+                      {!l.email && !l.phone && (
+                        <span className={styles.muted}>none left</span>
+                      )}
+                    </td>
+                    <td className={styles.small}>{l.note ?? "—"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

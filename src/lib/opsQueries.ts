@@ -246,15 +246,37 @@ export async function getRecentActivity(limit = 20): Promise<ActivityEntry[]> {
     .slice(0, limit);
 }
 
-/** Recent /plan trip intakes — World-B leads, newest first. */
+/**
+ * TripIntake sources that are Aerie SALES leads (PM prospects from the demo
+ * pop-up + the flyer contact form), NOT guest /plan intakes. They share the
+ * TripIntake table but are a different audience — reach out and sell Aerie,
+ * never "convert to a stay" — so the two surface in separate ops panels.
+ */
+export const LEAD_SOURCES = ["demo-lead", "aerie-contact"];
+
+/** Recent /plan trip intakes — World-B GUEST leads, newest first. Excludes the
+ *  Aerie prospect leads (those get their own panel via getRecentLeads). The
+ *  null-source OR keeps /plan intakes that carry no ?src= (notIn alone would
+ *  drop NULLs under SQL three-valued logic). */
 export async function getRecentIntakes(limit = 25) {
   return prisma.tripIntake.findMany({
+    where: { OR: [{ source: null }, { source: { notIn: LEAD_SOURCES } }] },
     orderBy: { createdAt: "desc" },
     take: limit,
     include: {
       guest: true,
       stay: { include: { guest: true, property: true } },
     },
+  });
+}
+
+/** Recent Aerie prospect leads — the demo pop-up + the flyer contact form.
+ *  PM/sales leads to reach out to, distinct from guest /plan intakes. */
+export async function getRecentLeads(limit = 25) {
+  return prisma.tripIntake.findMany({
+    where: { source: { in: LEAD_SOURCES } },
+    orderBy: { createdAt: "desc" },
+    take: limit,
   });
 }
 
