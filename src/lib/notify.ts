@@ -89,6 +89,13 @@ export type OperatorEvent =
       phone: string | null;
       note?: string | null;
       stayId: string; // the (live) demo sandbox, for the ops deep link
+    })
+  | (DemoContext & {
+      type: "aerie_contact";
+      name: string | null;
+      email: string | null;
+      phone: string | null;
+      company: string | null;
     });
 
 // Verified sender on summitluxurylogistics.com (Resend domain verified
@@ -211,6 +218,25 @@ async function buildEmail(
         ``,
         `Sandbox: ${base}/ops/stays/${event.stayId}`,
       ].filter((l): l is string => l !== null).join("\n"),
+    };
+  }
+
+  if (event.type === "aerie_contact") {
+    const who = event.name || event.company || event.email || event.phone || "Someone";
+    return {
+      subject: `${tag} ★ Aerie inquiry — ${who}`,
+      text: [
+        `Someone reached out from the Aerie flyer — a direct, hand-raised PM prospect.`,
+        ``,
+        `Name:    ${event.name ?? "—"}`,
+        `Company: ${event.company ?? "—"}`,
+        `Email:   ${event.email ?? "—"}`,
+        `Phone:   ${event.phone ?? "—"}`,
+        ``,
+        `ACTION: reply — higher intent than a demo peek. Sell them Aerie.`,
+        ``,
+        `Leads: ${base}/ops`,
+      ].join("\n"),
     };
   }
 

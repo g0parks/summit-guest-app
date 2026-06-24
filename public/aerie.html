@@ -51,11 +51,23 @@
   .close .stanza{margin-top:48px;}
   .cta-wrap{margin:30px 0 0; display:flex; align-items:center; gap:22px; flex-wrap:wrap;}
   .cta{display:inline-flex; align-items:center; gap:9px; background:var(--pine); color:var(--on-pine); text-decoration:none; border-radius:999px; padding:15px 30px; font-family:var(--sans); font-size:15px; font-weight:600;}
-  .cta-2{display:inline-flex; align-items:center; gap:6px; color:var(--pine); text-decoration:none; font-family:var(--sans); font-size:14px; font-weight:600;}
+  .cta-2{display:inline-flex; align-items:center; gap:6px; color:var(--pine); text-decoration:none; font-family:var(--sans); font-size:14px; font-weight:600; background:none; border:none; padding:0; cursor:pointer;}
   .fn{font-family:var(--sans); font-size:11.5px; line-height:1.5; color:var(--ink-faint); margin:22px 0 0;}
   .foot{margin:30px 0 0; padding:18px 0 48px; border-top:1px solid var(--hair); font-family:var(--sans); font-size:12px; letter-spacing:.04em; color:var(--ink-faint);}
   .foot .a{font-family:var(--serif); color:var(--pine); font-size:15px;}
   .foot a[href]{color:var(--ink-mute); text-decoration:none;}
+
+  .lead{margin:24px 0 0; max-width:520px;}
+  .lead-h{font-family:var(--sans); font-size:15px; line-height:1.55; color:var(--ink-mute); margin:0 0 16px;}
+  .lead-row{display:flex; gap:12px; margin:0 0 12px; flex-wrap:wrap;}
+  .lead-in{flex:1; min-width:150px; font-family:var(--sans); font-size:15px; color:var(--ink); background:#fff; border:1px solid var(--hair); border-radius:12px; padding:12px 14px;}
+  .lead-in::placeholder{color:var(--ink-faint);}
+  .lead-in:focus{outline:none; border-color:var(--pine);}
+  .hp{position:absolute; left:-9999px; width:1px; height:1px; opacity:0;}
+  .lead-send{border:none; cursor:pointer; margin-top:4px;}
+  .lead-send:disabled{opacity:.6;}
+  .lead-err{font-family:var(--sans); font-size:13px; color:#9a3b2f; margin:10px 0 0;}
+  .lead-thanks{font-size:19px; line-height:1.5; color:var(--pine); margin:24px 0 0;}
 </style>
 </head>
 <body>
@@ -112,9 +124,72 @@
     </section>
     <div class="cta-wrap">
       <a class="cta" href="/demo">Walk through a stay →</a>
-      <a class="cta-2" href="mailto:info@summitluxurylogistics.com?subject=Aerie">Get in touch →</a>
+      <button class="cta-2" type="button" id="reveal">Get in touch →</button>
     </div>
+
+    <form class="lead" id="lead" hidden novalidate>
+      <p class="lead-h">Leave your details and we'll set up a real walkthrough for your properties.</p>
+      <div class="lead-row">
+        <input class="lead-in" name="name" type="text" placeholder="Name" autocomplete="name" />
+        <input class="lead-in" name="company" type="text" placeholder="Company (optional)" autocomplete="organization" />
+      </div>
+      <div class="lead-row">
+        <input class="lead-in" name="email" type="email" placeholder="Email" autocomplete="email" />
+        <input class="lead-in" name="phone" type="tel" placeholder="Phone" autocomplete="tel" />
+      </div>
+      <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <button class="cta lead-send" type="submit">Send →</button>
+      <p class="lead-err" id="leadErr" hidden></p>
+    </form>
+    <p class="lead-thanks" id="leadThanks" hidden>Thank you — we'll be in touch shortly.</p>
+
     <div class="foot"><span class="a">Aerie</span> · Park City, UT &nbsp;·&nbsp; <a href="mailto:info@summitluxurylogistics.com">info@summitluxurylogistics.com</a> &nbsp;·&nbsp; <a href="tel:+14352144101">(435) 214-4101</a></div>
   </div>
+
+  <script>
+  (function () {
+    var reveal = document.getElementById('reveal');
+    var form = document.getElementById('lead');
+    var err = document.getElementById('leadErr');
+    var thanks = document.getElementById('leadThanks');
+    if (!reveal || !form) return;
+    function val(n) { var el = form.querySelector('[name="' + n + '"]'); return el ? el.value.trim() : ''; }
+    reveal.addEventListener('click', function () {
+      form.hidden = false;
+      reveal.hidden = true;
+      var first = form.querySelector('.lead-in');
+      if (first) first.focus();
+    });
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      err.hidden = true;
+      var data = { name: val('name'), company: val('company'), email: val('email'), phone: val('phone'), website: val('website') };
+      if (!data.email && !data.phone) {
+        err.textContent = 'Add an email or phone so we can reach you.';
+        err.hidden = false;
+        return;
+      }
+      var btn = form.querySelector('.lead-send');
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      function fail(msg) {
+        err.textContent = msg || 'Something went wrong — try emailing info@summitluxurylogistics.com.';
+        err.hidden = false;
+        btn.disabled = false;
+        btn.textContent = 'Send →';
+      }
+      fetch('/api/aerie-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(function (r) {
+        return r.json().catch(function () { return { ok: false }; });
+      }).then(function (res) {
+        if (res && res.ok) { form.hidden = true; thanks.hidden = false; }
+        else { fail(res && res.error); }
+      }).catch(function () { fail(); });
+    });
+  })();
+  </script>
 </body>
 </html>
