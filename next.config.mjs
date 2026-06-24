@@ -5,12 +5,19 @@ const nextConfig = {
   async rewrites() {
     return {
       // beforeFiles runs ahead of the page router, so it can override the
-      // root trip-home page: the bare apex of the Aerie brand domain serves
-      // the product flyer instead of the (token-gated) guest home.
+      // root trip-home page: the bare apex of an Aerie domain serves the
+      // product flyer instead of the (token-gated) guest home. Both the free
+      // subdomain (live now) and the dedicated brand domain (when bought) are
+      // matched, so whichever DNS is pointed first just works.
       beforeFiles: [
         {
           source: "/",
-          has: [{ type: "host", value: "^(www\\.)?aeriepc\\.com$" }],
+          has: [
+            {
+              type: "host",
+              value: "^(aerie\\.summitluxurylogistics\\.com|(www\\.)?aeriepc\\.com)$",
+            },
+          ],
           destination: "/aerie.html",
         },
       ],
