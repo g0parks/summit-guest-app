@@ -44,6 +44,52 @@ All four are **non-app**, and they ARE the work (Parker flagged all four):
    is **not** needed for MVP (the heroes are transport + grocery; alcohol
    fulfillment stays deferred).
 
+## Consent capture — the pre-launch gate that can't be backfilled
+
+**The asymmetry (why this is a gate, not a roadmap-someday):** consent you didn't
+capture from a guest is consent you can never get back. Every guest onboarded
+before the opt-in exists is a guest you can never legally text — and SMS is the
+load-bearing re-engagement channel (the app has no native push). So the
+*capture* must be live before guest #1, even though the *cadence* (the sending)
+stays deferred (Track A/B, `docs/plans/2026-06-22-nudge-cadence.md`).
+
+**The decided shape (Parker, 2026-06-23) — email-first, SMS-as-backup:**
+1. **Email is the first touch, and needs no opt-in.** US email is opt-out
+   (CAN-SPAM); a message about the guest's own stay is relationship/transactional.
+   A **Summit-controlled email** (separate from the PM's booking email, ~1 month
+   pre-arrival) invites the guest into their stay with good copy + an opt-in CTA.
+   This channel does the work first; let it sit before any text.
+2. **SMS is opt-in only, gated behind that email.** TCPA requires prior express
+   consent ($500–$1,500/text exposure). The guest opts in → enters or confirms a
+   phone. SMS fires only as a **backup** for guests who didn't engage the email —
+   never as the first touch, never without the checkbox.
+3. **At phone capture, a friendly reassurance line (not defensive):** e.g.
+   "We'll only text you about your stay — your driver, your delivery, a question —
+   never spam." Honest consent, trivial opt-out (milk-not-meat).
+
+**The thin layer to build before launch (this is NOT the cadence):**
+- **Consent fields on `Guest`** — `emailOptOutAt`, `smsConsentAt` (+ source +
+  disclosure version), `smsOptOutAt`. *(Schema gap confirmed 2026-06-23: `Guest`
+  carries `email`/`phone` but no consent state — nothing separates "we have a
+  phone" from "they let us text.")*
+- **One send-gate** — `canEmail()` / `canSms()` that every sender consults; wire
+  `src/lib/guestEmail.ts` to it now so future cadence is compliant by default.
+- **A consent-capture point** at phone collection (welcome / `/plan` contact /
+  perk claim) writing `smsConsentAt` + the reassurance copy.
+- **Email unsubscribe** (tokened, reuse token infra) → sets `emailOptOutAt`;
+  link in the footer + a physical mailing address (CAN-SPAM requirement).
+
+**Deliverability (config, not build):** the lever is domain auth, not warming —
+confirm SPF + DKIM + **DMARC** are green in Resend (the lead email proves
+SPF/DKIM; verify DMARC for the Google/Yahoo sender rules). No IP warming at this
+volume; stay on Resend's shared pool. A sending subdomain
+(`mail.summitluxurylogistics.com`) is a later optimization, not a blocker.
+
+Deeper SMS architecture (the `NotificationProvider` seam, 10DLC/toll-free, STOP
+webhook, channel resolution) lives in the nudge-cadence plan. This section is
+just the **consent spine** that must exist before the first real guest. Not legal
+advice — worth a counsel pass on Utah + TCPA before the first send.
+
 ## Definition of done → the trigger
 
 **PM signed + first guest link sent → stop building, start operating.** After
