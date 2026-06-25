@@ -61,9 +61,9 @@ export async function sendWelcomeEmail(input: {
   const subject = `Your stay at ${property.name}`;
 
   const conciergeLine = concierge.phone
-    ? `Anything at all, any hour — text your concierge at ${concierge.phone}.`
+    ? `Your concierge is a text away at ${concierge.phone}.`
     : concierge.email
-      ? `Anything at all, any hour — email your concierge at ${concierge.email}.`
+      ? `Your concierge is an email away at ${concierge.email}.`
       : null;
 
   const text = [
@@ -185,9 +185,9 @@ async function sendCadenceEmail(
   const brand = resolveBrand(input.property);
   const concierge = getConciergeContact();
   const conciergeLine = concierge.phone
-    ? `Anything at all, any hour — text your concierge at ${concierge.phone}.`
+    ? `Your concierge is a text away at ${concierge.phone}.`
     : concierge.email
-      ? `Anything at all, any hour — email your concierge at ${concierge.email}.`
+      ? `Your concierge is an email away at ${concierge.email}.`
       : null;
 
   const text = [
