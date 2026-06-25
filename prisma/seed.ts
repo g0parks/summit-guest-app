@@ -54,9 +54,9 @@ const CATALOG = [
     slug: "ski-rental",
     name: "Ski Rental Delivery",
     category: "ACTIVITY" as const,
-    shortDesc: "Premium skis or boards — fitted at the residence, waiting in the mudroom.",
+    shortDesc: "Premium skis or boards, fitted at the residence and waiting in the mudroom.",
     longDesc:
-      "A few details per rider and our technicians fit premium gear and deliver it to the residence before you arrive. Swap skis for a board — or anything that isn't working — anytime during your stay, no shop visit.",
+      "A few details per rider and our technicians fit premium gear and deliver it to the residence before you arrive. Swap skis for a board, or anything that isn't working, anytime during your stay, no shop visit.",
     priceAmount: 8500,
     priceUnit: "PER_PERSON" as const,
     priceNote: "per day",
@@ -73,9 +73,9 @@ const CATALOG = [
     slug: "bike-rental",
     name: "Bike Rental Delivery",
     category: "ACTIVITY" as const,
-    shortDesc: "Mountain, road, or e-bikes — sized and delivered to the residence.",
+    shortDesc: "Mountain, road, or e-bikes, sized and delivered to the residence.",
     longDesc:
-      "Tell us who's riding and our technicians size the right bikes and have them waiting at the residence — trail maps included, swaps anytime.",
+      "Tell us who's riding and our technicians size the right bikes and have them waiting at the residence, trail maps included, swaps anytime.",
     priceAmount: 8500,
     priceUnit: "PER_PERSON" as const,
     priceNote: "per day",
@@ -92,7 +92,7 @@ const CATALOG = [
     slug: "guided-fly-fishing",
     name: "Guided Fly-Fishing — Provo River",
     category: "ACTIVITY" as const,
-    shortDesc: "A half-day on a blue-ribbon river with a local guide — all gear included.",
+    shortDesc: "A half-day on a blue-ribbon river with a local guide, all gear included.",
     priceAmount: 29500,
     priceUnit: "PER_PERSON" as const,
     priceNote: null,
@@ -126,7 +126,7 @@ const CATALOG = [
     slug: "private-ski-guide",
     name: "Private Ski Guide",
     category: "ACTIVITY" as const,
-    shortDesc: "A certified guide for the day — first tracks, hidden stashes, no lift lines.",
+    shortDesc: "A certified guide for the day. First tracks, hidden stashes, no lift lines.",
     priceAmount: 95000,
     priceUnit: "PER_DAY" as const,
     priceNote: null,
@@ -148,9 +148,9 @@ const CATALOG = [
     slug: "grocery-pre-stock",
     name: "Grocery Pre-Stock",
     category: "PROVISIONING" as const,
-    shortDesc: "Arrive to a stocked kitchen — built by people who know mountain mornings.",
+    shortDesc: "Arrive to a stocked kitchen, your list shopped and put away before you walk in.",
     longDesc:
-      "Pick a stocking style, tell us about the table, and we'll have the kitchen and pantry put away before you walk in. Priced to your order — the groceries, plus a delivery and service fee.",
+      "Pick a stocking style, tell us about the table, and we'll have the kitchen and pantry put away before you walk in. You pay for the groceries, plus a delivery and service fee.",
     priceAmount: null,
     priceUnit: "FEE_STRUCTURE" as const,
     priceNote: "Priced to your order",
@@ -176,11 +176,12 @@ const CATALOG = [
     // the grocery put-away, same-day is a separate run derived from the cutoff.
     // DABS Sunday gate is alcohol-only (closedDaysForService).
     slug: "bar-stocking",
+    isActive: false, // pulled 2026-06-25 — Utah alcohol law (Summit can't supply alcohol)
     name: "Bar Stocking",
     category: "PROVISIONING" as const,
-    shortDesc: "The bar, curated to your taste and put away before you pour.",
+    shortDesc: "Wine and spirits, stocked to your taste before you arrive.",
     longDesc:
-      "Tell us how you like to drink — wine for dinner, the spirits you reach for — and the bar is stocked to your taste and put away before you arrive. The bottles, plus a delivery and service fee, ride your tab.",
+      "Tell us how you like to drink, and the bar is stocked to your taste and put away before you arrive. The bottles, plus a delivery and service fee, ride your tab.",
     priceAmount: null,
     priceUnit: "FEE_STRUCTURE" as const,
     priceNote: "Priced to your order",
@@ -201,7 +202,7 @@ const CATALOG = [
     slug: "in-residence-massage",
     name: "In-Residence Massage",
     category: "WELLNESS" as const,
-    shortDesc: "A licensed therapist brings the spa to you — table, oils, and all.",
+    shortDesc: "A licensed therapist brings the spa to you, table and oils included.",
     priceAmount: 22000,
     priceUnit: "PER_PERSON" as const,
     priceNote: null,
@@ -222,7 +223,7 @@ const CATALOG = [
     category: "DINING" as const,
     shortDesc: "A bespoke multi-course dinner, cooked and served in your residence.",
     longDesc:
-      "One of our private chefs designs a menu around your tastes, sources locally, and handles everything from mise en place to the final plate — and the cleanup. You simply sit down to dinner.",
+      "One of our private chefs designs a menu around your tastes, sources locally, and handles everything from mise en place to the final plate, and the cleanup. You simply sit down to dinner.",
     priceAmount: null,
     priceUnit: "QUOTE" as const,
     priceNote: "from $850",
@@ -237,6 +238,7 @@ const CATALOG = [
   },
   {
     slug: "sommelier-wine-pairing",
+    isActive: false, // pulled 2026-06-25 — Utah alcohol law (Summit can't supply alcohol)
     name: "Sommelier Wine Pairing",
     category: "DINING" as const,
     shortDesc: "A curated cellar selection paired to your dinner by a master sommelier.",
@@ -256,7 +258,7 @@ const CATALOG = [
     slug: "daily-housekeeping",
     name: "Daily Housekeeping",
     category: "HOUSEHOLD" as const,
-    shortDesc: "A discreet midday refresh — beds, towels, tidy, and reset.",
+    shortDesc: "A discreet midday refresh. Beds, towels, tidied and reset.",
     priceAmount: 18000,
     priceUnit: "FLAT" as const,
     priceNote: null,
@@ -323,9 +325,9 @@ async function main() {
         name: "Private Sauna Hour",
         vendorName: "Avanto",
         shortDesc:
-          "A private sauna hour for your group — cedar heat and cold plunge, any evening of your stay.",
+          "A private sauna hour for your group, cedar heat and a cold plunge, any evening of your stay.",
         longDesc:
-          "An hour of private sauna for your whole group at Avanto — cedar heat, cold plunge, towels and cold rinse included — any evening during your stay. Claim it and we'll hold the slot until you pick a night.",
+          "An hour of private sauna for your whole group at Avanto: cedar heat, cold plunge, towels and cold rinse included, any evening during your stay. Claim it and we'll hold the slot until you pick a night.",
         costCents: null, // internal qualified-CAC — unknown until vendor terms are set
         partnerId: null, // available across all partners
         sortOrder: 10,
@@ -335,9 +337,9 @@ async function main() {
         name: "Silver Mountain Sports Club Day Pass",
         vendorName: "Silver Mountain Sports Club & Spa",
         shortDesc:
-          "A full day at Park City's club in Prospector — lap pools, hot tubs, weight room, classes, steam, and sauna.",
+          "A full day at Park City's club in Prospector. Lap pools, hot tubs, weight room, classes, steam, and sauna.",
         longDesc:
-          "A day to yourselves at Silver Mountain Sports Club & Spa, minutes away in Prospector: heated lap pools, indoor and outdoor hot tubs, a 5,000-square-foot weight room, yoga, Pilates, and spin classes, steam rooms and a dry sauna — and a waterslide and lazy river if the kids are along. Your passes are with our compliments; claim them and we'll have the front desk expecting you.",
+          "A day to yourselves at Silver Mountain Sports Club & Spa, minutes away in Prospector: heated lap pools, indoor and outdoor hot tubs, a 5,000-square-foot weight room, yoga, Pilates, and spin classes, steam rooms and a dry sauna, plus a waterslide and lazy river if the kids are along. Your passes are with our compliments; claim them and we'll have the front desk expecting you.",
         costCents: null, // internal qualified-CAC — unknown until vendor terms are set
         partnerId: null,
         sortOrder: 20,
@@ -347,9 +349,9 @@ async function main() {
         name: "Upgrade Labs Recovery Session",
         vendorName: "Upgrade Labs",
         shortDesc:
-          "One session at Park City's performance-recovery lab — whole-body cryotherapy, red light, or compression, your pick.",
+          "One session at Park City's performance-recovery lab. Whole-body cryotherapy, red light, or compression, your pick.",
         longDesc:
-          "Upgrade Labs in Kimball Junction puts professional-grade recovery in one room: three-minute whole-body cryotherapy, the REDcharger red-light bed, PEMF, and lymphatic compression — the fastest way we know to undo a ski day. Your first session is with our compliments; claim it, tell us which one sounds right, and we'll set the appointment.",
+          "Upgrade Labs in Kimball Junction puts professional-grade recovery in one room: three-minute whole-body cryotherapy, the REDcharger red-light bed, PEMF, and lymphatic compression. The fastest way we know to undo a ski day. Your first session is with our compliments; claim it, tell us which one sounds right, and we'll set the appointment.",
         costCents: null, // internal qualified-CAC — unknown until vendor terms are set
         partnerId: null,
         sortOrder: 30,

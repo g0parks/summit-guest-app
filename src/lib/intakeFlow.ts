@@ -88,21 +88,6 @@ const Q_KITCHEN: IntakeQuestion = {
   interestLabel: "Kitchen stocking",
 };
 
-// Conditional — only when the kitchen question is DECLINED. If they're stocking
-// groceries, the grocery flow's bar cross-attach captures the bar; if they
-// pass, this catches the alcohol demand that would otherwise be lost.
-const Q_BAR: IntakeQuestion = {
-  key: "bar",
-  eyebrow: "The bar",
-  question: "Should the bar be stocked when you arrive?",
-  detail: "Wine and spirits, chosen to your taste and waiting when you arrive.",
-  yesLabel: "Stock the bar",
-  passLabel: "We're set",
-  serviceSlug: "bar-stocking",
-  interestLabel: "Bar stocking",
-  showWhenDeclined: "kitchen",
-};
-
 const Q_CHEF: IntakeQuestion = {
   key: "chef",
   eyebrow: "A night in",
@@ -182,8 +167,8 @@ const SUMMER_ONLY: IntakeQuestion[] = [
  */
 export function intakeQuestionsFor(season: "WINTER" | "SUMMER"): IntakeQuestion[] {
   return season === "WINTER"
-    ? [Q_AIRPORT, Q_KITCHEN, Q_BAR, ...WINTER_ONLY, Q_CHEF]
-    : [Q_AIRPORT, Q_KITCHEN, Q_BAR, ...SUMMER_ONLY, Q_CHEF];
+    ? [Q_AIRPORT, Q_KITCHEN, ...WINTER_ONLY, Q_CHEF]
+    : [Q_AIRPORT, Q_KITCHEN, ...SUMMER_ONLY, Q_CHEF];
 }
 
 /**
@@ -194,7 +179,6 @@ export function intakeQuestionsFor(season: "WINTER" | "SUMMER"): IntakeQuestion[
 export const INTAKE_QUESTIONS: IntakeQuestion[] = [
   Q_AIRPORT,
   Q_KITCHEN,
-  Q_BAR,
   ...WINTER_ONLY,
   ...SUMMER_ONLY,
   Q_CHEF,

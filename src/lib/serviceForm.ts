@@ -432,19 +432,6 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
           "A private chef in your kitchen, one night off the hook. The groceries are handled either way.",
         cta: "Yes, start a chef night",
       },
-      // The bundled bar attach (Axis A): the compressed "and the bar?" inside
-      // grocery. Opting in spawns a SIGNALED bar order, source-tagged so the
-      // Broker's Book sees grocery as the entry.
-      {
-        name: "barStock",
-        targetSlug: "bar-stocking",
-        source: "grocery-attach",
-        eyebrow: "While you're at it",
-        question: "And a few bottles for the bar?",
-        detail:
-          "Wine, spirits, whatever you'd reach for, put away with the groceries.",
-        cta: "Yes, stock the bar too",
-      },
     ],
     notesPrompt: "Anything else?",
     notesPlaceholder: "Timing, where to leave it, anything at all…",
@@ -727,22 +714,6 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
             required: true,
           },
         ],
-      },
-    ],
-    // chef → wine for the table (Axis A): a chef night is the natural moment
-    // for the bar's dinner-in moment. Spawns a SIGNALED bar order, source
-    // chef-attach. (Targets the bar — keeps alcohol demand in the first-class
-    // service; the existing sommelier pairing stays its own L2 line.)
-    attaches: [
-      {
-        name: "wineForTable",
-        targetSlug: "bar-stocking",
-        source: "chef-attach",
-        eyebrow: "For the table",
-        question: "Wine for the table that night?",
-        detail:
-          "The right bottles for the chef's menu, on your tab with everything else.",
-        cta: "Yes, pair the table",
       },
     ],
     notesPlaceholder: "Occasion, kids' plates, timing…",
