@@ -28,7 +28,7 @@ function requestChecklistLabel(
       : "A few details and it's done";
   }
   if (req.status === "QUOTED" && req.quotedAmount) {
-    return `Approve — ${formatMoney(req.quotedAmount, currency)}`;
+    return `Approve ${formatMoney(req.quotedAmount, currency)}`;
   }
   return "Your concierge has this";
 }
@@ -90,9 +90,9 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
   const days = daysUntilArrival(stay, tz);
   const countdown =
     days <= 0
-      ? `Arriving today — ${property.name}`
+      ? `Arriving today, ${property.name}`
       : days === 1
-        ? `Tomorrow — ${property.name}`
+        ? `Tomorrow, ${property.name}`
         : `${days} days until ${property.name}`;
 
   return (
@@ -125,7 +125,7 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
                 : "With our compliments"}
             </span>
             <h2 className={styles.giftTitle}>{unclaimedPerk.name}</h2>
-            <p className={styles.giftMeta}>Complimentary — tap to claim</p>
+            <p className={styles.giftMeta}>With our compliments. Tap to claim.</p>
           </div>
           <svg className={styles.giftChevron} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M9 6l6 6-6 6" />
@@ -159,7 +159,7 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
           </ul>
         ) : (
           <p className={styles.cardSolo}>
-            A little planning now means a seamless arrival.
+            A little planning now, and your arrival takes care of itself.
           </p>
         )}
       </section>
@@ -192,7 +192,7 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
         <section className={`${styles.card} reveal reveal-5`}>
           <span className="eyebrow">Your concierge</span>
           <p className={styles.conciergeCopy}>
-            Anything at all — dinner moved, powder-day plans, a question.{" "}
+            Dinner moved, powder-day plans, a question.{" "}
             {concierge.phone ? "Text us" : "Email us"} and consider it handled.
           </p>
           <ConciergeLinks
@@ -253,7 +253,7 @@ async function InStayBody({ active, brand }: { active: ActiveStay; brand: Brand 
                 : "With our compliments"}
             </span>
             <h2 className={styles.giftTitle}>{unclaimedPerk.name}</h2>
-            <p className={styles.giftMeta}>Complimentary — tap to claim</p>
+            <p className={styles.giftMeta}>With our compliments. Tap to claim.</p>
           </div>
           <svg className={styles.giftChevron} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M9 6l6 6-6 6" />
@@ -301,7 +301,7 @@ async function InStayBody({ active, brand }: { active: ActiveStay; brand: Brand 
           <>
             <h2 className={styles.cardTitle}>Nothing scheduled</h2>
             <p className={styles.cardMeta}>
-              Your time is yours — explore the concierge whenever you like.
+              Your time is yours. Explore the concierge whenever you like.
             </p>
           </>
         )}
@@ -360,7 +360,7 @@ async function InStayBody({ active, brand }: { active: ActiveStay; brand: Brand 
         <section className={`${styles.card} reveal reveal-5`}>
           <span className="eyebrow">Your concierge</span>
           <p className={styles.conciergeCopy}>
-            Anything at all — dinner moved, powder-day plans, a question.{" "}
+            Dinner moved, powder-day plans, a question.{" "}
             {concierge.phone ? "Text us" : "Email us"} and consider it handled.
           </p>
           <ConciergeLinks
@@ -402,7 +402,7 @@ async function PostStayBody({ active, brand }: { active: ActiveStay; brand: Bran
           Your stay · {formatDateRange(stay.arrivalDate, stay.departureDate, tz)}
         </p>
         <p className={styles.thanks}>
-          It was a pleasure looking after you — from all of us at{" "}
+          It was a pleasure looking after you, from all of us at{" "}
           {brand.shortName}.
         </p>
       </section>
@@ -421,7 +421,7 @@ async function PostStayBody({ active, brand }: { active: ActiveStay; brand: Bran
             </p>
           ) : (
             <p className={styles.cardMeta}>
-              Every detail settled — nothing left to do.
+              Every detail settled. Nothing left to do.
             </p>
           )}
         </section>
@@ -435,7 +435,7 @@ async function PostStayBody({ active, brand }: { active: ActiveStay; brand: Bran
         <section className={`${styles.card} reveal reveal-5`}>
           <span className="eyebrow">Your concierge</span>
           <p className={styles.conciergeCopy}>
-            The line never closes — a question about your tab, something left
+            The line never closes. A question about your tab, something left
             behind, the next trip.{" "}
             {concierge.phone ? "Text us" : "Email us"} and consider it handled.
           </p>

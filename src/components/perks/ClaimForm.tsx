@@ -40,7 +40,7 @@ export default function ClaimForm({
         </span>
         <h2 className={styles.doneTitle}>Consider it arranged.</h2>
         <p className={styles.doneBody}>
-          We&rsquo;ll be in touch to schedule — nothing else for you to do.
+          We&rsquo;ll be in touch to schedule. Nothing else for you to do.
         </p>
         <div className={styles.doneActions}>
           <Link href="/perks" className={styles.secondaryLink}>
@@ -62,8 +62,7 @@ export default function ClaimForm({
         </span>
         <h2 className={styles.doneTitle}>Already arranged.</h2>
         <p className={styles.doneBody}>
-          This one&rsquo;s claimed for your stay — we&rsquo;ll be in touch to
-          schedule.
+          Claimed for your stay. We&rsquo;ll be in touch to schedule.
         </p>
         <div className={styles.doneActions}>
           <Link href="/perks" className={styles.secondaryLink}>
@@ -104,7 +103,7 @@ export default function ClaimForm({
 
       <label className={styles.field}>
         <span className={styles.label}>
-          Phone <span className={styles.optional}>or email — whichever you prefer</span>
+          Phone <span className={styles.optional}>or email, whichever you prefer</span>
         </span>
         <input
           type="tel"
@@ -128,7 +127,7 @@ export default function ClaimForm({
         {pending ? "One moment…" : "Claim with our compliments"}
       </button>
 
-      <p className={styles.note}>No charge — this one&rsquo;s on us.</p>
+      <p className={styles.note}>This one&rsquo;s on us.</p>
     </form>
   );
 }

@@ -71,7 +71,7 @@ export default async function ServiceDetail({
            never closes — the concierge block replaces the request form */
         <section className={`${styles.formWrap} reveal reveal-4`}>
           <p className={styles.desc}>
-            Your stay has wrapped — we&rsquo;d love to arrange this for your
+            Your stay has wrapped. We&rsquo;d love to arrange this for your
             next one.
           </p>
           {(concierge.phone || concierge.email) && (
@@ -96,8 +96,8 @@ export default async function ServiceDetail({
             <div className={styles.resume}>
               <p className={styles.resumeNote}>
                 {openRequest.status === "SIGNALED"
-                  ? "You started arranging this — a few details and it's done."
-                  : "This one's with your concierge — being arranged."}
+                  ? "You started arranging this. A few details and it's done."
+                  : "This one's with your concierge, being arranged."}
               </p>
               <Link href={`/requests/${openRequest.id}`} className={styles.resumeCta}>
                 {openRequest.status === "SIGNALED" ? "Pick it back up" : "View it"}

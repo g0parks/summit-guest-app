@@ -58,24 +58,24 @@ export async function sendWelcomeEmail(input: {
   const concierge = getConciergeContact();
   const dates = formatDateRange(stay.arrivalDate, stay.departureDate, property.timezone);
 
-  const subject = `Your stay at ${property.name} — everything in one place`;
+  const subject = `Your stay at ${property.name}`;
 
   const conciergeLine = concierge.phone
-    ? `Anything at all, anytime — text your concierge at ${concierge.phone}.`
+    ? `Anything at all, any hour. Text your concierge at ${concierge.phone}.`
     : concierge.email
-      ? `Anything at all, anytime — email your concierge at ${concierge.email}.`
+      ? `Anything at all, any hour. Email your concierge at ${concierge.email}.`
       : null;
 
   const text = [
-    `${guest.firstName} —`,
+    `${guest.firstName},`,
     ``,
-    `Your trip is set. ${property.name}, ${dates} — your itinerary, your`,
-    `concierge, and everything arranged for your stay live in one place:`,
+    `Your trip is set. ${property.name}, ${dates}. Your itinerary and`,
+    `everything arranged for your stay are in one place:`,
     ``,
     link,
     ``,
-    `A little planning now means a seamless arrival — open your trip and`,
-    `tell us what should be waiting.`,
+    `Open it and tell us what should be waiting. A little now makes for an`,
+    `easy arrival.`,
     ...(conciergeLine ? [``, conciergeLine] : []),
     ``,
     `${brand.label}`,
@@ -91,7 +91,7 @@ export async function sendWelcomeEmail(input: {
         ${escapeHtml(brand.label)}${brand.poweredBy ? `<br /><span style="font-size:10px;letter-spacing:0.1em;">powered by Summit</span>` : ""}
       </p>
       <h1 style="font-size:26px;font-weight:400;line-height:1.25;margin:0 0 18px;">
-        ${escapeHtml(guest.firstName)} — your trip is set.
+        ${escapeHtml(guest.firstName)}, your trip is set.
       </h1>
       <p style="font-size:16px;line-height:1.6;margin:0 0 8px;">
         ${escapeHtml(property.name)}
@@ -100,8 +100,8 @@ export async function sendWelcomeEmail(input: {
         ${escapeHtml(dates)}
       </p>
       <p style="font-size:15px;line-height:1.65;margin:0 0 30px;">
-        Your itinerary, your concierge, and everything arranged for your stay
-        live in one place — ready when you are.
+        Your itinerary and everything arranged for your stay are in one place,
+        ready when you are.
       </p>
       <p style="margin:0 0 30px;">
         <a href="${escapeAttr(link)}"
@@ -110,8 +110,8 @@ export async function sendWelcomeEmail(input: {
         </a>
       </p>
       <p style="font-size:14px;line-height:1.65;color:#6f6a60;margin:0 0 30px;">
-        A little planning now means a seamless arrival — tap through and tell
-        us what should be waiting.
+        Tap through and tell us what should be waiting. A little now makes for
+        an easy arrival.
       </p>
       ${conciergeLine ? `<p style="font-size:14px;line-height:1.65;color:#6f6a60;margin:0;">${escapeHtml(conciergeLine)}</p>` : ""}
     </div>
@@ -185,13 +185,13 @@ async function sendCadenceEmail(
   const brand = resolveBrand(input.property);
   const concierge = getConciergeContact();
   const conciergeLine = concierge.phone
-    ? `Anything at all, anytime — text your concierge at ${concierge.phone}.`
+    ? `Anything at all, any hour. Text your concierge at ${concierge.phone}.`
     : concierge.email
-      ? `Anything at all, anytime — email your concierge at ${concierge.email}.`
+      ? `Anything at all, any hour. Email your concierge at ${concierge.email}.`
       : null;
 
   const text = [
-    `${input.guest.firstName} —`,
+    `${input.guest.firstName},`,
     ``,
     ...rendered.paragraphs.flatMap((p) => [p, ``]),
     input.link,
@@ -274,14 +274,14 @@ async function sendCadenceEmail(
 export async function sendPlanAheadEmail(input: CadenceEmailInput): Promise<GuestEmailResult> {
   const { guest, property } = input;
   return sendCadenceEmail(input, {
-    subject: `${property.name} — shall we get your stay arranged?`,
-    headline: `${guest.firstName} — let's get ahead of it.`,
+    subject: `Shall we get your stay arranged?`,
+    headline: `${guest.firstName}, let's get ahead of it.`,
     paragraphs: [
       `Your stay at ${property.name} is on our books, and the best trips are arranged before the bags are packed.`,
-      `A few one-tap questions — a car waiting, a stocked kitchen, gear fitted before you arrive — and your concierge handles the rest.`,
+      `A few quick questions about the car, the kitchen, the gear, and your concierge takes it from there.`,
     ],
     ctaLabel: "Plan your stay",
-    closing: "Two minutes now; a seamless arrival later.",
+    closing: "A couple of minutes now, and arrival looks after itself.",
   });
 }
 
@@ -294,13 +294,13 @@ export async function sendPreArrivalEmail(input: CadenceEmailInput): Promise<Gue
   const dates = formatDateRange(stay.arrivalDate, stay.departureDate, property.timezone);
   return sendCadenceEmail(input, {
     subject: `${property.name} is nearly ready for you`,
-    headline: `${guest.firstName} — it's nearly time.`,
+    headline: `${guest.firstName}, it's nearly time.`,
     paragraphs: [
-      `${property.name}, ${dates}. Everything we've arranged is in motion, and your trip page has the latest — itinerary, requests, all of it.`,
-      `If anything's still open, it's one tap from done. And if something new comes to mind, the concierge is already listening.`,
+      `${property.name}, ${dates}. Everything we've arranged is in motion, and your trip page has the latest.`,
+      `Anything still open is one tap from done, and if something new comes to mind, your concierge is listening.`,
     ],
     ctaLabel: "Open your trip",
-    closing: "We'll have everything waiting.",
+    closing: "We'll have it all waiting.",
   });
 }
 

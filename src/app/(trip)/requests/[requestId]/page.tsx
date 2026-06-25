@@ -121,24 +121,24 @@ export default async function RequestPage({
   const status = postStay
     ? {
         headline: "Your stay has wrapped.",
-        detail: "We'd love to arrange this for your next one — the line never closes.",
+        detail: "We'd love to arrange this for your next one. The line never closes.",
       }
     : request.status === "SIGNALED" || request.status === "READY"
       ? {
           // Reached only by a service-less request-box ask (catalog services
           // in these states render the wizard above).
           headline: "We've got it.",
-          detail: "Your concierge is arranging this — we'll follow up by end of day.",
+          detail: "Your concierge is arranging this. We'll follow up by end of day.",
         }
       : request.status === "QUOTED"
         ? {
             headline: "Being arranged.",
-            detail: "Your concierge is pricing it — you'll hear from us shortly.",
+            detail: "Your concierge is pricing it. You'll hear from us shortly.",
           }
         : request.status === "CONFIRMED" || request.status === "SCHEDULED"
           ? {
               headline: "Confirmed.",
-              detail: `${title} is arranged — you'll find it on your itinerary.`,
+              detail: `${title} is arranged, and it's on your itinerary.`,
             }
           : request.status === "COMPLETED"
             ? {

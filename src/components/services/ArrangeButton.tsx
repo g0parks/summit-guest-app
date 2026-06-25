@@ -24,7 +24,7 @@ export default function ArrangeButton({ serviceId }: { serviceId: string }) {
         {pending ? "One moment…" : "Arrange this"}
       </button>
       <p className={styles.reassure}>
-        A few quick details next — nothing is booked or billed yet.
+        A few quick details next. Nothing is booked or billed yet.
       </p>
     </form>
   );

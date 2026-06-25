@@ -19,7 +19,7 @@ export default function RentalCarPrompt() {
   if (done) {
     return (
       <section className={`${styles.prompt} reveal reveal-4`}>
-        <p className={styles.doneLine}>Noted — thank you.</p>
+        <p className={styles.doneLine}>Noted, thank you.</p>
       </section>
     );
   }

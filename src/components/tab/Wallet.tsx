@@ -104,7 +104,7 @@ export default function Wallet({
           <button type="submit" disabled={adding} className={styles.addBtn}>
             {adding ? "Saving…" : "Save card"}
           </button>
-          <p className={styles.stub}>Demo — no real card is stored or charged.</p>
+          <p className={styles.stub}>Demo. No real card is stored or charged.</p>
         </form>
       )}
 
@@ -126,7 +126,7 @@ export default function Wallet({
 
       {settleResult?.ok && (
         <p className={styles.settleNote}>
-          Charged {formatMoney(settleResult.chargedCents, currency)} to your card — thank you.
+          Charged {formatMoney(settleResult.chargedCents, currency)} to your card. Thank you.
         </p>
       )}
       {settleResult && !settleResult.ok && <p className={styles.err}>{settleResult.error}</p>}

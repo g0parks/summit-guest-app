@@ -179,8 +179,8 @@ export default function RequestWizard({
               headline: "You're all set.",
               detail:
                 state.chargedCents != null
-                  ? `${service.name} is arranged — ${formatMoney(state.chargedCents, currency)} on your tab, and it's on your itinerary.`
-                  : `${service.name} is arranged — it's on your itinerary.`,
+                  ? `${service.name} is arranged. ${formatMoney(state.chargedCents, currency)} on your tab, and it's on your itinerary.`
+                  : `${service.name} is arranged, and it's on your itinerary.`,
               links: [
                 { href: "/tab", label: "View your tab" },
                 { href: "/", label: "Back to your trip" },
@@ -189,12 +189,12 @@ export default function RequestWizard({
             ready: {
               headline: "Consider it underway.",
               detail:
-                "Your concierge is putting it together — you'll see it come to life on your trip page.",
+                "Your concierge is putting it together. You'll see it come to life on your trip page.",
               links: [{ href: "/", label: "Back to your trip" }],
             },
             saved: {
               headline: "We'll hold it right here.",
-              detail: "Pick it back up anytime from your trip page — nothing is lost.",
+              detail: "Pick it back up anytime from your trip page.",
               links: [{ href: "/", label: "Back to your trip" }],
             },
           }[state.outcome];
@@ -203,7 +203,7 @@ export default function RequestWizard({
     // not booked) — the guest finishes it from the home checklist.
     const attachNote =
       state.attached && state.attached.length > 0
-        ? `We've also started ${state.attached.join(" & ")} — finish it from your trip page when you're ready.`
+        ? `We've also started ${state.attached.join(" & ")}. Finish it from your trip page when you're ready.`
         : null;
 
     return (
@@ -437,7 +437,7 @@ export default function RequestWizard({
                     ) : (
                       previewCents != null && (
                         <p className={styles.priceLine}>
-                          {formatMoney(previewCents, currency)} — billed to your tab
+                          {formatMoney(previewCents, currency)}, billed to your tab
                         </p>
                       )
                     )}
@@ -469,7 +469,7 @@ export default function RequestWizard({
                   disabled={pending}
                   className={styles.skipBtn}
                 >
-                  Finish later — we&rsquo;ll hold it
+                  Finish later, we&rsquo;ll hold it
                 </button>
               </div>
             </section>

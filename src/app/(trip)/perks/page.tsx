@@ -25,15 +25,15 @@ export default async function PerksPage() {
         </h1>
         <p className={styles.sub}>
           {postStay
-            ? "Your stay has wrapped — these will be waiting next time."
-            : "A few touches arranged for your stay — claim whichever suit you. No charge."}
+            ? "Your stay has wrapped. These will be waiting next time."
+            : "A few touches arranged for your stay. Claim whichever suit you."}
         </p>
       </header>
 
       <section className={`${styles.list} reveal reveal-2`}>
         {perks.length === 0 ? (
           <p className={styles.empty}>
-            Nothing here just yet — your concierge will let you know.
+            Nothing here just yet. Your concierge will let you know.
           </p>
         ) : (
           <ul className={styles.cards}>

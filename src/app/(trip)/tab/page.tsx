@@ -28,7 +28,7 @@ export default async function TabPage() {
               {formatMoney(charged, stay.currency)} settled
             </>
           ) : (
-            <>All settled — thank you.</>
+            <>All settled. Thank you.</>
           )}
         </p>
       </header>
@@ -77,7 +77,7 @@ export default async function TabPage() {
       </section>
 
       <p className={`${styles.reassure} reveal reveal-4`}>
-        Everything you request lands here — no checkout, no wallet. Settle anytime,
+        Everything you request lands here. No checkout, no wallet. Settle anytime,
         or we’ll close it out at departure.
       </p>
 
