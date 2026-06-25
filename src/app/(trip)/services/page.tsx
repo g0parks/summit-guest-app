@@ -59,8 +59,8 @@ export default async function ServicesPage() {
         <h1 className={styles.title}>Concierge</h1>
         <p className={styles.sub}>
           {postStay
-            ? "Your stay has wrapped — for next time, just say the word."
-            : "Anything you need — arranged, on one tab."}
+            ? "Your stay has wrapped. For next time, just say the word."
+            : "Anything you need, arranged on one tab."}
         </p>
       </header>
 
@@ -68,7 +68,7 @@ export default async function ServicesPage() {
         <section className={`${styles.section} reveal reveal-2`}>
           <h2 className={styles.sectionLabel}>Already in motion</h2>
           <p className={styles.sectionNote}>
-            You started these — a few details and they&rsquo;re done.
+            You started these. A few details and they&rsquo;re done.
           </p>
           <ul className={styles.list}>
             {planned.map((service) => (
@@ -101,7 +101,7 @@ export default async function ServicesPage() {
             <div className={styles.cardBody}>
               <h3 className={styles.cardName}>Need something else?</h3>
               <p className={styles.cardDesc}>
-                Anything that&rsquo;s not on the menu — your concierge will arrange it.
+                If it&rsquo;s not on the menu, your concierge will arrange it.
               </p>
             </div>
             <svg className={styles.chevron} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

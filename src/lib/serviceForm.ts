@@ -151,7 +151,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         key: "flight",
         eyebrow: "Your flight",
         question: "What's the flight number?",
-        detail: "We track it — early, delayed, your driver is already adjusted.",
+        detail: "We track it. Early or delayed, your driver is already adjusted.",
         fields: [
           {
             kind: "text",
@@ -166,7 +166,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         key: "luggage",
         eyebrow: "The load",
         question: "Anything riding along?",
-        detail: "We'll have the right vehicle waiting — that part's on us.",
+        detail: "We'll have the right vehicle waiting.",
         fields: [
           {
             kind: "checkboxes",
@@ -186,7 +186,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         key: "riders",
         eyebrow: "The fittings",
         question: "Who's skiing?",
-        detail: "A few details per person — the gear's fitted and waiting in the mudroom.",
+        detail: "A few details per person, and the gear's fitted and waiting in the mudroom.",
         fields: [
           {
             kind: "perPerson",
@@ -226,7 +226,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         key: "riders",
         eyebrow: "The fittings",
         question: "Who's riding?",
-        detail: "Sized and ready at the residence — no shop stop.",
+        detail: "Sized and ready at the residence. No shop stop.",
         fields: [
           {
             kind: "perPerson",
@@ -295,11 +295,11 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
             name: "package",
             label: "Stocking",
             options: [
-              "Essentials — coffee, breakfast, fruit, snacks, water",
-              "Family Table — the Essentials, doubled, plus kids' staples",
-              "Après — charcuterie, wine, fireside things",
-              "Local Utah — the best of the valley's makers",
-              "Tailored — tell us below",
+              "Essentials · coffee, breakfast, fruit, snacks, water",
+              "Family Table · the Essentials doubled, plus kids' staples",
+              "Après · charcuterie, wine, fireside things",
+              "Local Utah · the best of the valley's makers",
+              "Tailored · tell us below",
             ],
             required: true,
           },
@@ -309,15 +309,15 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         key: "kit",
         showIf: { field: "mode", equals: "Build it with us" },
         eyebrow: "The basics",
-        question: "We'll tuck in the basics — salt, pepper, oil, foil, coffee filters.",
-        detail: "On us to think of it. Leave it on, or skip if the kitchen's already set.",
+        question: "We'll tuck in the basics: salt, pepper, oil, foil, coffee filters.",
+        detail: "Leave it on, or skip if the kitchen's already set.",
         fields: [
           {
             kind: "select",
             name: "kitBox",
             label: "The starter kit",
-            options: ["Yes — include it", "No need"],
-            default: "Yes — include it",
+            options: ["Yes, include it", "No need"],
+            default: "Yes, include it",
           },
         ],
       },
@@ -343,7 +343,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         showIf: { field: "cookIn", equals: "Cooking in" },
         eyebrow: "The menu",
         question: "What are you thinking of making?",
-        detail: "We'll make sure the basics cover those dishes — no need to think it through.",
+        detail: "We'll make sure the basics cover those dishes.",
         fields: [
           {
             kind: "textarea",
@@ -374,7 +374,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         key: "list",
         showIf: { field: "mode", equals: "I'll send a list" },
         eyebrow: "Your list",
-        question: "Tell us what you need — we'll handle the rest.",
+        question: "Tell us what you need and we'll handle the rest.",
         detail: "However it comes to you: brands, rough quantities, the general idea.",
         fields: [
           {
@@ -396,7 +396,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
             kind: "text",
             name: "dietary",
             label: "Allergies & dietary notes",
-            placeholder: "Gluten-free household, nut allergy — or none",
+            placeholder: "Gluten-free household, nut allergy, or none",
           },
         ],
       },
@@ -405,14 +405,14 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         showIf: { field: "mode", equals: "I'll send a list" },
         eyebrow: "The basics",
         question: "Want us to tuck in the basics too?",
-        detail: "Salt, pepper, oil, foil, coffee filters — on us to think of it.",
+        detail: "Salt, pepper, oil, foil, coffee filters.",
         fields: [
           {
             kind: "select",
             name: "kitBox",
             label: "The starter kit",
-            options: ["Yes — include it", "No need"],
-            default: "Yes — include it",
+            options: ["Yes, include it", "No need"],
+            default: "Yes, include it",
           },
         ],
       },
@@ -429,8 +429,8 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         eyebrow: "While you're at it",
         question: "Want a chef to take one night?",
         detail:
-          "One night off the hook — a private chef in your kitchen. No pressure; the groceries are handled either way.",
-        cta: "Yes — start a chef night",
+          "A private chef in your kitchen, one night off the hook. The groceries are handled either way.",
+        cta: "Yes, start a chef night",
       },
       // The bundled bar attach (Axis A): the compressed "and the bar?" inside
       // grocery. Opting in spawns a SIGNALED bar order, source-tagged so the
@@ -442,8 +442,8 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         eyebrow: "While you're at it",
         question: "And a few bottles for the bar?",
         detail:
-          "Wine, spirits, whatever you'd reach for — put away with the groceries.",
-        cta: "Yes — stock the bar too",
+          "Wine, spirits, whatever you'd reach for, put away with the groceries.",
+        cta: "Yes, stock the bar too",
       },
     ],
     notesPrompt: "Anything else?",
@@ -490,13 +490,13 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         ],
         eyebrow: "The arrival",
         question: "A bottle chilling when you walk in?",
-        detail: "A toast on the counter, or a special red breathing — waiting when you arrive.",
+        detail: "A toast on the counter, or a special red breathing, waiting when you arrive.",
         fields: [
           {
             kind: "select",
             name: "arrival",
             label: "Set it up?",
-            options: ["Yes — have it waiting", "Not this one"],
+            options: ["Yes, have it waiting", "Not this one"],
           },
           {
             kind: "text",
@@ -511,13 +511,13 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         showIf: { field: "mode", equals: "Curate it with us" },
         eyebrow: "How the nights end",
         question: "Something for how the nights wind down?",
-        detail: "Fireside après, a nightcap — or cocktails out in the hot tub.",
+        detail: "Fireside après, a nightcap, cocktails out in the hot tub.",
         fields: [
           {
             kind: "select",
             name: "nightsEnd",
             label: "Set it up?",
-            options: ["Yes — sort it", "Not this one"],
+            options: ["Yes, sort it", "Not this one"],
           },
           {
             kind: "text",
@@ -536,13 +536,13 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         showIf: { field: "mode", equals: "Curate it with us" },
         eyebrow: "Dinner in",
         question: "Wine for the table?",
-        detail: "The right bottles for what you're cooking — or what the chef is making.",
+        detail: "The right bottles for what you're cooking, or what the chef is making.",
         fields: [
           {
             kind: "select",
             name: "dinnerIn",
             label: "Set it up?",
-            options: ["Yes — pair the table", "Not this one"],
+            options: ["Yes, pair the table", "Not this one"],
           },
           {
             kind: "text",
@@ -557,13 +557,13 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         showIf: { field: "mode", equals: "Curate it with us" },
         eyebrow: "A taste of Utah",
         question: "A taste of Utah?",
-        detail: "High West, a local brewery — the pour you talk about back home.",
+        detail: "High West, a local brewery, the pour you talk about back home.",
         fields: [
           {
             kind: "select",
             name: "tasteUtah",
             label: "Set it up?",
-            options: ["Yes — surprise us", "Not this one"],
+            options: ["Yes, surprise us", "Not this one"],
           },
           {
             kind: "text",
@@ -578,13 +578,13 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         showIf: { field: "mode", equals: "Curate it with us" },
         eyebrow: "The ones not drinking",
         question: "Something special for the ones not drinking?",
-        detail: "No one left out — a proper N/A bottle, good mixers, something they'll love.",
+        detail: "A proper N/A bottle, good mixers, something they'll love.",
         fields: [
           {
             kind: "select",
             name: "notDrinking",
             label: "Set it up?",
-            options: ["Yes — include them", "Not this time"],
+            options: ["Yes, include them", "Not this time"],
           },
           {
             kind: "text",
@@ -600,7 +600,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         key: "freeform",
         showIf: { field: "mode", equals: "Just tell us what we're after" },
         eyebrow: "The bar",
-        question: "Tell us what you're after — we'll take it from there.",
+        question: "Tell us what you're after and we'll take it from there.",
         detail: "However it comes to you: a few bottles, a vibe, a budget.",
         fields: [
           {
@@ -703,7 +703,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         key: "menu",
         eyebrow: "The menu",
         question: "Which direction should the chef take?",
-        detail: "A menu built around your table — we just need the lean.",
+        detail: "A menu built around your table. We just need the lean.",
         fields: [
           {
             kind: "select",
@@ -723,7 +723,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
             kind: "textarea",
             name: "dietary",
             label: "Allergies & dietary notes",
-            placeholder: "Allergies, dislikes — “none” is an answer we like too",
+            placeholder: "Allergies, dislikes, or “none” works too",
             required: true,
           },
         ],
@@ -741,8 +741,8 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         eyebrow: "For the table",
         question: "Wine for the table that night?",
         detail:
-          "The right bottles for the chef's menu — curated by a person, on your tab with everything else.",
-        cta: "Yes — pair the table",
+          "The right bottles for the chef's menu, on your tab with everything else.",
+        cta: "Yes, pair the table",
       },
     ],
     notesPlaceholder: "Occasion, kids' plates, timing…",

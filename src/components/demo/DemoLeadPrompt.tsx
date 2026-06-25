@@ -62,7 +62,7 @@ export default function DemoLeadPrompt() {
       </button>
       {state?.ok ? (
         <div>
-          <p className={styles.title}>Got it — we&apos;ll be in touch.</p>
+          <p className={styles.title}>Got it. We&apos;ll be in touch.</p>
           <p className={styles.sub}>Thanks for walking through Aerie.</p>
         </div>
       ) : (

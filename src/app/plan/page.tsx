@@ -8,7 +8,7 @@ import IntakeFlow from "@/components/intake/IntakeFlow";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Plan your stay — Summit",
+  title: "Plan your stay · Summit",
 };
 
 /**

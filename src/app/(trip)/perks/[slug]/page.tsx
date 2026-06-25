@@ -43,14 +43,14 @@ export default async function PerkDetail({
 
       <section className={`${styles.body} reveal reveal-3`}>
         <p className={styles.desc}>{perk.longDesc ?? perk.shortDesc}</p>
-        <p className={styles.lead}>Complimentary — never touches your tab.</p>
+        <p className={styles.lead}>Complimentary. Never touches your tab.</p>
       </section>
 
       <section className={`${styles.formWrap} reveal reveal-4`}>
         {postStay && !claimed ? (
           /* warm close-down — mirrors the claimPerk server guard */
           <p className={styles.lead}>
-            Your stay has wrapped — this one will be waiting with our
+            Your stay has wrapped. This one will be waiting with our
             compliments next time.
           </p>
         ) : (

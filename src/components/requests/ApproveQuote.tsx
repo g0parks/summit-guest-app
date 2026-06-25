@@ -36,7 +36,7 @@ export default function ApproveQuote({
           <span className="eyebrow">{serviceName}</span>
           <h1 className={styles.headline}>Consider it done.</h1>
           <p className={styles.detail}>
-            {serviceName} is confirmed — {amount} on your tab, and your
+            {serviceName} is confirmed. {amount} on your tab, and your
             concierge is already on it.
           </p>
           <div className={styles.links}>
@@ -58,14 +58,13 @@ export default function ApproveQuote({
         <span className="eyebrow">{serviceName}</span>
         <h1 className={styles.headline}>Priced and ready.</h1>
         <p className={styles.detail}>
-          Your concierge can have it arranged for {amount} — one tap and
-          it&rsquo;s done, billed to your tab.
+          Your concierge can have it arranged for {amount}, billed to your tab.
         </p>
         <form action={formAction} className={styles.form}>
           <input type="hidden" name="requestId" value={requestId} />
           {state && !state.ok && <p className={styles.error}>{state.error}</p>}
           <button type="submit" disabled={pending} className={styles.primaryBtn}>
-            {pending ? "Confirming…" : `Approve — ${amount}`}
+            {pending ? "Confirming…" : `Approve ${amount}`}
           </button>
         </form>
         <div className={styles.links}>

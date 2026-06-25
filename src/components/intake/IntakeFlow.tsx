@@ -117,8 +117,8 @@ export default function IntakeFlow({
               {skippedContact
                 ? "Whenever you're ready, you know where to find us."
                 : knownStay
-                  ? "We're weaving it into your stay — it'll be on your itinerary by end of day."
-                  : "A real person is putting your plan together — you'll have it by end of day."}
+                  ? "We're weaving it into your stay. It'll be on your itinerary by end of day."
+                  : "Your concierge is putting the plan together. You'll have it by end of day."}
             </p>
             {conciergeLive && !skippedContact && (
               <p className={styles.soonerLine}>
@@ -175,11 +175,11 @@ export default function IntakeFlow({
             </span>
             <h1 className={styles.headline}>
               {knownStay
-                ? `${knownStay.guestFirstName} — let's get your stay arranged.`
+                ? `${knownStay.guestFirstName}, let's get your stay arranged.`
                 : "Let's get your stay arranged."}
             </h1>
             <p className={styles.detail}>
-              A few quick questions — your concierge handles the rest.
+              A few quick questions, and your concierge handles the rest.
             </p>
           </div>
           <div className={styles.screenActions}>
@@ -301,13 +301,13 @@ export default function IntakeFlow({
             <span className="eyebrow">One more thing</span>
             <h1 className={styles.question}>Anything else about your trip?</h1>
             <p className={styles.detail}>
-              A celebration, dietary notes, something you&rsquo;re hoping for —
+              A celebration, a dietary note, something you&rsquo;re hoping for.
             </p>
             <textarea
               name="note"
               rows={4}
               className={styles.noteInput}
-              placeholder="Tell us anything — we read every word."
+              placeholder="Tell us anything. We read every word."
             />
           </div>
           <div className={styles.screenActions}>
@@ -342,7 +342,7 @@ export default function IntakeFlow({
               <span className="eyebrow">Your trip plan</span>
               <h1 className={styles.question}>Where should we send your plan?</h1>
               <p className={styles.detail}>
-                We&rsquo;ll pull it together and send it over — no account, no app.
+                We&rsquo;ll pull it together and send it over. No account to make.
               </p>
               <div className={styles.fields}>
                 <label className={styles.fieldLabel}>
@@ -393,7 +393,7 @@ export default function IntakeFlow({
                 className={styles.skipBtn}
                 onClick={() => setSkippedContact(true)}
               >
-                No thanks — just looking
+                No thanks, just looking
               </button>
             </div>
           </section>

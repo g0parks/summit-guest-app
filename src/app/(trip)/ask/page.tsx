@@ -24,7 +24,7 @@ export default async function AskPage() {
             <span className="eyebrow">The concierge</span>
             <h1 className={styles.headline}>Your stay has wrapped.</h1>
             <p className={styles.detail}>
-              We&rsquo;d love to arrange it for your next one — the line never closes.
+              We&rsquo;d love to arrange it for your next one. The line never closes.
             </p>
             <div className={styles.doneLinks}>
               <Link href="/" className={styles.quietLink}>

@@ -26,8 +26,8 @@ export default function RequestBox() {
             <span className="eyebrow">The concierge</span>
             <h1 className={styles.headline}>Consider it in motion.</h1>
             <p className={styles.detail}>
-              Your concierge will follow up in the app by end of day — you&rsquo;ll
-              find it on your trip page.
+              Your concierge will follow up in the app by end of day. Look for it
+              on your trip page.
             </p>
             <div className={styles.doneLinks}>
               <Link href="/" className={styles.quietLink}>
@@ -51,7 +51,7 @@ export default function RequestBox() {
             <span className="eyebrow">The concierge</span>
             <h1 className={styles.question}>What can we arrange?</h1>
             <p className={styles.detail}>
-              If it&rsquo;s not on the menu, we&rsquo;ll still take care of it — just tell
+              If it&rsquo;s not on the menu, we&rsquo;ll still take care of it. Just tell
               us what you have in mind.
             </p>
             <div className={styles.fields}>
@@ -74,8 +74,8 @@ export default function RequestBox() {
             </div>
             <p className={styles.detail}>
               Handled personally by your concierge. If there&rsquo;s a cost,
-              you&rsquo;ll get a quote to approve — nothing&rsquo;s booked until you
-              say yes.
+              you&rsquo;ll see a quote to approve first. Nothing&rsquo;s booked until
+              you say yes.
             </p>
           </div>
 

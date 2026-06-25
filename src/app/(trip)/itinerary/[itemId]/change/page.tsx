@@ -42,7 +42,7 @@ export default async function ChangeItemPage({
       <StatusScreen
         eyebrow={item.title}
         headline="Your stay has wrapped."
-        detail="We'd love to arrange the next one — the line never closes."
+        detail="We'd love to arrange the next one. The line never closes."
       />
     );
   }
@@ -53,7 +53,7 @@ export default async function ChangeItemPage({
       <StatusScreen
         eyebrow={item.title}
         headline="Being rearranged."
-        detail="Your concierge has it — you'll see the itinerary update once it's set."
+        detail="Your concierge has it. The itinerary will update once it's set."
       />
     );
   }
@@ -70,8 +70,8 @@ export default async function ChangeItemPage({
           <span className="eyebrow">{item.title}</span>
           <h1 className={styles.headline}>We&rsquo;ll handle this one personally.</h1>
           <p className={styles.detail}>
-            Changes to {item.title} ({whenLabel}) are best handled directly —
-            one message and it&rsquo;s done.
+            Changes to {item.title} ({whenLabel}) are best handled directly. One
+            message and it&rsquo;s done.
           </p>
           {(concierge.phone || concierge.email) && (
             <div className={styles.conciergeWrap}>

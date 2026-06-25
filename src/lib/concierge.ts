@@ -53,7 +53,7 @@ export function changeMessage(input: {
   itemTitle: string;
   whenLabel: string;
 }): string {
-  return `Hi — it's ${input.guestFirstName} at ${input.propertyName}. About "${input.itemTitle}" (${input.whenLabel}): `;
+  return `Hi, it's ${input.guestFirstName} at ${input.propertyName}. About "${input.itemTitle}" (${input.whenLabel}): `;
 }
 
 /** General ask from any stay surface: who + where. */
@@ -61,15 +61,15 @@ export function generalMessage(input: {
   guestFirstName: string;
   propertyName: string;
 }): string {
-  return `Hi — it's ${input.guestFirstName} at ${input.propertyName}. `;
+  return `Hi, it's ${input.guestFirstName} at ${input.propertyName}. `;
 }
 
 /** /invalid has no stay context — generic Summit voice. */
 export function invalidLinkMessage(): string {
-  return "Hi — my trip link isn't working. ";
+  return "Hi, my trip link isn't working. ";
 }
 
 /** Close of the /plan intake — World-B lead, no stay context yet. */
 export function intakeFollowupMessage(): string {
-  return "Hi — I just finished planning my trip with you. ";
+  return "Hi, I just finished planning my trip with you. ";
 }

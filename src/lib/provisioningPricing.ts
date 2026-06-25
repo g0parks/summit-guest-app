@@ -170,9 +170,9 @@ export function feeStructureCopy(slug: string | null | undefined): {
   if (slug === BAR_STOCKING_SLUG) {
     return {
       noun: "bottles",
-      lead: "A bar that's ready when you walk in — curated to your taste, put away before you pour",
+      lead: "A bar curated to your taste, put away before you pour",
       closeDetail:
-        "Your concierge is curating the bottles — ready for you, on your tab just as we showed you. Nothing to approve, nothing to pay now.",
+        "Your concierge is curating the bottles. They'll be ready for you, on your tab just as we showed you. Nothing to approve, nothing to pay now.",
     };
   }
   // Grocery (and any future provisioning default).
@@ -180,7 +180,7 @@ export function feeStructureCopy(slug: string | null | undefined): {
     noun: "groceries",
     lead: "Stocked and put away before you walk in",
     closeDetail:
-      "Your concierge is putting it together — on your tab just as we showed you. Nothing to approve, nothing to pay now.",
+      "Your concierge is putting it together, on your tab just as we showed you. Nothing to approve, nothing to pay now.",
   };
 }
 
@@ -218,13 +218,13 @@ export function describeFeeStructure(input: {
   const pct = Number((fees.serviceFeeBps / 100).toFixed(1));
   return {
     lead,
-    summary: `Your ${noun} at cost, plus delivery and a service fee — on your tab, nothing to pay now.`,
+    summary: `Your ${noun} at cost, plus delivery and a service fee. On your tab, nothing to pay now.`,
     schedule: [
-      `${formatMoney(fees.deliveryFeeCents)} delivery fee · ${pct}% service fee — the shopping and the hands that do it`,
+      `${formatMoney(fees.deliveryFeeCents)} delivery fee · ${pct}% service fee for the shopping and the hands that do it`,
       `Same-day, or ordered after 8pm the night before, adds a ${formatMoney(fees.rushFeeCents)} rush`,
     ],
     degraded: sameDayBlocked
-      ? "Same-day's wrapped for today — we'll have it to you first thing."
+      ? "Same-day's wrapped for today. We'll have it to you first thing."
       : null,
   };
 }

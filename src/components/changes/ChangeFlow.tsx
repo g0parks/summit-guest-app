@@ -45,10 +45,10 @@ export default function ChangeFlow({
   if (state?.ok) {
     const detail =
       state.kind === "CANCEL"
-        ? "We're taking it off your itinerary — consider it unwound."
+        ? "We're taking it off your itinerary. Consider it unwound."
         : state.kind === "MOVE"
-          ? "We're rearranging it — your itinerary will update once it's set."
-          : "Your concierge is on it — you'll see the update on your itinerary.";
+          ? "We're rearranging it. Your itinerary will update once it's set."
+          : "Your concierge is on it. Look for the update on your itinerary.";
     return (
       <main className={styles.page}>
         <div className={`${styles.screen} ${styles.active}`}>
@@ -183,7 +183,7 @@ export default function ChangeFlow({
             <span className="eyebrow">{itemTitle}</span>
             <h1 className={styles.question}>Take it off the itinerary?</h1>
             <p className={styles.detail}>
-              We&rsquo;ll handle the unwinding — no calls, no fuss.
+              We&rsquo;ll handle the unwinding. No calls to make.
             </p>
             {/* Two screens share name="note" (CANCEL + MODIFY) inside one
                 mounted form — disable the inactive one so formData.get("note")
@@ -230,7 +230,7 @@ export default function ChangeFlow({
           <div className={styles.screenBody}>
             <span className="eyebrow">{itemTitle}</span>
             <h1 className={styles.question}>Tell us what you need.</h1>
-            <p className={styles.detail}>A line is plenty — we read every word.</p>
+            <p className={styles.detail}>A line is plenty. We read every word.</p>
             <textarea
               name="note"
               rows={4}
