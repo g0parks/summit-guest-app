@@ -110,8 +110,8 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
         </p>
         <p className={styles.trustLine}>
           {brand.poweredBy
-            ? `${brand.shortName} partnered with Summit to look after your stay. You ask, we arrange — it all lands on one bill, no checkout.`
-            : "Summit looks after your stay. You ask, we arrange — it all lands on one bill, no checkout."}
+            ? `${brand.shortName} partnered with Summit to look after your stay. You ask, we arrange. It all lands on one bill, no checkout.`
+            : "Summit looks after your stay. You ask, we arrange. It all lands on one bill, no checkout."}
         </p>
       </section>
 
@@ -239,8 +239,8 @@ async function InStayBody({ active, brand }: { active: ActiveStay; brand: Brand 
         </p>
         <p className={styles.trustLine}>
           {brand.poweredBy
-            ? `${brand.shortName} partnered with Summit to look after your stay. You ask, we arrange — it all lands on one bill, no checkout.`
-            : "Summit looks after your stay. You ask, we arrange — it all lands on one bill, no checkout."}
+            ? `${brand.shortName} partnered with Summit to look after your stay. You ask, we arrange. It all lands on one bill, no checkout.`
+            : "Summit looks after your stay. You ask, we arrange. It all lands on one bill, no checkout."}
         </p>
       </section>
 
