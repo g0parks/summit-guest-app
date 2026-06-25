@@ -3,143 +3,526 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Aerie · The Park City concierge for your rentals</title>
-<meta name="description" content="Aerie runs the concierge for your rentals, under your brand, free to you. The car booked, the kitchen stocked, the skis waiting, before your guests arrive." />
+<title>Aerie · The concierge your guests never have to ask</title>
+<meta name="description" content="Aerie runs the concierge for your rentals, under your brand and free to you. The airport car booked, the kitchen stocked, the skis fitted and waiting, before your guests arrive." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,200..800&family=Hanken+Grotesk:wght@400..700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..700;1,6..72,300..500&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root{
-    --bg:#f7f3ec; --ink:#211f1b; --ink-mute:#6b655c; --ink-faint:#9a9387; --hair:#e7e1d6;
-    --pine:#2f4b3c; --pine-deep:#243a2f; --on-pine:#f7f3ec;
+    --paper:#f6f1e8;
+    --paper-2:#efe8db;
+    --ink:#23211c;
+    --ink-soft:#5f5950;
+    --ink-faint:#968f82;
+    --hair:#e4ddd0;
+    --pine:#2d4a3a;
+    --pine-deep:#21372b;
+    --pine-mute:#43604f;
+    --on-pine:#f3eee4;
+    --gold:#9a7b3f;
     --serif:'Newsreader',Georgia,'Times New Roman',serif;
     --sans:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
-  body{background:var(--bg); color:var(--ink); font-family:var(--serif); -webkit-font-smoothing:antialiased; overflow-x:hidden;}
-  .sheet{max-width:580px; margin:0 auto; padding:34px 36px 0;}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--serif);
+    font-size:18px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  ::selection{background:rgba(45,74,58,.16);}
 
-  .parent{font-family:var(--sans); font-size:11px; font-weight:600; letter-spacing:.24em; text-transform:uppercase; color:var(--ink-faint);}
+  .wrap{max-width:720px; margin:0 auto; padding:0 30px;}
+  .wrap-narrow{max-width:600px; margin:0 auto; padding:0 30px;}
 
-  .hero{padding:46px 0 0;}
-  .lockup{display:block;}
-  .aerie{display:inline-block; font-size:36px; font-weight:600; letter-spacing:-.015em; color:var(--pine); line-height:1;}
-  .byline{display:block; font-family:var(--sans); font-size:12px; font-weight:500; letter-spacing:.04em; color:var(--ink-mute); margin-top:8px;}
-  .byline-link{color:inherit; text-decoration:none; border-bottom:1px solid transparent; transition:border-color .15s;}
-  .byline-link:hover{border-bottom-color:currentColor;}
-  .hook{font-size:41px; font-weight:480; line-height:1.07; letter-spacing:-.02em; color:var(--ink); margin:16px 0 0;}
-  .ridge{display:block; width:100%; height:96px; margin:30px 0 0;}
+  .eyebrow{
+    font-family:var(--sans);
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.26em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin:0;
+  }
+  .eyebrow.pine{color:var(--pine-mute);}
+  .eyebrow.on-pine{color:rgba(243,238,228,.62);}
 
-  .stanza{margin:40px 0 0;}
-  .stanza p{margin:0;}
-  .line{font-size:20px; line-height:1.62; color:var(--ink);}
-  .soft{font-size:18px; line-height:1.6; color:var(--ink-mute);}
-  .pine{color:var(--pine);}
+  /* ---- masthead ---- */
+  .masthead{
+    border-bottom:1px solid var(--hair);
+  }
+  .masthead .wrap{
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding-top:26px; padding-bottom:22px;
+  }
+  .mark{
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:23px;
+    letter-spacing:.02em;
+    color:var(--pine);
+    line-height:1;
+    text-decoration:none;
+  }
+  .mark .dot{color:var(--gold);}
+  .mast-meta{
+    font-family:var(--sans);
+    font-size:10.5px;
+    font-weight:600;
+    letter-spacing:.2em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  @media (max-width:520px){ .mast-meta{display:none;} }
 
-  .trio{display:flex; gap:0; margin:18px 0; border-top:1px solid var(--hair); border-bottom:1px solid var(--hair);}
-  .trio div{flex:1; padding:16px 8px; text-align:center;}
-  .trio div + div{border-left:1px solid var(--hair);}
-  .trio .k{display:block; font-size:19px; color:var(--ink);}
-  .trio .v{display:block; font-family:var(--sans); font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--pine); margin-top:5px;}
+  /* ---- hero ---- */
+  .hero{ padding:74px 0 58px; }
+  .hero h1{
+    font-family:var(--serif);
+    font-weight:430;
+    font-size:46px;
+    line-height:1.08;
+    letter-spacing:-.018em;
+    margin:18px 0 0;
+    color:var(--ink);
+  }
+  .hero h1 em{ font-style:italic; color:var(--pine); font-weight:430; }
+  .hero .deck{
+    font-size:20px;
+    line-height:1.62;
+    color:var(--ink-soft);
+    max-width:30em;
+    margin:24px 0 0;
+  }
+  .hero .cta-row{ margin-top:38px; }
 
-  .band{position:relative; left:50%; right:50%; margin-left:-50vw; margin-right:-50vw; width:100vw; background:var(--pine-deep); color:var(--on-pine); margin-top:54px; padding:52px 0;}
-  .band-in{max-width:580px; margin:0 auto; padding:0 36px;}
-  .band .setup{font-size:17px; line-height:1.6; color:rgba(247,243,236,.66); margin:0;}
-  .band .punch{font-size:30px; line-height:1.22; color:var(--on-pine); margin:18px 0 0; font-weight:500;}
-  .band .turn{font-size:19px; line-height:1.5; color:rgba(247,243,236,.9); margin:22px 0 0;}
+  /* ---- ridge ---- */
+  .ridge{ display:block; width:100%; height:auto; }
+  .ridge-wrap{ margin:0; line-height:0; }
 
-  .close{max-width:580px; margin:0 auto; padding:0 36px;}
-  .close .stanza{margin-top:48px;}
-  .cta-wrap{margin:30px 0 0; display:flex; align-items:center; gap:22px; flex-wrap:wrap;}
-  .cta{display:inline-flex; align-items:center; gap:9px; background:var(--pine); color:var(--on-pine); text-decoration:none; border-radius:999px; padding:15px 30px; font-family:var(--sans); font-size:15px; font-weight:600;}
-  .cta-2{display:inline-flex; align-items:center; gap:6px; color:var(--pine); text-decoration:none; font-family:var(--sans); font-size:14px; font-weight:600; background:none; border:none; padding:0; cursor:pointer;}
-  .fn{font-family:var(--sans); font-size:11.5px; line-height:1.5; color:var(--ink-faint); margin:22px 0 0;}
-  .foot{margin:30px 0 0; padding:18px 0 48px; border-top:1px solid var(--hair); font-family:var(--sans); font-size:12px; letter-spacing:.04em; color:var(--ink-faint);}
-  .foot .a{font-family:var(--serif); color:var(--pine); font-size:15px;}
-  .foot a[href]{color:var(--ink-mute); text-decoration:none;}
+  /* ---- buttons ---- */
+  .cta-row{ display:flex; align-items:center; gap:26px; flex-wrap:wrap; }
+  .btn{
+    display:inline-flex; align-items:center; gap:10px;
+    font-family:var(--sans);
+    font-size:14.5px;
+    font-weight:600;
+    letter-spacing:.01em;
+    text-decoration:none;
+    border-radius:2px;
+    padding:14px 26px;
+    background:var(--pine);
+    color:var(--on-pine);
+    transition:background .18s ease, transform .18s ease;
+  }
+  .btn:hover{ background:var(--pine-deep); }
+  .btn .arw{ transition:transform .18s ease; }
+  .btn:hover .arw{ transform:translateX(3px); }
+  .btn-ghost{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--sans);
+    font-size:14px;
+    font-weight:600;
+    color:var(--pine);
+    text-decoration:none;
+    border-bottom:1px solid rgba(45,74,58,.28);
+    padding-bottom:2px;
+    transition:border-color .18s ease;
+  }
+  .btn-ghost:hover{ border-bottom-color:var(--pine); }
+  .btn-light{ background:var(--on-pine); color:var(--pine-deep); }
+  .btn-light:hover{ background:#fff; }
 
-  .lead{margin:24px 0 0; max-width:520px;}
-  .lead-h{font-family:var(--sans); font-size:15px; line-height:1.55; color:var(--ink-mute); margin:0 0 16px;}
-  .lead-row{display:flex; gap:12px; margin:0 0 12px; flex-wrap:wrap;}
-  .lead-in{flex:1; min-width:150px; font-family:var(--sans); font-size:15px; color:var(--ink); background:#fff; border:1px solid var(--hair); border-radius:12px; padding:12px 14px;}
-  .lead-in::placeholder{color:var(--ink-faint);}
-  .lead-in:focus{outline:none; border-color:var(--pine);}
-  .hp{position:absolute; left:-9999px; width:1px; height:1px; opacity:0;}
-  .lead-send{border:none; cursor:pointer; margin-top:4px;}
-  .lead-send:disabled{opacity:.6;}
-  .lead-err{font-family:var(--sans); font-size:13px; color:#9a3b2f; margin:10px 0 0;}
-  .lead-thanks{font-size:19px; line-height:1.5; color:var(--pine); margin:24px 0 0;}
+  /* ---- section rhythm ---- */
+  section{ padding:64px 0; }
+  .lede{
+    font-size:26px;
+    line-height:1.46;
+    letter-spacing:-.012em;
+    font-weight:420;
+    color:var(--ink);
+    margin:18px 0 0;
+  }
+  .lede .pine{ color:var(--pine); }
+  p.body{
+    font-size:19px;
+    line-height:1.66;
+    color:var(--ink-soft);
+    margin:22px 0 0;
+  }
+  p.body + p.body{ margin-top:16px; }
+
+  /* ---- the four essentials list ---- */
+  .essentials{ list-style:none; margin:30px 0 0; padding:0; }
+  .essentials li{
+    display:flex; align-items:baseline; gap:18px;
+    padding:20px 0;
+    border-top:1px solid var(--hair);
+  }
+  .essentials li:last-child{ border-bottom:1px solid var(--hair); }
+  .essentials .num{
+    font-family:var(--sans);
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.14em;
+    color:var(--gold);
+    min-width:26px;
+    padding-top:6px;
+  }
+  .essentials .item{ flex:1; }
+  .essentials .item h3{
+    font-family:var(--serif);
+    font-weight:500;
+    font-size:22px;
+    margin:0;
+    color:var(--ink);
+    letter-spacing:-.01em;
+  }
+  .essentials .item p{
+    font-family:var(--sans);
+    font-size:14.5px;
+    line-height:1.5;
+    color:var(--ink-faint);
+    margin:5px 0 0;
+  }
+
+  /* ---- pine band ---- */
+  .band{
+    position:relative; left:50%; right:50%;
+    margin-left:-50vw; margin-right:-50vw;
+    width:100vw;
+    background:var(--pine-deep);
+    color:var(--on-pine);
+    padding:78px 0;
+  }
+  .band h2{
+    font-family:var(--serif);
+    font-weight:430;
+    font-size:33px;
+    line-height:1.24;
+    letter-spacing:-.014em;
+    margin:18px 0 0;
+    color:var(--on-pine);
+    max-width:18em;
+  }
+  .band h2 em{ font-style:italic; color:#d8c79a; font-weight:430; }
+  .band p{
+    font-size:18.5px;
+    line-height:1.62;
+    color:rgba(243,238,228,.78);
+    margin:24px 0 0;
+    max-width:32em;
+  }
+  .band .rule{
+    width:46px; height:1px;
+    background:rgba(243,238,228,.34);
+    margin:34px 0 0;
+  }
+
+  /* ---- pull quote / tension ---- */
+  .tension{ padding:64px 0; }
+  .tension blockquote{
+    margin:18px 0 0;
+    font-family:var(--serif);
+    font-weight:380;
+    font-size:27px;
+    line-height:1.42;
+    letter-spacing:-.012em;
+    color:var(--ink);
+  }
+  .tension blockquote .pine{ color:var(--pine); font-style:italic; }
+  .tension .attrib{
+    font-family:var(--sans);
+    font-size:13.5px;
+    line-height:1.6;
+    color:var(--ink-soft);
+    margin:22px 0 0;
+    max-width:34em;
+  }
+
+  /* ---- close ---- */
+  .close{ padding:72px 0 40px; text-align:left; }
+  .close h2{
+    font-family:var(--serif);
+    font-weight:430;
+    font-size:38px;
+    line-height:1.14;
+    letter-spacing:-.018em;
+    margin:18px 0 0;
+    color:var(--ink);
+  }
+  .close h2 em{ font-style:italic; color:var(--pine); font-weight:430; }
+  .close .body{ max-width:30em; }
+  .close .cta-row{ margin-top:36px; }
+
+  /* ---- footer ---- */
+  footer{
+    border-top:1px solid var(--hair);
+    padding:34px 0 56px;
+  }
+  footer .wrap{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    gap:24px; flex-wrap:wrap;
+  }
+  footer .fmark{
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:18px;
+    color:var(--pine);
+    letter-spacing:.02em;
+  }
+  footer .fmark .dot{ color:var(--gold); }
+  footer .fsub{
+    font-family:var(--sans);
+    font-size:11px;
+    font-weight:500;
+    letter-spacing:.06em;
+    color:var(--ink-faint);
+    margin-top:5px;
+  }
+  footer .fcontact{
+    font-family:var(--sans);
+    font-size:13.5px;
+    line-height:1.9;
+    color:var(--ink-soft);
+    text-align:right;
+  }
+  footer .fcontact a{ color:var(--ink-soft); text-decoration:none; }
+  footer .fcontact a:hover{ color:var(--pine); }
+  @media (max-width:520px){
+    footer .fcontact{ text-align:left; }
+  }
+
+  /* ---- responsive ---- */
+  @media (max-width:560px){
+    body{ font-size:17px; }
+    .hero{ padding:54px 0 44px; }
+    .hero h1{ font-size:35px; }
+    .hero .deck{ font-size:18px; }
+    section{ padding:50px 0; }
+    .lede{ font-size:22px; }
+    .band{ padding:58px 0; }
+    .band h2{ font-size:27px; }
+    .tension blockquote{ font-size:22px; }
+    .close h2{ font-size:30px; }
+    .cta-row{ gap:20px; }
+  }
+
+  /* ---- lead form ---- */
+  .lead{ margin:30px 0 0; max-width:520px; }
+  .lead-h{ font-family:var(--sans); font-size:14.5px; line-height:1.55; color:var(--ink-soft); margin:0 0 16px; }
+  .lead-row{ display:flex; gap:12px; margin:0 0 12px; flex-wrap:wrap; }
+  .lead-in{ flex:1; min-width:150px; font-family:var(--sans); font-size:15px; color:var(--ink); background:var(--paper-2); border:1px solid var(--hair); border-radius:2px; padding:13px 14px; }
+  .lead-in::placeholder{ color:var(--ink-faint); }
+  .lead-in:focus{ outline:none; border-color:var(--pine); }
+  .hp{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
+  .lead-send{ border:none; cursor:pointer; margin-top:4px; }
+  .lead-send:disabled{ opacity:.6; }
+  .lead-err{ font-family:var(--sans); font-size:13px; color:#9a3b2f; margin:10px 0 0; }
+  .lead-thanks{ font-family:var(--serif); font-size:21px; line-height:1.5; color:var(--pine); margin:28px 0 0; }
 </style>
 </head>
 <body>
-  <div class="sheet">
+
+  <header class="masthead">
+    <div class="wrap">
+      <a class="mark" href="#top">Aerie<span class="dot">.</span></a>
+      <span class="mast-meta">Park City &middot; By Summit Luxury Logistics</span>
+    </div>
+  </header>
+
+  <main id="top">
+
+    <!-- HERO -->
     <section class="hero">
-      <div class="lockup">
-        <span class="aerie">Aerie</span>
-        <span class="byline">by <a class="byline-link" href="https://summitluxurylogistics.com" target="_blank" rel="noopener">Summit Luxury Logistics</a></span>
+      <div class="wrap">
+        <p class="eyebrow">The concierge for your rentals</p>
+        <h1>The stay is handled <em>before they ask.</em></h1>
+        <p class="deck">
+          Your guest taps one private link before arrival and walks into a home that
+          already knows them. The airport car booked. The kitchen stocked. The skis
+          fitted and ready.
+        </p>
+        <div class="cta-row">
+          <a class="btn" href="https://summit-guest-app.vercel.app/demo">
+            Walk through a stay <span class="arw">&rarr;</span>
+          </a>
+          <a class="btn-ghost" href="mailto:info@summitluxurylogistics.com?subject=Aerie">Get in touch</a>
+        </div>
       </div>
-      <h1 class="hook">The Park City concierge<br>for your rentals.</h1>
-      <svg class="ridge" viewBox="0 0 580 96" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M0,96 L70,40 L150,72 L250,18 L340,66 L430,30 L520,74 L580,46 L580,96 Z" fill="#2f4b3c" opacity="0.10"/>
-        <path d="M0,96 L60,66 L150,30 L240,72 L330,44 L430,80 L510,52 L580,76 L580,96 Z" fill="#2f4b3c" opacity="0.20"/>
+    </section>
+
+    <!-- RIDGE MOTIF -->
+    <div class="ridge-wrap" aria-hidden="true">
+      <svg class="ridge" viewBox="0 0 720 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,108 L0,70 L62,44 L118,66 L176,30 L214,52 L268,18 L322,58 L360,38 L408,72 L452,40 L506,74 L548,52 L604,80 L656,56 L720,84 L720,108 Z"
+              fill="none" stroke="#2d4a3a" stroke-width="1.4" stroke-linejoin="round" opacity="0.55"/>
+        <path d="M176,30 L196,44 L186,44 Z M268,18 L286,36 L276,32 Z M452,40 L470,56 L460,52 Z"
+              fill="none" stroke="#9a7b3f" stroke-width="1.1" stroke-linejoin="round" opacity="0.5"/>
       </svg>
-    </section>
-
-    <section class="stanza">
-      <p class="line">We run the concierge, so your guests never have to ask.</p>
-      <p class="soft" style="margin-top:14px">A link, before they arrive.</p>
-      <div class="trio">
-        <div><span class="k">The car</span><span class="v">Booked</span></div>
-        <div><span class="k">The kitchen</span><span class="v">Stocked</span></div>
-        <div><span class="k">The skis</span><span class="v">Waiting</span></div>
-      </div>
-    </section>
-
-    <section class="stanza">
-      <p class="line">Booked through the operators you already trust — at group rates no single manager can get.</p>
-      <p class="line" style="margin-top:14px">Under your brand. Free to you.</p>
-      <p class="soft" style="margin-top:6px">We make our money on the rates, not from you.</p>
-    </section>
-
-  </div>
-
-  <section class="band">
-    <div class="band-in">
-      <p class="setup">In 2025, Airbnb launched Services. Chefs, massages, the concierge layer.</p>
-      <p class="punch">They're not after your listings.<br>They're after your guests.</p>
-      <p class="turn">You can't out-build them alone.</p>
-    </div>
-  </section>
-
-  <div class="close">
-    <section class="stanza">
-      <p class="line">Guests who get more come back for more.</p>
-      <p class="line">Owners stay where the numbers are.</p>
-    </section>
-    <div class="cta-wrap">
-      <a class="cta" href="https://summit-guest-app.vercel.app/demo">Walk through a stay →</a>
-      <button class="cta-2" type="button" id="reveal">Get in touch →</button>
     </div>
 
-    <form class="lead" id="lead" hidden novalidate>
-      <p class="lead-h">Leave your details and we'll set up a real walkthrough for your properties.</p>
-      <div class="lead-row">
-        <input class="lead-in" name="name" type="text" placeholder="Name" autocomplete="name" />
-        <input class="lead-in" name="company" type="text" placeholder="Company (optional)" autocomplete="organization" />
-      </div>
-      <div class="lead-row">
-        <input class="lead-in" name="email" type="email" placeholder="Email" autocomplete="email" />
-        <input class="lead-in" name="phone" type="tel" placeholder="Phone" autocomplete="tel" />
-      </div>
-      <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
-      <button class="cta lead-send" type="submit">Send →</button>
-      <p class="lead-err" id="leadErr" hidden></p>
-    </form>
-    <p class="lead-thanks" id="leadThanks" hidden>Thank you. We'll be in touch shortly.</p>
+    <!-- WHAT IT IS -->
+    <section>
+      <div class="wrap-narrow">
+        <p class="eyebrow pine">Under your brand</p>
+        <p class="lede">
+          Aerie runs the concierge so your guests never have to ask, and every
+          part of it carries <span class="pine">your name</span>.
+        </p>
+        <p class="body">
+          Behind the link, Summit Luxury Logistics handles the booking, the timing
+          and the vendors. Your guest sees only a calm, personal concierge that
+          arranged the essentials of a great stay before they landed.
+        </p>
 
-    <div class="foot"><span class="a">Aerie</span> · Park City, UT &nbsp;·&nbsp; <a href="mailto:info@summitluxurylogistics.com">info@summitluxurylogistics.com</a> &nbsp;·&nbsp; <a href="tel:+14352144101">(435) 214-4101</a></div>
-  </div>
+        <ul class="essentials">
+          <li>
+            <span class="num">01</span>
+            <div class="item">
+              <h3>Transport</h3>
+              <p>Met at baggage claim, taken straight to the rental.</p>
+            </div>
+          </li>
+          <li>
+            <span class="num">02</span>
+            <div class="item">
+              <h3>Grocery Stocking</h3>
+              <p>Their list, their preferences, waiting in the fridge.</p>
+            </div>
+          </li>
+          <li>
+            <span class="num">03</span>
+            <div class="item">
+              <h3>Equipment Rentals</h3>
+              <p>Skis or bikes sized ahead, white-glove delivered and fitted at the residence.</p>
+            </div>
+          </li>
+          <li>
+            <span class="num">04</span>
+            <div class="item">
+              <h3>Experiences</h3>
+              <p>A private chef, a guide on the mountain, a massage at the residence.</p>
+            </div>
+          </li>
+          <li>
+            <span class="num">05</span>
+            <div class="item">
+              <h3>More</h3>
+              <p>Baby gear, a crib, whatever else the house needs.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- PINE BAND: economics -->
+    <div class="band">
+      <div class="wrap-narrow">
+        <p class="eyebrow on-pine">How it works for you</p>
+        <h2>Booked through the operators you already trust, at rates no single manager gets <em>alone.</em></h2>
+        <p>
+          Aerie makes its money on the rates, not on you. Nothing to install, nothing
+          to staff. It runs under your brand and stays free to you.
+        </p>
+        <div class="rule"></div>
+        <p style="margin-top:24px;">
+          For the guest it feels like a manager with a little black book. For you it is
+          a service you offer that costs you nothing to give.
+        </p>
+      </div>
+    </div>
+
+    <!-- THE FLYWHEEL -->
+    <section>
+      <div class="wrap-narrow">
+        <p class="eyebrow pine">The long game</p>
+        <p class="lede">
+          Guests who get a stay like this come back. The prize is bringing them
+          back <span class="pine">direct.</span>
+        </p>
+        <p class="body">
+          Every platform booking carries the platform's cut, and the guest belongs
+          to the platform. A guest who returns to you directly is yours, margin and
+          relationship both. Aerie gives them a reason to remember the home, and a
+          link that lives on your side of it. Over a few seasons, that compounds
+          into a book of repeat guests the platforms can't reach.
+        </p>
+      </div>
+    </section>
+
+    <!-- TENSION -->
+    <div class="tension">
+      <div class="wrap-narrow">
+        <p class="eyebrow pine">A note on Airbnb</p>
+        <blockquote>
+          In 2025 Airbnb launched Services. It isn't your listings they want.
+          <span class="pine">It's your guests.</span>
+        </blockquote>
+        <p class="attrib">
+          Chefs, massages, a concierge layer of their own. No solo manager can
+          out-build that platform alone. Aerie is how you don't have to: the same
+          relationship, kept on your side of the link.
+        </p>
+      </div>
+    </div>
+
+    <!-- CLOSE -->
+    <section class="close">
+      <div class="wrap-narrow">
+        <p class="eyebrow pine">See it the way a guest will</p>
+        <h2>Take the link your guests would tap, <em>and follow it.</em></h2>
+        <p class="body">
+          A short walkthrough of a real stay, start to finish. The clearest way to
+          understand Aerie is to stand where your guest stands.
+        </p>
+        <div class="cta-row">
+          <a class="btn" href="https://summit-guest-app.vercel.app/demo">
+            Walk through a stay <span class="arw">&rarr;</span>
+          </a>
+          <button class="btn-ghost" type="button" id="reveal">Get in touch</button>
+        </div>
+
+        <form class="lead" id="lead" hidden novalidate>
+          <p class="lead-h">Leave your details and we'll set up a walkthrough for your properties.</p>
+          <div class="lead-row">
+            <input class="lead-in" name="name" type="text" placeholder="Name" autocomplete="name" />
+            <input class="lead-in" name="company" type="text" placeholder="Company (optional)" autocomplete="organization" />
+          </div>
+          <div class="lead-row">
+            <input class="lead-in" name="email" type="email" placeholder="Email" autocomplete="email" />
+            <input class="lead-in" name="phone" type="tel" placeholder="Phone" autocomplete="tel" />
+          </div>
+          <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <button class="btn lead-send" type="submit">Send <span class="arw">&rarr;</span></button>
+          <p class="lead-err" id="leadErr" hidden></p>
+        </form>
+        <p class="lead-thanks" id="leadThanks" hidden>Thank you. We'll be in touch shortly.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div>
+        <div class="fmark">Aerie<span class="dot">.</span></div>
+        <div class="fsub">By Summit Luxury Logistics</div>
+      </div>
+      <div class="fcontact">
+        <a href="mailto:info@summitluxurylogistics.com">info@summitluxurylogistics.com</a><br />
+        <a href="tel:+14352144101">(435) 214-4101</a><br />
+        Park City, UT
+      </div>
+    </div>
+  </footer>
 
   <script>
   (function () {
@@ -186,5 +569,6 @@
     });
   })();
   </script>
+
 </body>
 </html>
