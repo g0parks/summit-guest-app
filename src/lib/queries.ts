@@ -114,7 +114,9 @@ export async function getOpenRequests(stayId: string) {
 }
 
 export async function getServiceBySlug(slug: string) {
-  return prisma.service.findUnique({ where: { slug } });
+  // isActive guard so a deactivated service (e.g. alcohol, pulled for Utah law)
+  // can't be booked via its direct URL even though it's gone from the catalog.
+  return prisma.service.findFirst({ where: { slug, isActive: true } });
 }
 
 /**
