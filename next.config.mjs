@@ -3,11 +3,26 @@ const nextConfig = {
   reactStrictMode: true,
   devIndicators: false,
   async rewrites() {
-    // Clean /aerie path → the flyer, on any host (e.g. the .vercel.app URL).
-    // The session-aware apex rewrite (Aerie domain root → flyer for cold
-    // visitors only) lives in middleware.ts — cookie-conditional rewrites
-    // aren't reliably evaluated here, so the apex logic is middleware's.
-    return [{ source: "/aerie", destination: "/aerie.html" }];
+    return {
+      // The Aerie domain is MARKETING-ONLY: its bare apex always serves the
+      // flyer (never the app's "/" trip home). The guest app + demo live on
+      // the app host (summit-guest-app.vercel.app), so "/" here never needs to
+      // be the app — no cookie disambiguation, no demo bounce.
+      beforeFiles: [
+        {
+          source: "/",
+          has: [
+            {
+              type: "host",
+              value: "^(aerie\\.summitluxurylogistics\\.com|(www\\.)?aeriepc\\.com)$",
+            },
+          ],
+          destination: "/aerie.html",
+        },
+      ],
+      // Clean /aerie path → the flyer, on any host (e.g. the .vercel.app URL).
+      afterFiles: [{ source: "/aerie", destination: "/aerie.html" }],
+    };
   },
 };
 
