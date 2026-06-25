@@ -54,8 +54,8 @@ export default async function WelcomePage() {
           {firstName ? `Welcome, ${firstName}.` : "Welcome."}
         </h1>
         <p className={`${styles.line} reveal reveal-3`}>
-          This is where the essentials of {stayLabel} are coordinated — the car,
-          the kitchen, the gear, all in one place.
+          This is where the essentials of {stayLabel} are coordinated. The car,
+          the kitchen, the gear.
         </p>
         <form action={enterTrip} className="reveal reveal-4">
           <button type="submit" className={styles.cta}>
