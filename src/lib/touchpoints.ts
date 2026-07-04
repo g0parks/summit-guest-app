@@ -2,37 +2,64 @@ import "server-only";
 import type { GuestTouch, TouchKind } from "@prisma/client";
 import { prisma } from "./db";
 import { getStayPhase } from "./stayPhase";
+import type { RenderedEmail } from "./guestEmail";
 
 /**
- * The pre-arrival cadence, derived (Ops Decisions: at booking · ~2wk
- * post-booking · ~2wk pre-arrival). The system computes what's DUE; a human
- * decides and sends — operator-triggered by doctrine, never automated.
- * Post-departure touches (sentiment-first, restay-second) are deliberately
- * ABSENT: parked on the roadmap until the guest is home, per doctrine.
+ * The pre-arrival cadence engine — SIGNAL-AWARE (Track A of the nudge-cadence
+ * plan, docs/plans/2026-06-22-nudge-cadence.md; replaces the signal-blind v1
+ * placeholder). The system computes what's DUE and what's SUPPRESSED; a human
+ * decides and sends — operator-triggered by doctrine, never automated. No
+ * scheduler. Post-departure touches stay deliberately ABSENT (nothing pushed
+ * until the guest is home).
  *
- * ⚠ FIRING LOGIC IS v1 — PLACEHOLDER, NOT THE DECIDED CADENCE (Parker,
- * 2026-06-13). Due times below are naive calendar math off booking +
- * arrival dates; they are SIGNAL-BLIND. The decided design — what fires
- * when, as a function of stay dates AND what the guest has already
- * signaled/completed — is roadmapped, not built. Nothing here auto-fires,
- * so this scaffold locks in no behavior: it surfaces "due" for the
- * operator's glance and waits for a tap. See docs/roadmap when it lands.
+ * The crook test (Ethical Charter) is the law here: a touch corrects toward
+ * the GUEST's own intent — invite planning they haven't done, surface what
+ * waits on them, finish what they started. A touch whose job is already done
+ * is SUPPRESSED, with the reason shown to the operator. Never prod someone
+ * who's already served; never prod toward our gain against their interest.
+ *
+ * The cadence (Ops Decisions, vault): WELCOME at booking · PLAN_AHEAD ~2wk
+ * post-booking · PRE_ARRIVAL ~2wk out — plus RESUME, the behavior-gated
+ * abandonment nudge (opened the link, went quiet, nothing planned).
  */
 
 const DAY = 24 * 60 * 60 * 1000;
+
+/** Quiet days after the guest's last visit before RESUME becomes due. */
+const RESUME_QUIET_DAYS = 4;
+/** Inside this many days to arrival, RESUME stands down (PRE_ARRIVAL's job). */
+const RESUME_MIN_LEAD_DAYS = 3;
 
 export type TouchStatus =
   | "sent"
   | "due" // window open, not sent — the operator's move
   | "upcoming" // not yet due
+  | "suppressed" // its job is already done — sending would be noise
   | "lapsed"; // stay started/ended without it — record, not a task
+
+/** What the guest has already done — read-only, loaded in one pass. */
+export type TouchSignals = {
+  /** Latest link open across the stay's tokens (null = never opened). */
+  linkOpenedAt: Date | null;
+  welcomeSeenAt: Date | null;
+  /** A completed /plan intake exists for this stay. */
+  intakeDone: boolean;
+  /** SIGNALED / READY request titles — started, not finished. */
+  openRequests: string[];
+  /** CONFIRMED / SCHEDULED request titles — locked in. */
+  confirmedRequests: string[];
+  /** QUOTED count — priced, waiting on the guest's yes. */
+  awaitingApproval: number;
+};
 
 export type TouchRow = {
   kind: TouchKind;
   label: string;
   detail: string;
-  dueAt: Date;
+  /** null = not applicable yet (RESUME before any visit). */
+  dueAt: Date | null;
   status: TouchStatus;
+  suppressReason: string | null;
   sentAt: Date | null;
   channel: string | null;
   sentTo: string | null;
@@ -49,15 +76,75 @@ const LABELS: Record<TouchKind, { label: string; detail: string }> = {
   },
   PRE_ARRIVAL: {
     label: "Pre-arrival",
-    detail: "~2 wks out: nearly here — anything still open, one tap closes it.",
+    detail: "~2 wks out: names what's set and what's still open.",
+  },
+  RESUME: {
+    label: "Resume",
+    detail: `Opened the link, went quiet ${RESUME_QUIET_DAYS}+ days with nothing planned.`,
   },
 };
 
+export async function loadTouchSignals(stay: {
+  id: string;
+  welcomeSeenAt: Date | null;
+}): Promise<TouchSignals> {
+  const [intakeCount, requests, tokenAgg] = await Promise.all([
+    prisma.tripIntake.count({ where: { stayId: stay.id } }),
+    prisma.serviceRequest.findMany({
+      where: {
+        stayId: stay.id,
+        status: { in: ["SIGNALED", "READY", "QUOTED", "CONFIRMED", "SCHEDULED"] },
+      },
+      select: {
+        status: true,
+        customTitle: true,
+        service: { select: { name: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.accessToken.aggregate({
+      where: { stayId: stay.id },
+      _max: { lastAccessedAt: true },
+    }),
+  ]);
+
+  const title = (r: (typeof requests)[number]) =>
+    r.service?.name ?? r.customTitle ?? "a request";
+
+  return {
+    linkOpenedAt: tokenAgg._max.lastAccessedAt,
+    welcomeSeenAt: stay.welcomeSeenAt,
+    intakeDone: intakeCount > 0,
+    openRequests: requests
+      .filter((r) => r.status === "SIGNALED" || r.status === "READY")
+      .map(title),
+    confirmedRequests: requests
+      .filter((r) => r.status === "CONFIRMED" || r.status === "SCHEDULED")
+      .map(title),
+    awaitingApproval: requests.filter((r) => r.status === "QUOTED").length,
+  };
+}
+
+/** Anything at all in motion (started, priced, or locked in)? */
+function inMotionCount(s: TouchSignals): number {
+  return s.openRequests.length + s.confirmedRequests.length + s.awaitingApproval;
+}
+
+function lastVisit(s: TouchSignals): Date | null {
+  const times = [s.linkOpenedAt, s.welcomeSeenAt]
+    .filter((d): d is Date => d != null)
+    .map((d) => d.getTime());
+  return times.length ? new Date(Math.max(...times)) : null;
+}
+
 /**
- * Due times from the stay's own dates. Short-lead bookings compress: every
- * touch stays inside [booking, arrival) and keeps its order.
+ * Calendar due times from the stay's own dates. Short-lead bookings
+ * compress: every touch stays inside [booking, arrival) and keeps its order.
  */
-function dueTimes(stay: { createdAt: Date; arrivalDate: Date }): Record<TouchKind, Date> {
+function dueTimes(stay: {
+  createdAt: Date;
+  arrivalDate: Date;
+}): Record<Exclude<TouchKind, "RESUME">, Date> {
   const booked = stay.createdAt.getTime();
   const arrival = stay.arrivalDate.getTime();
   const clamp = (t: number, floor: number) =>
@@ -69,10 +156,36 @@ function dueTimes(stay: { createdAt: Date; arrivalDate: Date }): Record<TouchKin
   };
 }
 
+/**
+ * Suppression — the crook test in code. Returns the operator-facing reason,
+ * or null when the touch still has a job to do. WELCOME never suppresses
+ * (the written document has value even after a first visit); PRE_ARRIVAL
+ * never suppresses (its content degrades to "you're all set" instead).
+ */
+function suppressReason(kind: TouchKind, s: TouchSignals): string | null {
+  if (kind === "PLAN_AHEAD") {
+    if (s.intakeDone) return "Already planned — /plan is done.";
+    if (inMotionCount(s) >= 2)
+      return "Already planning — services are in motion.";
+    return null;
+  }
+  if (kind === "RESUME") {
+    if (lastVisit(s) == null) return "Hasn't opened the link yet — welcome/plan-ahead do this job.";
+    if (s.intakeDone || inMotionCount(s) > 0) return "They picked it back up on their own.";
+    return null;
+  }
+  return null;
+}
+
 export function buildTouchPlan(
-  stay: { createdAt: Date; arrivalDate: Date; departureDate: Date },
+  stay: {
+    createdAt: Date;
+    arrivalDate: Date;
+    departureDate: Date;
+  },
   timezone: string,
   touches: Pick<GuestTouch, "kind" | "createdAt" | "channel" | "sentTo">[],
+  signals: TouchSignals,
   now = new Date(),
 ): TouchRow[] {
   const due = dueTimes(stay);
@@ -81,24 +194,154 @@ export function buildTouchPlan(
 
   return (Object.keys(LABELS) as TouchKind[]).map((kind) => {
     const record = sent.get(kind) ?? null;
+
+    // RESUME is behavior-clocked, not calendar-clocked: quiet-period after
+    // the last visit, standing down close to arrival.
+    const visit = lastVisit(signals);
+    const dueAt =
+      kind === "RESUME"
+        ? visit
+          ? new Date(visit.getTime() + RESUME_QUIET_DAYS * DAY)
+          : null
+        : due[kind];
+
+    const reason = record ? null : suppressReason(kind, signals);
+    const tooCloseForResume =
+      kind === "RESUME" &&
+      stay.arrivalDate.getTime() - now.getTime() < RESUME_MIN_LEAD_DAYS * DAY;
+
     const status: TouchStatus = record
       ? "sent"
       : phase !== "PRE_ARRIVAL"
         ? "lapsed"
-        : now.getTime() >= due[kind].getTime()
-          ? "due"
-          : "upcoming";
+        : reason
+          ? "suppressed"
+          : tooCloseForResume
+            ? "suppressed"
+            : dueAt == null
+              ? "upcoming"
+              : now.getTime() >= dueAt.getTime()
+                ? "due"
+                : "upcoming";
+
     return {
       kind,
       label: LABELS[kind].label,
       detail: LABELS[kind].detail,
-      dueAt: due[kind],
+      dueAt,
       status,
+      suppressReason:
+        status === "suppressed"
+          ? (reason ?? "Arrival is close — pre-arrival covers it.")
+          : null,
       sentAt: record?.createdAt ?? null,
       channel: record?.channel ?? null,
       sentTo: record?.sentTo ?? null,
     };
   });
+}
+
+/* ── Content — what each touch SAYS, as a function of the signals. The
+      subject/body name what's set and what's still open (the guest's own
+      intents, never a pitch). Consumed by actions/touchpoints.ts via
+      guestEmail.sendCadenceEmail. WELCOME keeps its bespoke template. ── */
+
+/** Human list: "A", "A and B", "A, B, and 2 more" — capped so emails stay calm. */
+function joinList(items: string[], cap = 2): string {
+  if (items.length <= cap) {
+    return items.length === 2 ? `${items[0]} and ${items[1]}` : items.join("");
+  }
+  const rest = items.length - cap;
+  return `${items.slice(0, cap).join(", ")}, and ${rest} more`;
+}
+
+export type TouchContent = RenderedEmail & {
+  /** Relative in-app destination the tokened link should land on. */
+  nextPath: string | null;
+};
+
+export function touchEmailContent(
+  kind: Exclude<TouchKind, "WELCOME">,
+  ctx: {
+    guestFirstName: string;
+    propertyName: string;
+    dateRange: string;
+    signals: TouchSignals;
+  },
+): TouchContent {
+  const { guestFirstName: name, propertyName, dateRange, signals: s } = ctx;
+
+  if (kind === "PLAN_AHEAD") {
+    return {
+      subject: `Shall we get your stay arranged?`,
+      headline: `${name}, let's get ahead of it.`,
+      paragraphs: [
+        `Your stay at ${propertyName} is on our books, and the best trips are arranged before the bags are packed.`,
+        `A few quick questions about the car, the kitchen, the gear, and your concierge takes it from there.`,
+      ],
+      ctaLabel: "Plan your stay",
+      closing: "A couple of minutes now, and arrival looks after itself.",
+      nextPath: "/plan",
+    };
+  }
+
+  if (kind === "RESUME") {
+    return {
+      subject: `Shall we pick up where you left off?`,
+      headline: `${name}, we kept your place.`,
+      paragraphs: [
+        `You had a look at your ${propertyName} trip page. Nothing's arranged yet, and that's easy to fix.`,
+        `A few one-tap questions and your concierge handles the rest. The car, the kitchen, the gear.`,
+      ],
+      ctaLabel: "Pick it back up",
+      closing: "Whenever you're ready. No rush.",
+      nextPath: "/plan",
+    };
+  }
+
+  // PRE_ARRIVAL — signal-aware: name what's set, what waits on them, what's
+  // open; degrade to a warm "you're all set" when everything's handled.
+  const paragraphs: string[] = [];
+  const confirmed = s.confirmedRequests;
+  const open = s.openRequests;
+
+  paragraphs.push(
+    confirmed.length > 0
+      ? `${propertyName}, ${dateRange}. ${joinList(confirmed)} ${confirmed.length === 1 ? "is" : "are"} set.`
+      : `${propertyName}, ${dateRange}. Your trip page has the latest.`,
+  );
+
+  const second: string[] = [];
+  if (s.awaitingApproval > 0) {
+    second.push(
+      s.awaitingApproval === 1
+        ? `One thing waits on your yes: a priced request is ready to approve.`
+        : `${s.awaitingApproval} priced requests are ready for your yes.`,
+    );
+  }
+  if (open.length > 0) {
+    second.push(
+      `Still open: ${joinList(open)}. A tap or two finishes ${open.length === 1 ? "it" : "them"}.`,
+    );
+  }
+  if (second.length === 0 && confirmed.length === 0) {
+    second.push(`If something should be waiting when you arrive, it's one tap away.`);
+  }
+  if (second.length > 0) paragraphs.push(second.join(" "));
+
+  const allHandled =
+    confirmed.length > 0 && open.length === 0 && s.awaitingApproval === 0;
+
+  return {
+    subject: `${propertyName} is nearly ready for you`,
+    headline: `${name}, it's nearly time.`,
+    paragraphs,
+    ctaLabel: "Open your trip",
+    closing: allHandled
+      ? "You're all set. We'll have it all waiting."
+      : "We'll have it all waiting.",
+    nextPath: null,
+  };
 }
 
 /** Sent touches for a stay — fetched separately so this build never has to

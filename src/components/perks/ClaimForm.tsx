@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { claimPerk, type ClaimResult } from "@/app/actions/perks";
+import { SMS_OPT_IN_LABEL, SMS_REASSURANCE } from "@/lib/consentCopy";
 import styles from "./ClaimForm.module.css";
 
 /**
@@ -119,6 +120,17 @@ export default function ClaimForm({
       <label className={styles.optIn}>
         <input type="checkbox" name="optIn" className={styles.checkbox} />
         <span>Keep me in touch for future stays</span>
+      </label>
+
+      {/* TCPA express consent — meaningful only with a number; the action
+          ignores it when the phone field is empty. Reassurance is the
+          versioned disclosure (consentCopy.ts). */}
+      <label className={styles.optIn}>
+        <input type="checkbox" name="smsOptIn" className={styles.checkbox} />
+        <span>
+          {SMS_OPT_IN_LABEL}
+          <span className={styles.optInNote}>{SMS_REASSURANCE}</span>
+        </span>
       </label>
 
       {state && !state.ok && <p className={styles.error}>{state.error}</p>}

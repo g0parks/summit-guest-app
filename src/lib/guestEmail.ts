@@ -2,6 +2,7 @@ import "server-only";
 import type { Guest, Partner, Property, Stay } from "@prisma/client";
 import { resolveBrand } from "./branding";
 import { getConciergeContact } from "./concierge";
+import { buildUnsubscribeToken, canEmail } from "./consent";
 import { formatDateRange } from "./dates";
 
 /**
@@ -39,7 +40,37 @@ export function getGuestEmailConfig(): GuestEmailConfig {
 /** Honest send outcome — the ops panel renders this verbatim. */
 export type GuestEmailResult =
   | { sent: true; to: string; mode: "resend" | "console" }
-  | { sent: false; reason: "not-configured" | "no-email" | "send-failed" };
+  | { sent: false; reason: "not-configured" | "no-email" | "opted-out" | "send-failed" };
+
+/* ── CAN-SPAM compliance — every guest email carries a working unsubscribe
+      and our postal address, and the send-gate (consent.ts) is consulted
+      before composing. List-Unsubscribe headers give inbox providers the
+      one-click path (RFC 8058). ── */
+
+const POSTAL_LINE =
+  "Summit Luxury Logistics LLC · 7533 S Center View Ct, Ste N · West Jordan, UT 84084";
+
+function compliance(guest: Guest): {
+  footerText: string;
+  footerHtml: string;
+  headers: Record<string, string>;
+} {
+  const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
+  const token = buildUnsubscribeToken(guest.id);
+  const pageUrl = `${base}/unsubscribe/${encodeURIComponent(token)}`;
+  const oneClickUrl = `${base}/api/unsubscribe?token=${encodeURIComponent(token)}`;
+  return {
+    footerText: [``, `Unsubscribe: ${pageUrl}`, POSTAL_LINE].join("\n"),
+    footerHtml: `<p style="font-size:11px;line-height:1.6;color:#a8a294;margin:40px 0 0;">
+        <a href="${escapeAttr(pageUrl)}" style="color:#a8a294;">Unsubscribe</a>
+        &nbsp;·&nbsp; ${escapeHtml(POSTAL_LINE)}
+      </p>`,
+    headers: {
+      "List-Unsubscribe": `<${oneClickUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  };
+}
 
 export async function sendWelcomeEmail(input: {
   guest: Guest;
@@ -52,10 +83,12 @@ export async function sendWelcomeEmail(input: {
 
   const to = input.guest.email?.trim();
   if (!to) return { sent: false, reason: "no-email" };
+  if (!canEmail(input.guest)) return { sent: false, reason: "opted-out" };
 
   const { guest, stay, property, link } = input;
   const brand = resolveBrand(property);
   const concierge = getConciergeContact();
+  const comply = compliance(guest);
   const dates = formatDateRange(stay.arrivalDate, stay.departureDate, property.timezone);
 
   const subject = `Your stay at ${property.name}`;
@@ -75,11 +108,12 @@ export async function sendWelcomeEmail(input: {
     link,
     ``,
     `Open it and tell us what should be waiting. A little now makes for an`,
-    `easy arrival.`,
+    `easy arrival. Prefer text updates? Tap through and tell us your number.`,
     ...(conciergeLine ? [``, conciergeLine] : []),
     ``,
     `${brand.label}`,
     ...(brand.poweredBy ? [`powered by Summit`] : []),
+    comply.footerText,
   ].join("\n");
 
   const accent = brand.accentColor ?? "#2f4b3c"; // Summit Alpine Pine
@@ -111,9 +145,10 @@ export async function sendWelcomeEmail(input: {
       </p>
       <p style="font-size:14px;line-height:1.65;color:#6f6a60;margin:0 0 30px;">
         Tap through and tell us what should be waiting. A little now makes for
-        an easy arrival.
+        an easy arrival. Prefer text updates? Tell us your number inside.
       </p>
       ${conciergeLine ? `<p style="font-size:14px;line-height:1.65;color:#6f6a60;margin:0;">${escapeHtml(conciergeLine)}</p>` : ""}
+      ${comply.footerHtml}
     </div>
   </body>
 </html>`;
@@ -140,7 +175,7 @@ export async function sendWelcomeEmail(input: {
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from: config.from, to, subject, text, html }),
+      body: JSON.stringify({ from: config.from, to, subject, text, html, headers: comply.headers }),
     });
     if (!res.ok) {
       console.error(
@@ -155,9 +190,11 @@ export async function sendWelcomeEmail(input: {
   }
 }
 
-/* ── Cadence emails — same gate, same register, one shared renderer ── */
+/* ── Cadence emails — same gate, same register, one shared renderer.
+      CONTENT comes from the signal-aware engine (touchpoints.touchEmailContent);
+      this layer owns delivery, branding, and compliance only. ── */
 
-type CadenceEmailInput = {
+export type CadenceEmailInput = {
   guest: Guest;
   stay: Stay;
   property: Property & { partner: Partner | null };
@@ -165,7 +202,7 @@ type CadenceEmailInput = {
   link: string;
 };
 
-type RenderedEmail = {
+export type RenderedEmail = {
   subject: string;
   headline: string;
   paragraphs: string[];
@@ -173,7 +210,7 @@ type RenderedEmail = {
   closing: string | null;
 };
 
-async function sendCadenceEmail(
+export async function sendCadenceEmail(
   input: CadenceEmailInput,
   rendered: RenderedEmail,
 ): Promise<GuestEmailResult> {
@@ -181,7 +218,9 @@ async function sendCadenceEmail(
   if (!config.enabled) return { sent: false, reason: "not-configured" };
   const to = input.guest.email?.trim();
   if (!to) return { sent: false, reason: "no-email" };
+  if (!canEmail(input.guest)) return { sent: false, reason: "opted-out" };
 
+  const comply = compliance(input.guest);
   const brand = resolveBrand(input.property);
   const concierge = getConciergeContact();
   const conciergeLine = concierge.phone
@@ -200,6 +239,7 @@ async function sendCadenceEmail(
     ``,
     `${brand.label}`,
     ...(brand.poweredBy ? [`powered by Summit`] : []),
+    comply.footerText,
   ].join("\n");
 
   const accent = brand.accentColor ?? "#2f4b3c";
@@ -227,6 +267,7 @@ async function sendCadenceEmail(
       </p>
       ${rendered.closing ? `<p style="font-size:14px;line-height:1.65;color:#6f6a60;margin:0 0 30px;">${escapeHtml(rendered.closing)}</p>` : ""}
       ${conciergeLine ? `<p style="font-size:14px;line-height:1.65;color:#6f6a60;margin:0;">${escapeHtml(conciergeLine)}</p>` : ""}
+      ${comply.footerHtml}
     </div>
   </body>
 </html>`;
@@ -252,7 +293,7 @@ async function sendCadenceEmail(
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from: config.from, to, subject: rendered.subject, text, html }),
+      body: JSON.stringify({ from: config.from, to, subject: rendered.subject, text, html, headers: comply.headers }),
     });
     if (!res.ok) {
       console.error(
@@ -267,42 +308,9 @@ async function sendCadenceEmail(
   }
 }
 
-/**
- * ~2 wks post-booking: the /plan invitation. Presupposing register — the
- * planning is already underway; they're invited into it. No prices.
- */
-export async function sendPlanAheadEmail(input: CadenceEmailInput): Promise<GuestEmailResult> {
-  const { guest, property } = input;
-  return sendCadenceEmail(input, {
-    subject: `Shall we get your stay arranged?`,
-    headline: `${guest.firstName}, let's get ahead of it.`,
-    paragraphs: [
-      `Your stay at ${property.name} is on our books, and the best trips are arranged before the bags are packed.`,
-      `A few quick questions about the car, the kitchen, the gear, and your concierge takes it from there.`,
-    ],
-    ctaLabel: "Plan your stay",
-    closing: "A couple of minutes now, and arrival looks after itself.",
-  });
-}
-
-/**
- * ~2 wks before arrival: nearly here. Calm readiness, not a checklist of
- * guilt — whatever's still open is one tap from done.
- */
-export async function sendPreArrivalEmail(input: CadenceEmailInput): Promise<GuestEmailResult> {
-  const { guest, stay, property } = input;
-  const dates = formatDateRange(stay.arrivalDate, stay.departureDate, property.timezone);
-  return sendCadenceEmail(input, {
-    subject: `${property.name} is nearly ready for you`,
-    headline: `${guest.firstName}, it's nearly time.`,
-    paragraphs: [
-      `${property.name}, ${dates}. Everything we've arranged is in motion, and your trip page has the latest.`,
-      `Anything still open is one tap from done, and if something new comes to mind, your concierge is listening.`,
-    ],
-    ctaLabel: "Open your trip",
-    closing: "We'll have it all waiting.",
-  });
-}
+// The per-kind copy that used to live here (plan-ahead, pre-arrival) moved to
+// the signal-aware engine: src/lib/touchpoints.ts touchEmailContent(). This
+// file no longer decides WHAT a cadence email says — only how it's delivered.
 
 function escapeHtml(s: string): string {
   return s

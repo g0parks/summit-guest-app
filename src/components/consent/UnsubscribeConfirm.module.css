@@ -1,0 +1,48 @@
+.title {
+  margin-top: 28px;
+  font-size: 30px;
+  font-weight: 400;
+}
+
+.body {
+  margin-top: 16px;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+.error {
+  margin-top: 14px;
+  font-size: 13.5px;
+  color: #9a4a3c;
+}
+
+.confirm {
+  margin-top: 24px;
+  min-width: 180px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  transition: border-color 0.2s var(--ease), transform 0.2s var(--ease);
+}
+
+.confirm:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.confirm:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.confirm:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

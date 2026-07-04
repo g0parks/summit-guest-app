@@ -81,11 +81,14 @@ enum ChangeStatus {
 
 /// The decided pre-arrival cadence (Ops Decisions): at booking · ~2wk
 /// post-booking · ~2wk pre-arrival. Operator-TRIGGERED, never automated —
-/// the system surfaces what's due; a human sends it.
+/// the system surfaces what's due; a human sends it. RESUME is the
+/// behavior-gated abandonment nudge (2026-07-04): opened the link but
+/// went quiet with nothing planned — one per stay, like the rest.
 enum TouchKind {
   WELCOME
   PLAN_AHEAD
   PRE_ARRIVAL
+  RESUME
 }
 
 enum TabItemStatus {
@@ -207,6 +210,15 @@ model Guest {
   email       String? // optional re-entry binding
   phone       String?
   notes       String? // VIP prefs
+  // ── The consent spine (2026-07-04) — the state every sender consults via
+  // src/lib/consent.ts (canEmail/canSms). "We have a phone" and "they let us
+  // text" are different facts; these columns keep them separate. Email is
+  // opt-OUT (CAN-SPAM, relational stay email); SMS is opt-IN only (TCPA).
+  emailOptOutAt     DateTime? // tokened unsubscribe tapped; null = mailable
+  smsConsentAt      DateTime? // explicit opt-in moment; null = NEVER text
+  smsConsentSource  String? // where it was given: "perk-claim" | "plan-intake" | "app-home" | "intake-convert"
+  smsConsentVersion String? // disclosure copy version shown at consent (consent.ts)
+  smsOptOutAt       DateTime? // STOP/withdrawal; wins over smsConsentAt
   stays       Stay[]
   tripIntakes TripIntake[]
   createdAt   DateTime     @default(now())
@@ -381,6 +393,7 @@ model TripIntake {
   note        String? // typed capstone — the high-signal open capture
   utmJson     Json? // attribution only, never access (AccessToken.utmJson precedent)
   source      String? // ?src= on the inbound link (sms | email | …)
+  smsConsent  Boolean  @default(false) // World-B lead ticked the text opt-in at the contact step; applied to the Guest at conversion (opsStay)
   stayId      String? // set when a known-guest session existed at intake time
   stay        Stay?    @relation(fields: [stayId], references: [id])
   guestId     String? // future World-A conversion

@@ -49,16 +49,27 @@
 
 .optIn {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   font-size: 14px;
   color: var(--ink-muted);
   cursor: pointer;
 }
 
+/* reassurance line under the text opt-in — the versioned disclosure */
+.optInNote {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
 .checkbox {
   width: 18px;
   height: 18px;
+  margin-top: 1px;
+  flex-shrink: 0;
   accent-color: var(--accent);
 }
 

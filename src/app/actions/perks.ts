@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { getActiveStay } from "@/lib/session";
 import { notifyOperator } from "@/lib/notify";
 import { getStayPhase } from "@/lib/stayPhase";
+import { recordSmsConsent } from "@/lib/consent";
 
 export type ClaimResult = { ok: true } | { ok: false; error: string };
 
@@ -39,6 +40,10 @@ export async function claimPerk(
   const email = String(formData.get("email") ?? "").trim() || null;
   const phone = String(formData.get("phone") ?? "").trim() || null;
   const optIn = formData.get("optIn") === "on";
+  // Consent needs a number to consent TO — either typed here or already on
+  // file. A bare checkbox with no phone anywhere records nothing.
+  const smsOptIn =
+    formData.get("smsOptIn") === "on" && Boolean(phone || stay.guest.phone);
 
   if (!email && !phone) {
     return { ok: false, error: "Leave an email or phone number so we can arrange it." };
@@ -82,6 +87,11 @@ export async function claimPerk(
   if (!stay.guest.phone && phone) guestUpdate.phone = phone;
   if (Object.keys(guestUpdate).length > 0) {
     await prisma.guest.update({ where: { id: stay.guestId }, data: guestUpdate });
+  }
+
+  // The explicit text opt-in (TCPA express consent, source + version recorded).
+  if (smsOptIn) {
+    await recordSmsConsent(prisma, stay.guestId, "perk-claim");
   }
 
   await notifyOperator({

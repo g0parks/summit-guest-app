@@ -9,6 +9,7 @@ import {
   StayInputError,
 } from "@/lib/opsStay";
 import { interestedSlugs, parseIntakeAnswers } from "@/lib/intakeFlow";
+import { recordSmsConsent } from "@/lib/consent";
 import { buildToken } from "@/lib/tokens";
 import { getGuestEmailConfig, sendWelcomeEmail } from "@/lib/guestEmail";
 import { recordTouch } from "@/lib/touchpoints";
@@ -84,6 +85,7 @@ export async function submitStayForm(
     outcome = await prisma.$transaction(async (tx): Promise<TxOutcome> => {
       let intakeGuestId: string | null = null;
       let intakeInterestSlugs: string[] = [];
+      let intakeSmsConsent = false;
 
       if (intakeId) {
         // Idempotency claim: stamps convertedAt iff unclaimed AND unlinked.
@@ -128,6 +130,7 @@ export async function submitStayForm(
         if (!intake) throw new StayInputError("Intake not found.");
         intakeGuestId = intake.guestId; // post-stay return intents carry the guest
         intakeInterestSlugs = interestedSlugs(parseIntakeAnswers(intake.answersJson));
+        intakeSmsConsent = intake.smsConsent;
       }
 
       const created = await createStayWithToken(tx, {
@@ -144,6 +147,12 @@ export async function submitStayForm(
           where: { id: intakeId },
           data: { stayId: created.stay.id, guestId: created.guest.id },
         });
+        // The text opt-in given at /plan survives conversion: the lead's
+        // consent becomes the Guest's consent record (needs a number on the
+        // guest to consent TO).
+        if (intakeSmsConsent && created.guest.phone) {
+          await recordSmsConsent(tx, created.guest.id, "intake-convert");
+        }
         // World B's signals enroll the moment the lead becomes a stay — the
         // guest opens their fresh link to a checklist already in motion.
         await enrollIntakeSignals(tx, created.stay, intakeInterestSlugs);

@@ -33,7 +33,8 @@ import {
   parseIntakeAnswers,
 } from "@/lib/intakeFlow";
 import { getStayPhase, type StayPhase } from "@/lib/stayPhase";
-import { buildTouchPlan, getStayTouches } from "@/lib/touchpoints";
+import { buildTouchPlan, getStayTouches, loadTouchSignals } from "@/lib/touchpoints";
+import { canSms } from "@/lib/consent";
 import { getGuestEmailConfig } from "@/lib/guestEmail";
 import TouchpointsPanel, { type TouchRowView } from "@/components/ops/TouchpointsPanel";
 import styles from "../../ops.module.css";
@@ -135,18 +136,25 @@ export default async function OpsStayPage({
 
   const tz = stay.property.timezone;
   // Touchpoints fetched via their own lib — getOpsStayDetail stays untouched
-  // (concurrent-build discipline).
-  const touches = await getStayTouches(stayId);
-  const touchRows: TouchRowView[] = buildTouchPlan(stay, tz, touches).map((row) => ({
-    kind: row.kind,
-    label: row.label,
-    detail: row.detail,
-    dueLabel: formatDayLabel(row.dueAt, tz),
-    status: row.status,
-    sentLine: row.sentAt
-      ? `${formatDayLabel(row.sentAt, tz)} · ${row.channel ?? "email"}${row.sentTo ? ` · ${row.sentTo}` : ""}`
-      : null,
-  }));
+  // (concurrent-build discipline). Signals make the plan honest: suppressed
+  // touches show WHY instead of a send button.
+  const [touches, signals] = await Promise.all([
+    getStayTouches(stayId),
+    loadTouchSignals(stay),
+  ]);
+  const touchRows: TouchRowView[] = buildTouchPlan(stay, tz, touches, signals).map(
+    (row) => ({
+      kind: row.kind,
+      label: row.label,
+      detail: row.detail,
+      dueLabel: row.dueAt ? formatDayLabel(row.dueAt, tz) : "when it applies",
+      status: row.status,
+      suppressReason: row.suppressReason,
+      sentLine: row.sentAt
+        ? `${formatDayLabel(row.sentAt, tz)} · ${row.channel ?? "email"}${row.sentTo ? ` · ${row.sentTo}` : ""}`
+        : null,
+    }),
+  );
   const lastAccessedAt = stay.accessTokens.reduce<Date | null>(
     (latest, t) =>
       t.lastAccessedAt && (!latest || t.lastAccessedAt > latest)
@@ -219,6 +227,16 @@ export default async function OpsStayPage({
           rows={touchRows}
           emailEnabled={getGuestEmailConfig().enabled}
           guestHasEmail={Boolean(stay.guest.email)}
+          channelLine={
+            stay.guest.emailOptOutAt
+              ? "Email: unsubscribed (honored). Texts: " +
+                (canSms(stay.guest) ? "opted in." : "no opt-in.")
+              : canSms(stay.guest)
+                ? "Email: ok. Texts: opted in" +
+                  (stay.guest.smsConsentSource ? ` (${stay.guest.smsConsentSource})` : "") +
+                  "."
+                : "Email: ok. Texts: no opt-in yet."
+          }
         />
       </section>
 

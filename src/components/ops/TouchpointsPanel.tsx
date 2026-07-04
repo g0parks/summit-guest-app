@@ -15,7 +15,8 @@ export type TouchRowView = {
   label: string;
   detail: string;
   dueLabel: string;
-  status: "sent" | "due" | "upcoming" | "lapsed";
+  status: "sent" | "due" | "upcoming" | "suppressed" | "lapsed";
+  suppressReason: string | null; // why its job is already done (crook test)
   sentLine: string | null; // "Mar 3 · email · guest@x.com"
 };
 
@@ -23,6 +24,7 @@ const STATUS_BADGE: Record<TouchRowView["status"], string> = {
   sent: "badgeOk",
   due: "badgeAction",
   upcoming: "badgeNeutral",
+  suppressed: "badgeVoid",
   lapsed: "badgeVoid",
 };
 
@@ -54,10 +56,17 @@ function TouchRow({
       <p className={`${styles.small} ${styles.muted}`}>
         {row.detail} · due {row.dueLabel}
       </p>
+      {row.suppressReason && (
+        <p className={`${styles.small} ${styles.muted}`}>{row.suppressReason}</p>
+      )}
       {row.sentLine && <p className={styles.small}>Sent {row.sentLine}</p>}
       {sentNow && state?.ok && <p className={styles.small}>{state.line}</p>}
       {state && !state.ok && <p className={styles.error}>{state.error}</p>}
-      {!sentNow && row.status !== "sent" && row.status !== "lapsed" && canSend && (
+      {!sentNow &&
+        row.status !== "sent" &&
+        row.status !== "lapsed" &&
+        row.status !== "suppressed" &&
+        canSend && (
         <form action={action} className={styles.actionsRow}>
           <input type="hidden" name="stayId" value={stayId} />
           <input type="hidden" name="kind" value={row.kind} />
@@ -75,15 +84,21 @@ export default function TouchpointsPanel({
   rows,
   emailEnabled,
   guestHasEmail,
+  channelLine,
 }: {
   stayId: string;
   rows: TouchRowView[];
   emailEnabled: boolean;
   guestHasEmail: boolean;
+  /** Consent state at a glance: "Email: ok. Texts: no opt-in yet." */
+  channelLine?: string;
 }) {
   const canSend = emailEnabled && guestHasEmail;
   return (
     <div>
+      {channelLine && (
+        <p className={`${styles.small} ${styles.muted}`}>{channelLine}</p>
+      )}
       {!emailEnabled && (
         <p className={`${styles.small} ${styles.muted}`}>
           Guest email is off (GUEST_EMAIL_FROM unset) — cadence is read-only.

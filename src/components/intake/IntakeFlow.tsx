@@ -9,6 +9,7 @@ import type {
   ParameterQuestion,
 } from "@/lib/intakeFlow";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
+import { SMS_OPT_IN_LABEL, SMS_REASSURANCE } from "@/lib/consentCopy";
 import styles from "./IntakeFlow.module.css";
 
 /**
@@ -361,6 +362,15 @@ export default function IntakeFlow({
                 <label className={styles.fieldLabel}>
                   <span>Phone</span>
                   <input name="phone" type="tel" autoComplete="tel" className={styles.input} />
+                </label>
+                {/* TCPA express consent — recorded on the lead, applied to the
+                    Guest at conversion. Ignored when phone stays empty. */}
+                <label className={styles.smsOptIn}>
+                  <input type="checkbox" name="smsOptIn" className={styles.smsCheckbox} />
+                  <span>
+                    {SMS_OPT_IN_LABEL}
+                    <span className={styles.smsOptInNote}>{SMS_REASSURANCE}</span>
+                  </span>
                 </label>
                 <label className={styles.fieldLabel}>
                   <span>
