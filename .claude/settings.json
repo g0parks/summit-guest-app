@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(unzip -l *)",
-      "Bash(npm run lint)",
-      "Bash(npm run typecheck)"
-    ]
-  }
-}
