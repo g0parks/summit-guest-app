@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStay } from "@/lib/session";
+import { canSms } from "@/lib/consent";
 import { getBarSeeds, getRequestForWizard } from "@/lib/queries";
 import { parseRequestDetails } from "@/lib/serviceForm";
 import {
@@ -100,6 +101,9 @@ export default async function RequestPage({
         }}
         seeds={seeds}
         feeStructure={feeStructure}
+        textGate={
+          canSms(stay.guest) ? null : { defaultPhone: stay.guest.phone ?? "" }
+        }
       />
     );
   }

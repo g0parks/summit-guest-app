@@ -20,6 +20,7 @@ import {
   type RequestDetail,
   type ServiceFlowConfig,
 } from "@/lib/serviceForm";
+import { canSms, recordSmsConsent } from "@/lib/consent";
 import { parseVendorCostNote } from "@/lib/vendorNote";
 import { zonedDateTime } from "@/lib/dates";
 import { getStayPhase } from "@/lib/stayPhase";
@@ -308,6 +309,28 @@ export async function saveRequestDetails(
       closedDays: closedDaysForService(service.slug),
     });
     details.push({ name: "rush", label: "Timing", value: rushLabel(rush) });
+  }
+
+  // ── The engagement gate (Parker, 2026-07-04): completing an order requires
+  // a textable number — coordination IS the service (driver en route, delivery
+  // at the door). Only binds mode=complete; "finish later" stays ungated
+  // (graceful exit always). Typing the number under the shown disclosure is
+  // the express-consent act (TCPA); recorded with source + version. Consent
+  // sticks even if the flow turns out incomplete below — it was given.
+  const needsTextGate = !canSms(stay.guest);
+  if (!finishLater && needsTextGate) {
+    const coordPhone = String(formData.get("coordPhone") ?? "").trim();
+    if (coordPhone.replace(/\D/g, "").length < 10) {
+      return {
+        ok: false,
+        error: "Add a mobile number so your concierge can coordinate your order.",
+      };
+    }
+    await prisma.guest.update({
+      where: { id: stay.guestId },
+      data: { phone: coordPhone },
+    });
+    await recordSmsConsent(prisma, stay.guestId, "request-wizard");
   }
 
   const complete =

@@ -56,6 +56,14 @@ co-brand, from `GUEST_EMAIL_FROM`.
 ## Compliance footer (every email, small + quiet)
 - **Line:** Unsubscribe · Summit Luxury Logistics LLC · 7533 S Center View Ct, Ste N · West Jordan, UT 84084
 
+## Wizard contact screen (the engagement gate — completing an order asks for a textable number)
+- **Eyebrow:** Staying in touch
+- **Question:** Where should updates go?
+- **Detail:** Your concierge coordinates by text. The driver on the way, the delivery at the door, a question about timing.
+- **Field label:** Mobile number
+- **Disclosure under the field:** {reassurance line} By continuing, you agree we may text this number about your stay.
+- **Inline error (no number):** Add a mobile number so your concierge can reach you.
+
 ## Consent microcopy (in-app: home card, perk claim, /plan contact)
 - **Checkbox label:** Text me updates about my stay
 - **Reassurance line (the versioned disclosure):** Only about your stay. Your driver, your delivery, a question from your concierge. Never spam, and you can stop any time.

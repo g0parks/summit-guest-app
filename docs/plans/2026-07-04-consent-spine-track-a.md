@@ -25,6 +25,18 @@ drift. Email is opt-out (CAN-SPAM; relational stay email). SMS is opt-in only
 (TCPA); no consent row → no text, no exceptions.
 
 **Capture points (all explicit, all show the reassurance line):**
+0. **The engagement gate (added same day, Parker: "text updates are
+   necessary if someone wants to engage — more like a gate").** Completing a
+   request in the wizard requires a textable number when the guest can't be
+   texted yet: a "Where should updates go?" screen before the finish, framed
+   as service coordination (which it genuinely is — driver, delivery,
+   timing). Typing the number under the shown disclosure is the express-
+   consent act; enforced client- and server-side on `mode=complete` only.
+   "Finish later" stays ungated (graceful exit always), signals themselves
+   stay one-tap, and /plan (World B lead capture) keeps its optional
+   checkbox — the gate binds *order completion*, not curiosity. Fence, not
+   pen: the guest can always exit; but an order Summit must coordinate needs
+   a channel to coordinate on.
 1. **App home card** (`TextUpdatesPrompt`, pre-arrival, retires on opt-in,
    never re-begs after a withdrawal) — the RentalCarPrompt register. The
    welcome email's "prefer texts?" line lands here. NOTE: the locked plan

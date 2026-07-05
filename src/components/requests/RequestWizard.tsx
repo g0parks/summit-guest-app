@@ -17,6 +17,7 @@ import {
   type WizardStep,
 } from "@/lib/serviceForm";
 import { computeChargeCents, isFixedPrice } from "@/lib/catalog";
+import { SMS_REASSURANCE } from "@/lib/consentCopy";
 import { formatMoney } from "@/lib/money";
 import styles from "./RequestWizard.module.css";
 
@@ -56,6 +57,7 @@ type Screen =
   | { key: string; kind: "fields"; step: WizardStep }
   | { key: string; kind: "person"; step: WizardStep; group: PerPersonField; person: number }
   | { key: string; kind: "attach"; attach: AttachOffer }
+  | { key: string; kind: "contact" }
   | { key: string; kind: "notes" };
 
 /** Field names referenced by any showIf — these selects drive conditional steps. */
@@ -74,6 +76,7 @@ export default function RequestWizard({
   defaults,
   seeds = {},
   feeStructure = null,
+  textGate = null,
 }: {
   requestId: string;
   service: WizardService;
@@ -91,6 +94,11 @@ export default function RequestWizard({
     degraded: string | null;
     closeDetail: string;
   } | null;
+  /** The engagement gate (Parker, 2026-07-04): completing an order requires a
+   *  textable number — coordination IS the service (the driver en route, the
+   *  delivery at the door). Non-null when the guest can't be texted yet;
+   *  "Finish later" stays ungated (graceful exit always). */
+  textGate?: { defaultPhone: string } | null;
 }) {
   const flow = useMemo(() => serviceFlow(service.slug), [service.slug]);
   const needsSchedule =
@@ -98,6 +106,8 @@ export default function RequestWizard({
 
   const [party, setParty] = useState(clampParty(defaults.partySize));
   const [idx, setIdx] = useState(0);
+  const [coordPhone, setCoordPhone] = useState(textGate?.defaultPhone ?? "");
+  const [coordError, setCoordError] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState<WizardResult | null, FormData>(
     saveRequestDetails,
     null,
@@ -148,14 +158,28 @@ export default function RequestWizard({
         list.push({ key: `attach:${attach.name}`, kind: "attach", attach });
       }
     }
+    if (textGate) list.push({ key: "contact", kind: "contact" });
     list.push({ key: "notes", kind: "notes" });
     return list;
-  }, [flow, needsSchedule, party, controls]);
+  }, [flow, needsSchedule, party, controls, textGate]);
 
   // Party can shrink the screen list mid-flow — never strand the index.
   const current = Math.min(idx, screens.length - 1);
   const next = () => setIdx(Math.min(current + 1, screens.length - 1));
   const back = () => setIdx(Math.max(current - 1, 0));
+
+  // The contact screen's Continue holds until there's a dialable number —
+  // the one client-side gate (the server enforces the same on complete).
+  const advance = (screen: Screen) => {
+    if (screen.kind === "contact") {
+      if (coordPhone.replace(/\D/g, "").length < 10) {
+        setCoordError("Add a mobile number so your concierge can reach you.");
+        return;
+      }
+      setCoordError(null);
+    }
+    next();
+  };
 
   const fixed = isFixedPrice(service.priceUnit, service.priceAmount);
   const previewCents = fixed
@@ -391,6 +415,39 @@ export default function RequestWizard({
                   </>
                 )}
 
+                {screen.kind === "contact" && (
+                  <>
+                    <span className="eyebrow">Staying in touch</span>
+                    <h1 className={styles.question}>Where should updates go?</h1>
+                    <p className={styles.detail}>
+                      Your concierge coordinates by text. The driver on the way,
+                      the delivery at the door, a question about timing.
+                    </p>
+                    <div className={styles.fields}>
+                      <label className={styles.fieldLabel}>
+                        <span>Mobile number</span>
+                        <input
+                          type="tel"
+                          name="coordPhone"
+                          inputMode="tel"
+                          autoComplete="tel"
+                          value={coordPhone}
+                          onChange={(e) => setCoordPhone(e.target.value)}
+                          placeholder="(435) 555-0100"
+                          className={styles.input}
+                        />
+                      </label>
+                      {/* The versioned disclosure (consentCopy.ts) — continuing
+                          with a number here IS the express consent moment. */}
+                      <p className={styles.consentLine}>
+                        {SMS_REASSURANCE} By continuing, you agree we may text
+                        this number about your stay.
+                      </p>
+                      {coordError && <p className={styles.error}>{coordError}</p>}
+                    </div>
+                  </>
+                )}
+
                 {screen.kind === "notes" && (
                   <>
                     <span className="eyebrow">One more thing</span>
@@ -458,7 +515,11 @@ export default function RequestWizard({
                     </button>
                   </>
                 ) : (
-                  <button type="button" className={styles.primaryBtn} onClick={next}>
+                  <button
+                    type="button"
+                    className={styles.primaryBtn}
+                    onClick={() => advance(screen)}
+                  >
                     Continue
                   </button>
                 )}

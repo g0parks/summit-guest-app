@@ -45,7 +45,8 @@ export type SmsConsentSource =
   | "perk-claim"
   | "plan-intake"
   | "app-home"
-  | "intake-convert";
+  | "intake-convert"
+  | "request-wizard";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
