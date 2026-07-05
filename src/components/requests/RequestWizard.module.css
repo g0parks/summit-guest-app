@@ -325,6 +325,14 @@
   color: #9c4221;
 }
 
+/* the express-consent disclosure on the contact screen — quiet, legible */
+.consentLine {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-faint);
+  max-width: 36ch;
+}
+
 /* ── the close ────────────────────────────────────────────── */
 .doneBody {
   flex: 1;
