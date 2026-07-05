@@ -45,5 +45,8 @@ next-env.d.ts
 # claude code local-only memory (personal notes / sensitive paths, never in git)
 CLAUDE.local.md
 
+# claude code local session state (settings, worktrees) — machine-local, never in git
+/.claude/
+
 # scratch — local verify scripts & screenshots, never in git
 /.scratch/
