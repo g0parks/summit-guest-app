@@ -68,9 +68,11 @@ owns delivery + compliance only, never content.
 - **PRE_ARRIVAL** — names what's set, what waits on their yes (quotes), what's
   still open; degrades to "you're all set" when everything's handled. Never
   suppressed.
-- **RESUME (new)** — behavior-clocked, not calendar: opened the link, then
-  quiet ≥4 days with nothing planned; stands down inside 3 days to arrival
-  (PRE_ARRIVAL's job) and the moment they act on their own. One per stay.
+- **RESUME (new)** — behavior-clocked, not calendar: crossed the welcome
+  threshold (the "Step inside" tap — bot-proof; bare link opens don't count,
+  scanners open links), then quiet ≥4 days with nothing planned; stands down
+  inside 3 days to arrival (PRE_ARRIVAL's job) and the moment they act on
+  their own. One per stay.
 - `sendTouch` re-checks suppression server-side and refuses ("never prod
   someone already served"); the operator's escape hatch stays GuestLinkPanel.
 

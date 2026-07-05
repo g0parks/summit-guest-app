@@ -4,6 +4,7 @@ import styles from "./invalid.module.css";
 
 export const metadata = {
   title: "Summit",
+  robots: { index: false, follow: false },
 };
 
 export default function InvalidLink() {

@@ -17,7 +17,45 @@ function str(v: unknown, max: number): string | null {
   return typeof v === "string" ? v.trim().slice(0, max) || null : null;
 }
 
+/**
+ * Best-effort per-IP throttle: 5 submissions per 10 minutes. In-memory, so
+ * each serverless instance keeps its own window — with Fluid Compute reusing
+ * instances this dampens a burst well, and that's the whole job (the
+ * honeypot handles dumb bots; this stops a flood from hammering the DB and
+ * the operator inbox). Deliberately no Redis: infra stays minimal, and a
+ * distributed limiter isn't warranted for a marketing form.
+ */
+const WINDOW_MS = 10 * 60 * 1000;
+const MAX_PER_WINDOW = 5;
+const recentByIp = new Map<string, number[]>();
+
+function throttled(ip: string, now = Date.now()): boolean {
+  const hits = (recentByIp.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
+  if (hits.length >= MAX_PER_WINDOW) {
+    recentByIp.set(ip, hits);
+    return true;
+  }
+  hits.push(now);
+  recentByIp.set(ip, hits);
+  // Keep the map from growing unbounded across a long-lived instance.
+  if (recentByIp.size > 1000) {
+    for (const [k, v] of recentByIp) {
+      if (v.every((t) => now - t >= WINDOW_MS)) recentByIp.delete(k);
+    }
+  }
+  return false;
+}
+
 export async function POST(req: Request) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (throttled(ip)) {
+    return NextResponse.json(
+      { ok: false, error: "Too many requests — please try again in a few minutes." },
+      { status: 429 },
+    );
+  }
+
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;

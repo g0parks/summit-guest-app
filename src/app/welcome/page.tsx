@@ -11,6 +11,7 @@ import styles from "./welcome.module.css";
 // full-screen first impression. Co-brand quiet; the aesthetic carries the
 // "better taste" signal, the words just scope it to the essentials.
 export const dynamic = "force-dynamic";
+export const metadata = { robots: { index: false, follow: false } };
 
 export default async function WelcomePage() {
   const active = await getActiveStay();

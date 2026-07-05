@@ -58,11 +58,14 @@ function compliance(guest: Guest): {
   const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
   const token = buildUnsubscribeToken(guest.id);
   const pageUrl = `${base}/unsubscribe/${encodeURIComponent(token)}`;
+  const privacyUrl = `${base}/privacy`;
   const oneClickUrl = `${base}/api/unsubscribe?token=${encodeURIComponent(token)}`;
   return {
-    footerText: [``, `Unsubscribe: ${pageUrl}`, POSTAL_LINE].join("\n"),
+    footerText: [``, `Unsubscribe: ${pageUrl}`, `Privacy: ${privacyUrl}`, POSTAL_LINE].join("\n"),
     footerHtml: `<p style="font-size:11px;line-height:1.6;color:#a8a294;margin:40px 0 0;">
         <a href="${escapeAttr(pageUrl)}" style="color:#a8a294;">Unsubscribe</a>
+        &nbsp;·&nbsp;
+        <a href="${escapeAttr(privacyUrl)}" style="color:#a8a294;">Privacy</a>
         &nbsp;·&nbsp; ${escapeHtml(POSTAL_LINE)}
       </p>`,
     headers: {

@@ -80,7 +80,7 @@ const LABELS: Record<TouchKind, { label: string; detail: string }> = {
   },
   RESUME: {
     label: "Resume",
-    detail: `Opened the link, went quiet ${RESUME_QUIET_DAYS}+ days with nothing planned.`,
+    detail: `Stepped inside, went quiet ${RESUME_QUIET_DAYS}+ days with nothing planned.`,
   },
 };
 
@@ -130,11 +130,17 @@ function inMotionCount(s: TouchSignals): number {
   return s.openRequests.length + s.confirmedRequests.length + s.awaitingApproval;
 }
 
+/**
+ * RESUME's clock runs on welcomeSeenAt ONLY — the "Step inside" tap is a
+ * human act no email scanner performs, while linkOpenedAt stamps on every
+ * GET of /t/ (corporate link scanners included). Trading a little recall
+ * for zero false "you had a look" emails: a guest who only ever followed a
+ * deep link (?next= skips the welcome) never gets a RESUME, and that's
+ * fine — deep links are sent to guests with requests already in motion,
+ * which suppresses RESUME anyway.
+ */
 function lastVisit(s: TouchSignals): Date | null {
-  const times = [s.linkOpenedAt, s.welcomeSeenAt]
-    .filter((d): d is Date => d != null)
-    .map((d) => d.getTime());
-  return times.length ? new Date(Math.max(...times)) : null;
+  return s.welcomeSeenAt;
 }
 
 /**
@@ -170,7 +176,8 @@ function suppressReason(kind: TouchKind, s: TouchSignals): string | null {
     return null;
   }
   if (kind === "RESUME") {
-    if (lastVisit(s) == null) return "Hasn't opened the link yet — welcome/plan-ahead do this job.";
+    if (lastVisit(s) == null)
+      return "Hasn't stepped inside yet — welcome/plan-ahead do this job. (Link opens alone don't count; scanners open links.)";
     if (s.intakeDone || inMotionCount(s) > 0) return "They picked it back up on their own.";
     return null;
   }

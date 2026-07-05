@@ -225,7 +225,9 @@ export async function submitStayForm(
           : `Welcome email printed to the server console (RESEND_API_KEY unset).`
         : result.reason === "send-failed"
           ? "Welcome email failed to send — share the link another way."
-          : null;
+          : result.reason === "opted-out"
+            ? "No welcome email — this guest unsubscribed (honored). Share the link another way."
+            : null;
     }
   } else if (getGuestEmailConfig().enabled) {
     emailLine = "Welcome email not sent (toggle off).";
