@@ -165,14 +165,18 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
         )}
       </section>
 
-      {/* quiet stay-parameter fallback for guests who skipped /plan — captured
-          for the concierge to plan transport; never an upsell, easy to ignore */}
-      {stay.hasRentalCar == null && <RentalCarPrompt />}
-
-      {/* text opt-in — the consent capture (TCPA: no text without this yes).
-          Retires the moment they opt in; never re-begs after a withdrawal. */}
-      {stay.guest.smsConsentAt == null && stay.guest.smsOptOutAt == null && (
-        <TextUpdatesPrompt defaultPhone={stay.guest.phone ?? ""} />
+      {/* ONE quiet card at a time — a calm home, not a checklist. The stay
+          parameter (rental car) goes first; the text opt-in takes the slot
+          once that's answered. The opt-in card retires the moment they opt
+          in and never re-begs after a withdrawal (TCPA: no text without
+          this yes). */}
+      {stay.hasRentalCar == null ? (
+        <RentalCarPrompt />
+      ) : (
+        stay.guest.smsConsentAt == null &&
+        stay.guest.smsOptOutAt == null && (
+          <TextUpdatesPrompt defaultPhone={stay.guest.phone ?? ""} />
+        )
       )}
 
       <div className={`${styles.actions} reveal reveal-4`}>

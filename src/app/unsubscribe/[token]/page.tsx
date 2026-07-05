@@ -3,7 +3,7 @@ import { parseUnsubscribeToken } from "@/lib/consent";
 import UnsubscribeConfirm from "@/components/consent/UnsubscribeConfirm";
 import styles from "./unsubscribe.module.css";
 
-export const metadata = { title: "Summit" };
+export const metadata = { title: "Summit", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 /**

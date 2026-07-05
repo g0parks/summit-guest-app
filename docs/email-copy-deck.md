@@ -45,7 +45,7 @@ co-brand, from `GUEST_EMAIL_FROM`.
 - **Closing, everything handled:** You're all set. We'll have it all waiting.
 - **Closing, otherwise:** We'll have it all waiting.
 
-## 4 · Resume — opened the link, went quiet 4+ days, nothing planned
+## 4 · Resume — stepped inside (welcome tap), went quiet 4+ days, nothing planned
 - **Subject:** Shall we pick up where you left off?
 - **Headline:** {First name}, we kept your place.
 - **Paragraph 1:** You had a look at your {Property Name} trip page. Nothing's arranged yet, and that's easy to fix.

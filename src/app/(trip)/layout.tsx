@@ -13,8 +13,11 @@ import { brandCssVars, resolveBrand } from "@/lib/branding";
 export async function generateMetadata(): Promise<Metadata> {
   const active = await getActiveStay();
   const brand = resolveBrand(active?.stay.property);
+  // Private guest surfaces: never indexed — forwarded emails mean guest
+  // links travel, and a trip page in a search index is a leak.
+  const robots = { robots: { index: false, follow: false } };
   // Co-branded title where stay context exists; root default otherwise.
-  return brand.poweredBy ? { title: brand.label } : {};
+  return brand.poweredBy ? { title: brand.label, ...robots } : robots;
 }
 
 export default async function TripLayout({

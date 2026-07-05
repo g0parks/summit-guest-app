@@ -1,0 +1,59 @@
+/* Privacy — public, quiet, readable. The /invalid register at article length. */
+
+.wrap {
+  position: relative;
+  z-index: 1;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  padding: 56px var(--space-page) 80px;
+}
+
+.inner {
+  max-width: 560px;
+}
+
+.wordmark {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: var(--ink-muted);
+}
+
+.title {
+  margin-top: 24px;
+  font-size: 34px;
+  font-weight: 400;
+}
+
+.updated {
+  margin-top: 8px;
+  font-size: 13.5px;
+  color: var(--ink-faint);
+}
+
+.heading {
+  margin-top: 34px;
+  font-size: 19px;
+  font-weight: 500;
+}
+
+.body {
+  margin-top: 12px;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--ink-muted);
+}
+
+.link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.note {
+  margin-top: 36px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
