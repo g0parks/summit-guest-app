@@ -4,12 +4,14 @@ import { Prisma, type TouchKind } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireOperator } from "@/lib/opsSession";
 import { buildToken } from "@/lib/tokens";
-import { liveTokenId } from "@/lib/touchpoints";
+import { formatDateRange } from "@/lib/dates";
 import {
-  sendPlanAheadEmail,
-  sendPreArrivalEmail,
-  sendWelcomeEmail,
-} from "@/lib/guestEmail";
+  buildTouchPlan,
+  liveTokenId,
+  loadTouchSignals,
+  touchEmailContent,
+} from "@/lib/touchpoints";
+import { sendCadenceEmail, sendWelcomeEmail } from "@/lib/guestEmail";
 
 /**
  * The Touchpoints panel's one action: send a cadence email NOW, because the
@@ -18,12 +20,18 @@ import {
  * as GuestTouch so the panel stays honest and double-sends die at the
  * unique constraint.
  *
+ * Signal-aware since 2026-07-04: content comes from the engine
+ * (touchEmailContent), and a SUPPRESSED touch refuses to send — its job is
+ * already done, and the crook test says never prod someone already served.
+ * The operator's escape hatch for edge cases stays the GuestLinkPanel
+ * (share the link any way they like).
+ *
  * Deliberately NO revalidatePath: the panel renders the send outcome from
  * its own action state (the GuestLinkPanel precedent) — navigation renders
  * the persisted state fresh.
  */
 
-const KINDS: TouchKind[] = ["WELCOME", "PLAN_AHEAD", "PRE_ARRIVAL"];
+const KINDS: TouchKind[] = ["WELCOME", "PLAN_AHEAD", "PRE_ARRIVAL", "RESUME"];
 
 export type TouchResult = { ok: true; line: string } | { ok: false; error: string };
 
@@ -51,6 +59,19 @@ export async function sendTouch(
     return { ok: false, error: "Already sent — the record below has the date." };
   }
 
+  // Recompute the plan server-side: a suppressed touch's job is already done,
+  // so the send refuses even if a stale panel still shows a button.
+  const signals = await loadTouchSignals(stay);
+  const row = buildTouchPlan(stay, stay.property.timezone, [], signals).find(
+    (r) => r.kind === kind,
+  );
+  if (row?.status === "suppressed") {
+    return {
+      ok: false,
+      error: `Not sent — ${row.suppressReason ?? "its job is already done."}`,
+    };
+  }
+
   const tokenId = liveTokenId(stay.accessTokens);
   if (!tokenId) {
     return { ok: false, error: "No live guest link to send — mint one first." };
@@ -74,20 +95,35 @@ export async function sendTouch(
   }
 
   const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
-  // PLAN_AHEAD lands on /plan (the intake IS the invitation); the others
-  // land on the trip home. ?next= is validated relative-only server-side.
-  const link =
-    kind === "PLAN_AHEAD"
-      ? `${base}/t/${buildToken(tokenId)}?next=${encodeURIComponent("/plan")}`
-      : `${base}/t/${buildToken(tokenId)}`;
 
-  const input = { guest: stay.guest, stay, property: stay.property, link };
-  const result =
-    kind === "WELCOME"
-      ? await sendWelcomeEmail(input)
-      : kind === "PLAN_AHEAD"
-        ? await sendPlanAheadEmail(input)
-        : await sendPreArrivalEmail(input);
+  let result;
+  if (kind === "WELCOME") {
+    result = await sendWelcomeEmail({
+      guest: stay.guest,
+      stay,
+      property: stay.property,
+      link: `${base}/t/${buildToken(tokenId)}`,
+    });
+  } else {
+    const content = touchEmailContent(kind, {
+      guestFirstName: stay.guest.firstName,
+      propertyName: stay.property.name,
+      dateRange: formatDateRange(
+        stay.arrivalDate,
+        stay.departureDate,
+        stay.property.timezone,
+      ),
+      signals,
+    });
+    // ?next= is validated relative-only server-side by the token route.
+    const link = content.nextPath
+      ? `${base}/t/${buildToken(tokenId)}?next=${encodeURIComponent(content.nextPath)}`
+      : `${base}/t/${buildToken(tokenId)}`;
+    result = await sendCadenceEmail(
+      { guest: stay.guest, stay, property: stay.property, link },
+      content,
+    );
+  }
 
   if (!result.sent) {
     // Send failed — release the claim so the operator can retry.
@@ -99,9 +135,11 @@ export async function sendTouch(
       error:
         result.reason === "no-email"
           ? "No email address on file for this guest."
-          : result.reason === "not-configured"
-            ? "Guest email is off (GUEST_EMAIL_FROM unset)."
-            : "Send failed — try again or share the link another way.",
+          : result.reason === "opted-out"
+            ? "This guest unsubscribed from email — honored, nothing sent."
+            : result.reason === "not-configured"
+              ? "Guest email is off (GUEST_EMAIL_FROM unset)."
+              : "Send failed — try again or share the link another way.",
     };
   }
 

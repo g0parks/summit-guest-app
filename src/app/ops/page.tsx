@@ -13,6 +13,7 @@ import {
   declineChangeRequest,
 } from "@/app/actions/ops";
 import { buildToken } from "@/lib/tokens";
+import { composeRequestNudge } from "@/lib/notifications";
 import { formatMoney } from "@/lib/money";
 import {
   dayKey,
@@ -126,8 +127,8 @@ export default async function OpsOverviewPage() {
 
   const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
 
-  /** Concierge-register nudge draft, wizard deep link included. A stalled
-   *  signal asks for details; an outstanding quote asks for the yes. */
+  /** Nudge draft via the notification seam (composeRequestNudge) — the seam
+   *  owns message copy so Track B's programmatic SMS drops in behind it. */
   const nudgeMessage = (r: {
     id: string;
     status: string;
@@ -140,11 +141,12 @@ export default async function OpsOverviewPage() {
   }): string | null => {
     const tokenId = liveTokenId(r.stay.accessTokens);
     if (!tokenId) return null;
-    const link = `${base}/t/${buildToken(tokenId)}?next=${encodeURIComponent(`/requests/${r.id}`)}`;
-    const what = r.service?.name ?? r.customTitle ?? "your request";
-    return r.status === "QUOTED"
-      ? `Hi ${r.stay.guest.firstName} — your concierge here. ${what} is priced and ready — one tap to approve and it's done: ${link}`
-      : `Hi ${r.stay.guest.firstName} — your concierge here. ${what} is nearly arranged — a few details and it's done: ${link}`;
+    return composeRequestNudge({
+      firstName: r.stay.guest.firstName,
+      status: r.status,
+      what: r.service?.name ?? r.customTitle ?? "your request",
+      link: `${base}/t/${buildToken(tokenId)}?next=${encodeURIComponent(`/requests/${r.id}`)}`,
+    });
   };
 
   const when = (d: Date | null, tz?: string) =>

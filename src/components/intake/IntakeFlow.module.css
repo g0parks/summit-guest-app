@@ -278,6 +278,34 @@
   border-color: var(--accent);
 }
 
+/* text opt-in on the contact screen — quiet, with the disclosure beneath */
+.smsOptIn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.smsCheckbox {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.smsOptInNote {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
 .error {
   font-size: 13.5px;
   color: #9c4221;

@@ -46,6 +46,10 @@ export async function submitTripIntake(
   const email = skippedContact ? null : field(formData, "email", 320);
   const phone = skippedContact ? null : field(formData, "phone", 50);
   const tripTiming = skippedContact ? null : field(formData, "tripTiming", 200);
+  // TCPA express consent, recorded on the LEAD (World B has no Guest row yet);
+  // applied to the Guest at conversion (opsStays). Needs a number to consent to.
+  const smsConsent =
+    !skippedContact && formData.get("smsOptIn") === "on" && Boolean(phone);
   const note = field(formData, "note", 4000);
   const source = field(formData, "source", 100);
 
@@ -97,6 +101,7 @@ export async function submitTripIntake(
       tripTiming,
       note,
       source,
+      smsConsent,
       answersJson: answers,
       utmJson: utmJson ?? undefined,
       stayId: postStay ? null : active?.stay.id ?? null,

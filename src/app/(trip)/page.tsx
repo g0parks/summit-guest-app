@@ -7,6 +7,7 @@ import { getStayPhase, daysUntilArrival } from "@/lib/stayPhase";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import NextTripForm from "@/components/trip/NextTripForm";
 import RentalCarPrompt from "@/components/trip/RentalCarPrompt";
+import TextUpdatesPrompt from "@/components/trip/TextUpdatesPrompt";
 import { formatDateRange, formatTime, relativeDayWord } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import styles from "./page.module.css";
@@ -167,6 +168,12 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
       {/* quiet stay-parameter fallback for guests who skipped /plan — captured
           for the concierge to plan transport; never an upsell, easy to ignore */}
       {stay.hasRentalCar == null && <RentalCarPrompt />}
+
+      {/* text opt-in — the consent capture (TCPA: no text without this yes).
+          Retires the moment they opt in; never re-begs after a withdrawal. */}
+      {stay.guest.smsConsentAt == null && stay.guest.smsOptOutAt == null && (
+        <TextUpdatesPrompt defaultPhone={stay.guest.phone ?? ""} />
+      )}
 
       <div className={`${styles.actions} reveal reveal-4`}>
         <Link href="/plan" className={styles.cta}>
