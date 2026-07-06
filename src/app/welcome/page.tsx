@@ -55,12 +55,13 @@ export default async function WelcomePage() {
           {firstName ? `Welcome, ${firstName}.` : "Welcome."}
         </h1>
         <p className={`${styles.line} reveal reveal-3`}>
-          This is where the essentials of {stayLabel} are coordinated. The car,
-          the kitchen, the gear.
+          This is where the essentials of {stayLabel} are coordinated. Ready
+          before you think to ask.
         </p>
         <form action={enterTrip} className="reveal reveal-4">
           <button type="submit" className={styles.cta}>
-            Step inside <span aria-hidden>→</span>
+            {phase === "PRE_ARRIVAL" ? "Plan your stay" : "Step inside"}{" "}
+            <span aria-hidden>→</span>
           </button>
         </form>
       </div>

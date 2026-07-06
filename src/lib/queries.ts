@@ -141,6 +141,10 @@ export async function getTab(stayId: string) {
       // VOID = declined/cancelled before charge — never guest-visible.
       where: { stayId, status: { not: "VOID" } },
       orderBy: { occurredAt: "desc" },
+      // The guest-facing date is the SERVICE date when the line came from a
+      // scheduled request — a tab-entry date next to a future service reads
+      // like a mischarge. The ledger's occurredAt stays untouched.
+      include: { serviceRequest: { select: { requestedFor: true } } },
     }),
     prisma.paymentMethod.findMany({
       where: { stayId },
