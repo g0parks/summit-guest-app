@@ -297,7 +297,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
             options: [
               "Essentials · coffee, breakfast, fruit, snacks, water",
               "Family Table · the Essentials doubled, plus kids' staples",
-              "Après · charcuterie, wine, fireside things",
+              "Après · charcuterie, cheeses, fireside things",
               "Local Utah · the best of the valley's makers",
               "Tailored · tell us below",
             ],
@@ -358,7 +358,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         showIf: { field: "mode", equals: "Build it with us" },
         eyebrow: "The particulars",
         question: "The handful of things that must be there?",
-        detail: "Brands you love, the wine, anything to keep clear of.",
+        detail: "Brands you love, anything to keep clear of.",
         fields: [
           {
             kind: "textarea",
@@ -381,7 +381,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
             kind: "textarea",
             name: "list",
             label: "Your list",
-            placeholder: "Coffee, eggs, the kids' cereal, a few good bottles of red…",
+            placeholder: "Coffee, eggs, the kids' cereal, berries for the mornings…",
             required: true,
           },
         ],
