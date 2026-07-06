@@ -51,6 +51,39 @@ export async function getPerkBySlug(slug: string, stayId: string) {
   });
 }
 
+/**
+ * The next few confirmed, upcoming itinerary items — the pre-arrival
+ * "arranged so far" strip. A guest who just confirmed a transfer should see
+ * that progress on the surface they return to, not only on the itinerary tab.
+ */
+export async function getUpcomingItinerary(stayId: string, limit = 3) {
+  return prisma.itineraryItem.findMany({
+    where: { stayId, startsAt: { gte: new Date() } },
+    orderBy: [{ startsAt: "asc" }, { sortOrder: "asc" }],
+    take: limit,
+  });
+}
+
+/**
+ * Catalog slugs this stay already has live-or-fulfilled demand for
+ * (SIGNALED through COMPLETED). /plan uses it to skip questions whose answer
+ * we already hold — never ask what we know. DECLINED / CANCELLED / EXPIRED
+ * requests don't count: re-offering lapsed demand is legitimate capture.
+ */
+export async function getRequestedServiceSlugs(stayId: string): Promise<Set<string>> {
+  const requests = await prisma.serviceRequest.findMany({
+    where: {
+      stayId,
+      status: { in: ["SIGNALED", "READY", "QUOTED", "CONFIRMED", "SCHEDULED", "COMPLETED"] },
+      serviceId: { not: null },
+    },
+    select: { service: { select: { slug: true } } },
+  });
+  return new Set(
+    requests.map((r) => r.service?.slug).filter((s): s is string => Boolean(s)),
+  );
+}
+
 /** All itinerary items for a stay, in chronological order. */
 export async function getItinerary(stayId: string) {
   return prisma.itineraryItem.findMany({

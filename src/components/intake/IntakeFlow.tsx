@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { submitTripIntake, type IntakeResult } from "@/app/actions/intake";
+import { brandCssVars, type Brand } from "@/lib/branding";
 import type {
   IntakeAnswerValue,
   IntakeQuestion,
@@ -32,6 +33,7 @@ type KnownStay = {
 export default function IntakeFlow({
   questions,
   rentalCarQuestion,
+  brand,
   knownStay,
   utm,
   source,
@@ -43,6 +45,8 @@ export default function IntakeFlow({
   questions: IntakeQuestion[];
   /** Stay-parameter capture (World A only); null = skip the screen entirely. */
   rentalCarQuestion: ParameterQuestion | null;
+  /** World A carries the stay's co-brand through /plan; null = Summit (World B). */
+  brand: Brand | null;
   knownStay: KnownStay | null;
   utm: Record<string, string> | null;
   source: string | null;
@@ -71,19 +75,20 @@ export default function IntakeFlow({
       ),
     [questions, answers],
   );
-  const stepKeys = useMemo(
-    () => [
-      "welcome",
-      ...activeQuestions.flatMap((q) =>
-        rentalCarQuestion && q.key === "airport-car"
-          ? [`q:${q.key}`, "param:hasRentalCar"]
-          : [`q:${q.key}`],
-      ),
-      "capstone",
-      ...(knownStay ? [] : ["contact"]),
-    ],
-    [activeQuestions, rentalCarQuestion, knownStay],
-  );
+  const stepKeys = useMemo(() => {
+    const qs = activeQuestions.flatMap((q) =>
+      rentalCarQuestion && q.key === "airport-car"
+        ? [`q:${q.key}`, "param:hasRentalCar"]
+        : [`q:${q.key}`],
+    );
+    // The param usually rides after "getting there" — but signal-aware
+    // filtering can remove that question (transfer already arranged). The
+    // stay fact still needs capturing, so it leads instead of vanishing.
+    if (rentalCarQuestion && !qs.includes("param:hasRentalCar")) {
+      qs.unshift("param:hasRentalCar");
+    }
+    return ["welcome", ...qs, "capstone", ...(knownStay ? [] : ["contact"])];
+  }, [activeQuestions, rentalCarQuestion, knownStay]);
 
   // Clamp: a conditional question dropping out can shrink stepKeys below the
   // current index — never strand the flow on a missing screen.
@@ -102,14 +107,33 @@ export default function IntakeFlow({
     next();
   };
 
+  // Co-brand (World A): the stay's brand leads, Summit stays quiet — same
+  // lockup as the welcome threshold. World B (no brand) keeps the wordmark.
+  const brandVars = brand
+    ? (brandCssVars(brand) as React.CSSProperties | undefined)
+    : undefined;
+  const lockup = brand?.poweredBy ? (
+    <div className={styles.lockup}>
+      {brand.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={brand.logoUrl} alt={brand.label} className={styles.brandLogo} />
+      ) : (
+        <span className={styles.brandLabel}>{brand.label}</span>
+      )}
+      <span className={styles.poweredBy}>powered by Summit</span>
+    </div>
+  ) : (
+    <span className={styles.wordmark}>SUMMIT</span>
+  );
+
   // ── The close — a confirmation with a delivery time, not a contact CTA
   //    (Channel Doctrine 2026-06-12: the app is the interface; texting is
   //    the quiet escape hatch, never the primary action) ──────────────────
   if (state?.ok) {
     return (
-      <main className={styles.page}>
+      <main className={styles.page} style={brandVars}>
         <div className={`${styles.screen} ${styles.active}`}>
-          <span className={styles.wordmark}>SUMMIT</span>
+          {lockup}
           <div className={styles.doneBody}>
             <h1 className={styles.headline}>
               {skippedContact ? "Enjoy the mountain." : "Your concierge is on it."}
@@ -146,7 +170,7 @@ export default function IntakeFlow({
   }
 
   return (
-    <main className={styles.page}>
+    <main className={styles.page} style={brandVars}>
       <form action={formAction} className={styles.form}>
         {/* accumulated answers + attribution ride the one submission */}
         {activeQuestions.map((q) => (
@@ -167,7 +191,7 @@ export default function IntakeFlow({
         <section
           className={`${styles.screen} ${step === "welcome" ? styles.active : styles.hidden}`}
         >
-          <span className={styles.wordmark}>SUMMIT</span>
+          {lockup}
           <div className={styles.screenBody}>
             <span className="eyebrow">
               {knownStay
