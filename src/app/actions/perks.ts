@@ -7,6 +7,7 @@ import { getActiveStay } from "@/lib/session";
 import { notifyOperator } from "@/lib/notify";
 import { getStayPhase } from "@/lib/stayPhase";
 import { recordSmsConsent } from "@/lib/consent";
+import { normalizePhoneOrKeep } from "@/lib/phone";
 
 export type ClaimResult = { ok: true } | { ok: false; error: string };
 
@@ -38,7 +39,9 @@ export async function claimPerk(
 
   const perkId = String(formData.get("perkId") ?? "");
   const email = String(formData.get("email") ?? "").trim() || null;
-  const phone = String(formData.get("phone") ?? "").trim() || null;
+  // Best-effort E.164 (optional field — keep an odd-but-real number rather
+  // than lose the contact); the SMS opt-in below binds to this value.
+  const phone = normalizePhoneOrKeep(String(formData.get("phone") ?? "").trim() || null);
   const optIn = formData.get("optIn") === "on";
   // Consent needs a number to consent TO — either typed here or already on
   // file. A bare checkbox with no phone anywhere records nothing.

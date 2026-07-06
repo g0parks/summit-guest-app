@@ -1,4 +1,5 @@
 import "server-only";
+import { normalizePhone as normalizeE164 } from "./phone";
 
 /**
  * The Concierge Line — config + message composition (decided 2026-06-10).
@@ -22,8 +23,8 @@ import "server-only";
 function normalizePhone(raw: string | undefined): string | null {
   const trimmed = raw?.trim();
   if (!trimmed) return null;
-  const cleaned = (trimmed.startsWith("+") ? "+" : "") + trimmed.replace(/\D/g, "");
-  if (/^\+\d{8,15}$/.test(cleaned)) return cleaned;
+  const normalized = normalizeE164(trimmed); // shared E.164 rules (src/lib/phone.ts)
+  if (normalized) return normalized;
   console.error(
     `[concierge] CONCIERGE_PHONE ${JSON.stringify(trimmed)} is not E.164 ` +
       `(expected like "+14355550100", country code included) — ` +

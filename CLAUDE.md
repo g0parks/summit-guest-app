@@ -45,9 +45,9 @@ Summit turns money the guest was **already going to spend** into a stay they rem
 - **Stay creation is PMS-data-first** via ops "New stay" (the future PMS feed calls the same core, `src/lib/opsStay.ts`); `/plan` intake conversion is the **secondary** capture path for non-PMS leads — decided 2026-06-11. Stay phase (pre-arrival / in-stay / post-stay) is DERIVED from dates (`src/lib/stayPhase.ts`, 30-day post-stay window); `Stay.status` is write-only legacy.
 - **Reserve internal per-line economics** — tab lines can carry `vendorCostCents` / `pmShareCents` / `netCents` (net target 15–20%); computed + stored internally, NEVER surfaced to guest or PM.
 
-## Pre-launch gates (MUST clear before the FIRST real guest)
+## Pre-launch gates (MUST clear before the FIRST real guest) — ALL CLEAR as of 2026-07-04
 - **Database fork — DONE (2026-06-20).** Local `.env` points at the separate `summit-dev` Supabase project; prod's connection strings live ONLY in Vercel. `npm run db:seed` (a full wipe) only ever hits dev — never point local `.env` at prod. Migrate-on-deploy is LIVE: the build runs `prisma migrate deploy && next build` (Vercel holds a session-pooler `DIRECT_URL`), so committed migrations apply to prod on push. (See memory: shared-db-risk.)
-- **Consent spine — OPEN.** Consent you didn't capture is consent you can never get back: the thin layer (consent fields on `Guest` · `canEmail()`/`canSms()` send-gate · capture at phone collection · tokened unsubscribe) must be live before guest #1, even though the cadence *sending* stays deferred. Decided shape (email-first, SMS opt-in-only) + full detail: `docs/mvp-launch-line.md`.
+- **Consent spine — DONE (2026-07-04, PRs #58/#59).** Consent fields on `Guest`; `canEmail()`/`canSms()` send-gates consulted by every sender (`src/lib/consent.ts`); versioned disclosure copy (`consentCopy.ts`); capture at every phone-collection surface (perk claim · /plan contact · app-home prompt · wizard engagement gate); tokened unsubscribe page + RFC 8058 one-click POST. Email opt-out (CAN-SPAM), SMS opt-in-only (TCPA). Phones normalize to E.164 at capture (`src/lib/phone.ts`). Cadence *sending* stays operator-triggered by doctrine. Detail: `docs/mvp-launch-line.md`.
 
 ## The three things the experience must nail (equal priority, one connected flow)
 1. Itinerary view — their trip in one place
@@ -93,3 +93,5 @@ Summit turns money the guest was **already going to spend** into a stay they rem
 ## Notes
 - This file is living. When you correct me on something that should persist, remind me to add it here.
 - Keep this file under ~150 lines — it loads every session.
+- Deeper technical reference (token model, lifecycle, pricing modes, seams, integrity idioms): `docs/technical-overview.md`. Repo review record: `docs/reviews/`.
+- **/ops pages each call `requireOperator()` themselves** (2026-07-06) — the layout gate alone is not a safe auth boundary in App Router. Keep the page-level check when adding ops pages.

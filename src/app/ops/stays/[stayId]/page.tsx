@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { PerkClaimStatus, RequestStatus, TabItemStatus } from "@prisma/client";
+import { requireOperator } from "@/lib/opsSession";
 import { getOpsStayDetail } from "@/lib/opsQueries";
 import {
   addManualTabLine,
@@ -130,6 +131,9 @@ export default async function OpsStayPage({
 }: {
   params: Promise<{ stayId: string }>;
 }) {
+  // Page-level gate (layouts aren't a safe sole auth boundary in App Router).
+  await requireOperator();
+
   const { stayId } = await params;
   const stay = await getOpsStayDetail(stayId);
   if (!stay) notFound();

@@ -19,7 +19,15 @@ export default async function UnsubscribePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const guestId = parseUnsubscribeToken(decodeURIComponent(token));
+  // Malformed %-encoding must land on the calm invalid state, not a 500
+  // (the ops-magic decode precedent).
+  let raw = token;
+  try {
+    raw = decodeURIComponent(token);
+  } catch {
+    /* verify the raw value, which will fail cleanly */
+  }
+  const guestId = parseUnsubscribeToken(raw);
   const guest = guestId
     ? await prisma.guest.findUnique({
         where: { id: guestId },
@@ -53,7 +61,7 @@ export default async function UnsubscribePage({
             </p>
           </>
         ) : (
-          <UnsubscribeConfirm token={decodeURIComponent(token)} email={guest.email} />
+          <UnsubscribeConfirm token={raw} email={guest.email} />
         )}
       </div>
     </main>

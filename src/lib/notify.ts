@@ -1,9 +1,9 @@
 import "server-only";
 import { prisma } from "./db";
-import { isFixedPrice } from "./catalog";
+import { computeChargeCents, isFixedPrice } from "./catalog";
 import { formatDayLabel, formatTime } from "./dates";
 import { formatMoney } from "./money";
-import { parseRequestDetails } from "./serviceForm";
+import { clampParty, parseRequestDetails } from "./serviceForm";
 
 /**
  * Operator notification seam. Fulfillment is manual: when a guest acts, the
@@ -314,8 +314,21 @@ async function buildEmail(
     when ? `When:     ${formatDayLabel(when, tz)} · ${formatTime(when, tz)}` : null,
     request?.partySize != null ? `Party:    ${request.partySize}` : null,
     ...details.map((d) => `${d.label}: ${d.value}`),
+    // The COMPUTED charge (what actually lands on the tab), not the unit
+    // price — a per-person line reads wrong next to the tab otherwise.
     request?.service && isFixedPrice(request.service.priceUnit, request.service.priceAmount)
-      ? `Price:    ${formatMoney(request.service.priceAmount, request.stay.currency)} (${request.service.priceUnit.toLowerCase()})`
+      ? `Price:    ${formatMoney(
+          computeChargeCents(
+            request.service.priceUnit,
+            request.service.priceAmount,
+            clampParty(request.partySize),
+          ),
+          request.stay.currency,
+        )}${
+          request.service.priceUnit === "PER_PERSON"
+            ? ` (${formatMoney(request.service.priceAmount, request.stay.currency)} / person × ${clampParty(request.partySize)})`
+            : ` (${request.service.priceUnit.toLowerCase()})`
+        }`
       : null,
     event.notes ? `Notes:    ${event.notes}` : null,
     ``,

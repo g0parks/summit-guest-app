@@ -1,3 +1,4 @@
+import { requireOperator } from "@/lib/opsSession";
 import {
   getDemandBook,
   getEconomicsRollup,
@@ -33,6 +34,9 @@ function categoryLabel(raw: string): string {
 }
 
 export default async function OpsBookPage() {
+  // Page-level gate (layouts aren't a safe sole auth boundary in App Router).
+  await requireOperator();
+
   const [demand, unconverted, economics, partners] = await Promise.all([
     getDemandBook(),
     getUnconvertedDemand(),

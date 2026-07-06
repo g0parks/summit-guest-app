@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requireOperator } from "@/lib/opsSession";
 import { getConvertProperties, getIntakeDetail } from "@/lib/opsQueries";
 import { getGuestEmailConfig } from "@/lib/guestEmail";
 import { guestLinkShareMessage } from "@/lib/opsStay";
@@ -24,6 +25,9 @@ export default async function IntakeDetailPage({
 }: {
   params: Promise<{ intakeId: string }>;
 }) {
+  // Page-level gate (layouts aren't a safe sole auth boundary in App Router).
+  await requireOperator();
+
   const { intakeId } = await params;
   const intake = await getIntakeDetail(intakeId);
   if (!intake) notFound();

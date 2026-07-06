@@ -31,8 +31,15 @@ export async function GET(req: NextRequest) {
 
   const requestedSlug = req.nextUrl.searchParams.get("partner");
 
-  // Returning visitor with a live sandbox for the same brand → continue it.
   const active = await resolveToken(req.cookies.get(SESSION_COOKIE)?.value);
+
+  // A REAL guest wandered onto the pitch URL — never clobber their session
+  // cookie with a sandbox. Their trip is the only right destination.
+  if (active && !active.stay.isDemo) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+
+  // Returning visitor with a live sandbox for the same brand → continue it.
   if (active?.stay.isDemo) {
     const current = active.stay.departureDate.getTime() > Date.now();
     const sameBrand =

@@ -17,16 +17,21 @@ row alone makes it show up; the rest shapes how it behaves. Terse on purpose.
 | `requiresDate` · `requiresTime` · `requiresPartySize` | wizard prompts. **Set `requiresPartySize: true` if the execution schema uses a per-person repeater** — or it won't know how many to render. |
 | `sortOrder` · `isActive` | order within section / visibility |
 
-**A third pricing path — fee-structure (the bar).** Some services have neither a
-fixed price nor a quotable total: the guest approves a disclosed fee *shape*,
-and a human prices the order after curating it. These carry `priceUnit QUOTE`
-(null amount) so they complete to **READY** without auto-billing, but
-`isFeeStructureService(slug)` (`src/lib/barPricing.ts`) — not the quote-wait —
-drives the operator action: a `BarPriceForm` (cost → computed charge →
-CONFIRMED) instead of a `QuoteForm`, and there's no QUOTED re-approval (the
-structure consent was the wizard completion). Config (markup / rush / floor /
-cutoff) and the charge math live in `barPricing.ts`. Today this is `bar-stocking`
-only; add to the `isFeeStructureService` check to extend it.
+**A third pricing path — fee-structure (provisioning).** Some services have
+neither a fixed price nor a quotable total: the guest consents to a disclosed
+fee *schedule* on the confirm screen (pass-through cost + flat delivery +
+service % + derived same-day rush), and a human prices the order after
+shopping it. These carry **`priceUnit: FEE_STRUCTURE`** (amount null) — the
+discriminator everywhere the behavior diverges — so they complete to **READY**
+without auto-billing; the operator action is `ProvisioningPriceForm` (order
+cost → computed charge → CONFIRMED), never `QuoteForm`, and there's no QUOTED
+re-approval (the schedule consent was the wizard completion). The three fee
+knobs are the per-service columns above; cadence/cutoff/closed-day logic and
+the charge math live in `src/lib/provisioningPricing.ts`. Rush is **derived**
+(phase + 2pm cutoff + supplier closed days), stamped on the order as a
+`rush` detail so ops prices against order-time state. Today this is
+`grocery-pre-stock` (and the deactivated `bar-stocking`); a new provisioning
+service just takes the `FEE_STRUCTURE` unit + fee columns.
 
 ## 2. Execution schema — `src/lib/serviceForm.ts` (`FLOWS`, slug-keyed)
 

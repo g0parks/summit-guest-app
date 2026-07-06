@@ -9,6 +9,7 @@ import {
   StayInputError,
 } from "@/lib/opsStay";
 import { interestedSlugs, parseIntakeAnswers } from "@/lib/intakeFlow";
+import { normalizePhoneOrKeep } from "@/lib/phone";
 import { recordSmsConsent } from "@/lib/consent";
 import { buildToken } from "@/lib/tokens";
 import { getGuestEmailConfig, sendWelcomeEmail } from "@/lib/guestEmail";
@@ -53,7 +54,8 @@ export async function submitStayForm(
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim() || null;
   const email = String(formData.get("email") ?? "").trim() || null;
-  const phone = String(formData.get("phone") ?? "").trim() || null;
+  // Best-effort E.164 — operator-typed; keep as typed when unparseable.
+  const phone = normalizePhoneOrKeep(String(formData.get("phone") ?? "").trim() || null);
   const sendWelcome = formData.get("sendWelcome") === "on";
 
   const partyRaw = String(formData.get("partySize") ?? "").trim();

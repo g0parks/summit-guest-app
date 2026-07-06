@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActiveStay } from "@/lib/session";
 import { notifyOperator } from "@/lib/notify";
 import { getStayPhase } from "@/lib/stayPhase";
+import { normalizePhoneOrKeep } from "@/lib/phone";
 import { enrollIntakeSignals } from "@/lib/opsStay";
 import {
   INTAKE_QUESTIONS,
@@ -44,7 +45,11 @@ export async function submitTripIntake(
 
   const name = skippedContact ? null : field(formData, "name", 200);
   const email = skippedContact ? null : field(formData, "email", 320);
-  const phone = skippedContact ? null : field(formData, "phone", 50);
+  // Best-effort E.164 — the lead's smsConsent binds to this value and it
+  // becomes the Guest's phone at conversion (opsStays).
+  const phone = skippedContact
+    ? null
+    : normalizePhoneOrKeep(field(formData, "phone", 50));
   const tripTiming = skippedContact ? null : field(formData, "tripTiming", 200);
   // TCPA express consent, recorded on the LEAD (World B has no Guest row yet);
   // applied to the Guest at conversion (opsStays). Needs a number to consent to.

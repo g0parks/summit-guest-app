@@ -67,7 +67,9 @@ stays deferred (Track A/B, `docs/plans/2026-06-22-nudge-cadence.md`).
    "We'll only text you about your stay — your driver, your delivery, a question —
    never spam." Honest consent, trivial opt-out (milk-not-meat).
 
-**The thin layer to build before launch (this is NOT the cadence):**
+**The thin layer to build before launch (this is NOT the cadence)** — **SHIPPED
+2026-07-04 (PRs #58/#59)**; every bullet below is live (`src/lib/consent.ts`,
+`consentCopy.ts`, `/unsubscribe` + RFC 8058 one-click). Kept as the decision record:
 - **Consent fields on `Guest`** — `emailOptOutAt`, `smsConsentAt` (+ source +
   disclosure version), `smsOptOutAt`. *(Schema gap confirmed 2026-06-23: `Guest`
   carries `email`/`phone` but no consent state — nothing separates "we have a

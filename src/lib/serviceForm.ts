@@ -437,6 +437,13 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
     notesPlaceholder: "Timing, where to leave it, anything at all…",
   },
 
+  // RETAINED DELIBERATELY while deactivated: bar-stocking (and sommelier) were
+  // pulled 2026-06-25 — Utah alcohol law; the Service rows are isActive:false,
+  // so no live path reaches this flow. The config stays because the discovery
+  // design is the reference implementation for seeded moments, and a counsel-
+  // cleared revisit would re-activate data, not rebuild code. Don't wire any
+  // NEW surface to this slug without the counsel check (CLAUDE.md).
+  //
   // The bar is DISCOVERY, not order-taking (Alcohol spec 2026-06-15): the
   // luxury is "I get exactly what I want," and guests don't know what that is
   // until it's evoked. So the primitive is MOMENTS of the stay, each an opt-in

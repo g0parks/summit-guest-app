@@ -13,6 +13,7 @@ import {
   declineChangeRequest,
 } from "@/app/actions/ops";
 import { buildToken } from "@/lib/tokens";
+import { requireOperator } from "@/lib/opsSession";
 import { composeRequestNudge } from "@/lib/notifications";
 import { formatMoney } from "@/lib/money";
 import {
@@ -116,6 +117,11 @@ function liveTokenId(
 }
 
 export default async function OpsOverviewPage() {
+  // Page-level gate, not just the layout's: Next.js layouts don't re-render on
+  // soft navigation and aren't a safe sole auth boundary — every /ops page
+  // checks for itself (matches the every-action-re-checks rule).
+  await requireOperator();
+
   const [queues, stays, activity, intakes, leads, departed] = await Promise.all([
     getOpsQueues(),
     getOpsStays(),

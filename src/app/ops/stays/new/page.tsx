@@ -1,3 +1,4 @@
+import { requireOperator } from "@/lib/opsSession";
 import { getConvertProperties } from "@/lib/opsQueries";
 import { getGuestEmailConfig } from "@/lib/guestEmail";
 import StayForm from "@/components/ops/StayForm";
@@ -12,6 +13,9 @@ export const dynamic = "force-dynamic";
  * surfaces the guest link.
  */
 export default async function NewStayPage() {
+  // Page-level gate (layouts aren't a safe sole auth boundary in App Router).
+  await requireOperator();
+
   const properties = await getConvertProperties();
   const emailEnabled = getGuestEmailConfig().enabled;
 
