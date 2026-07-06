@@ -6,6 +6,27 @@ client components. `npm run typecheck` and `npm run lint` are clean.
 Findings are ordered by severity; file references are to the state of
 `main` at 35c8d6f.
 
+## Outcomes (fix pass, 2026-07-06 — same branch)
+
+| Finding | Outcome |
+|---|---|
+| S1 layout-only /ops auth | **Fixed** — `requireOperator()` added to all five ops pages; rule recorded in CLAUDE.md |
+| S2 unguarded charge paths | **Fixed** — claim-before-provider (guarded `updateMany`) in `chargeTabLine` + `settleTab`, claim released on provider failure |
+| S3 CONFIRMED-without-tab-line window | **Fixed** — status flip + tab line + itinerary wrapped in one `$transaction` in all three paths |
+| S4 unclamped party size | **Fixed** — form party clamped to 1..MAX_PARTY; charge uses `clampParty` (bills the heads details were collected for) |
+| S5 magic-link flooding | **Fixed** — per-instance throttle (3 sends / 15 min), the aerie-lead pattern |
+| S6 HMAC domain separation | **Hardened** — `resolveToken` rejects purpose-prefixed ids; convention documented at `tokens.ts`. Wire format deliberately unchanged (old unsubscribe links must keep working) |
+| S7 /demo clobbers real sessions | **Fixed** — non-demo session bounces to `/`, never overwritten |
+| C1 `setRequestStatus` TOCTOU | **Fixed** — guarded on the validated status |
+| C2 unsubscribe decode 500 | **Fixed** — safe decode, falls to the calm invalid state |
+| C3 no input length caps | **Fixed** — notes 2000, detail values 1000, checkbox options 200, request-box ask 4000 |
+| C4 unnormalized phones | **Fixed** — `src/lib/phone.ts` (E.164); strict at consent gates, best-effort on optional contact fields; `concierge.ts` reuses it |
+| C5 unit price in operator email | **Fixed** — computed charge shown, per-person breakdown alongside |
+| Alcohol code retention | **Documented** — deliberate-retention comment at the bar flow (counsel-gated revisit) |
+| Stale CLAUDE.md consent gate | **Fixed** — gate marked DONE (shipped 2026-07-04); README rewritten to current state; `docs/technical-overview.md` added |
+| Ops magic link not single-use | **Accepted** — 15-min TTL + single operator; revisit if a second human joins |
+| `postcss` advisory via next | **Deferred** — clears with a routine Next patch bump; build-time only |
+
 ---
 
 ## Security
