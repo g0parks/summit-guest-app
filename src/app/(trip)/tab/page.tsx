@@ -60,7 +60,9 @@ export default async function TabPage() {
               <li key={it.id} className={styles.row}>
                 <div className={styles.rowMain}>
                   <span className={styles.rowDesc}>{it.description}</span>
-                  <span className={styles.rowDate}>{formatDayLabel(it.occurredAt, tz)}</span>
+                  <span className={styles.rowDate}>
+                    {formatDayLabel(it.serviceRequest?.requestedFor ?? it.occurredAt, tz)}
+                  </span>
                 </div>
                 <div className={styles.rowRight}>
                   <span className={`${styles.rowAmount} tabular`}>
