@@ -39,6 +39,10 @@ export async function resolveToken(
 ): Promise<ActiveStay | null> {
   const id = verifyToken(token);
   if (!id) return null;
+  // Domain separation (tokens.ts): purpose-prefixed tokens ("unsub:", "ops:")
+  // share the HMAC but must never resolve a stay. Access-token ids are
+  // base64url, which cannot contain ":".
+  if (id.includes(":")) return null;
 
   const at = await prisma.accessToken.findUnique({
     where: { id },

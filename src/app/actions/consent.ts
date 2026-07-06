@@ -7,6 +7,7 @@ import {
   recordEmailOptOut,
   recordSmsConsent,
 } from "@/lib/consent";
+import { normalizePhone } from "@/lib/phone";
 
 export type ConsentResult = { ok: true } | { ok: false; error: string };
 
@@ -25,8 +26,10 @@ export async function optInTexts(
     return { ok: false, error: "Your session has expired — please reopen your link." };
   }
 
-  const phone = String(formData.get("phone") ?? "").trim();
-  if (phone.replace(/\D/g, "").length < 10) {
+  // Normalized to E.164 at the consent moment — the consent record binds to
+  // one stable value, and the future programmatic sender never guesses.
+  const phone = normalizePhone(String(formData.get("phone") ?? ""));
+  if (!phone) {
     return { ok: false, error: "That number doesn't look quite right." };
   }
 

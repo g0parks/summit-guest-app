@@ -164,43 +164,50 @@ export async function priceProvisioningOrder(
     rush,
   });
 
-  // Guarded transition — one updateMany wins the move out of READY, so a
-  // double submit can't stack two tab lines.
-  const moved = await prisma.serviceRequest.updateMany({
-    where: { id: request.id, status: "READY" },
-    data: { status: "CONFIRMED" },
-  });
-  if (moved.count === 0) {
-    return { ok: false, error: "This one's already been priced." };
-  }
-
-  await prisma.tabLineItem.create({
-    data: {
-      stayId: request.stayId,
-      serviceRequestId: request.id,
-      description: service.name,
-      amount: amountCents,
-      currency: request.stay.currency,
-      status: "PENDING",
-      // Pass-through cost IS the vendor cost; the fees are the net.
-      vendorCostCents: costCents,
-      pmShareCents: 0,
-      netCents: computeNetCents(amountCents, costCents, 0),
-    },
-  });
-
-  // Dated provisioning (grocery) belongs on the timeline like any confirmed,
-  // scheduled request — mirrors approveQuote. Dateless (bar) skips it.
-  if (request.requestedFor) {
-    await prisma.itineraryItem.create({
-      data: confirmedRequestItineraryData({
-        stayId: request.stayId,
-        requestId: request.id,
-        service,
-        notes: request.notes,
-        startsAt: request.requestedFor,
-      }),
+  // Guarded transition + the money writes, ONE transaction: the updateMany
+  // wins the move out of READY (a double submit can't stack two tab lines),
+  // and a crash after the flip can no longer strand a CONFIRMED request with
+  // no tab line — the flip rolls back with its writes.
+  let priced = false;
+  await prisma.$transaction(async (tx) => {
+    const moved = await tx.serviceRequest.updateMany({
+      where: { id: request.id, status: "READY" },
+      data: { status: "CONFIRMED" },
     });
+    if (moved.count === 0) return;
+    priced = true;
+
+    await tx.tabLineItem.create({
+      data: {
+        stayId: request.stayId,
+        serviceRequestId: request.id,
+        description: service.name,
+        amount: amountCents,
+        currency: request.stay.currency,
+        status: "PENDING",
+        // Pass-through cost IS the vendor cost; the fees are the net.
+        vendorCostCents: costCents,
+        pmShareCents: 0,
+        netCents: computeNetCents(amountCents, costCents, 0),
+      },
+    });
+
+    // Dated provisioning (grocery) belongs on the timeline like any confirmed,
+    // scheduled request — mirrors approveQuote. Dateless (bar) skips it.
+    if (request.requestedFor) {
+      await tx.itineraryItem.create({
+        data: confirmedRequestItineraryData({
+          stayId: request.stayId,
+          requestId: request.id,
+          service,
+          notes: request.notes,
+          startsAt: request.requestedFor,
+        }),
+      });
+    }
+  });
+  if (!priced) {
+    return { ok: false, error: "This one's already been priced." };
   }
 
   revalidateSurfaces(request.stayId);
@@ -239,7 +246,15 @@ export async function setRequestStatus(formData: FormData): Promise<void> {
   if (!request) return;
   if (!(TRANSITIONS[request.status] ?? []).includes(status)) return;
 
-  await prisma.serviceRequest.update({ where: { id: request.id }, data: { status } });
+  // Guarded on the status we validated against: two racing taps (e.g. "Mark
+  // completed" and "Cancel" from the same stale read) can't both land — the
+  // loser sees count 0 and touches nothing, so a delivered request can never
+  // be flipped to CANCELLED with its owed lines voided.
+  const moved = await prisma.serviceRequest.updateMany({
+    where: { id: request.id, status: request.status },
+    data: { status },
+  });
+  if (moved.count === 0) return;
 
   if (status === "DECLINED" || status === "CANCELLED") {
     await prisma.tabLineItem.updateMany({
@@ -284,18 +299,40 @@ export async function chargeTabLine(
     (await prisma.paymentMethod.findFirst({ where: { stayId: line.stayId } }));
   if (!card) return { ok: false, error: "No card on file for this stay." };
 
-  const res = await getPaymentProvider().chargeService({
-    stayId: line.stayId,
-    amountCents: line.amount,
-    currency: line.currency,
-    description: line.description,
-    paymentMethodExternalRef: card.externalRef,
+  // Claim the line BEFORE calling the provider (the guarded-updateMany money
+  // idiom): of two racing submits only one flips PENDING→CHARGED, so the
+  // provider — mock today, Stripe behind this seam — is never called twice
+  // for one line. A provider failure releases the claim back to PENDING.
+  const claimed = await prisma.tabLineItem.updateMany({
+    where: { id: line.id, status: "PENDING" },
+    data: { status: "CHARGED", paymentMethodId: card.id },
   });
+  if (claimed.count === 0) {
+    return { ok: false, error: "Already charged." };
+  }
 
-  await prisma.tabLineItem.update({
-    where: { id: line.id },
-    data: { status: "CHARGED", externalRef: res.externalRef, paymentMethodId: card.id },
-  });
+  try {
+    const res = await getPaymentProvider().chargeService({
+      stayId: line.stayId,
+      amountCents: line.amount,
+      currency: line.currency,
+      description: line.description,
+      paymentMethodExternalRef: card.externalRef,
+    });
+    await prisma.tabLineItem.update({
+      where: { id: line.id },
+      data: { externalRef: res.externalRef },
+    });
+  } catch (err) {
+    console.error("[ops] charge failed — releasing the claim:", err);
+    await prisma.tabLineItem
+      .updateMany({
+        where: { id: line.id, status: "CHARGED" },
+        data: { status: "PENDING", paymentMethodId: null, externalRef: null },
+      })
+      .catch(() => {});
+    return { ok: false, error: "Charge failed — the line is still pending. Try again." };
+  }
 
   revalidateSurfaces(line.stayId);
   return { ok: true };

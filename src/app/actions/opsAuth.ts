@@ -16,10 +16,31 @@ export type OpsAuthResult = { ok: true } | { ok: false; error: string };
 const FROM = "Summit Ops <ops@summitluxurylogistics.com>";
 const TTL_MS = 15 * 60 * 1000; // link good for 15 minutes
 
+/**
+ * Best-effort throttle (the aerie-lead pattern): this action is public by
+ * nature (it IS the login door), so without a cap anyone who finds it can
+ * flood the operator inbox and burn the Resend quota — which silences REAL
+ * notifications. Per-instance in-memory is enough: the one legitimate user
+ * needs a link once, not three per window.
+ */
+const SEND_WINDOW_MS = 15 * 60 * 1000;
+const MAX_SENDS_PER_WINDOW = 3;
+let recentSends: number[] = [];
+
 export async function requestOpsMagicLink(): Promise<OpsAuthResult> {
   if (!process.env.OPS_KEY) {
     return { ok: false, error: "Ops access isn't configured." };
   }
+
+  const now = Date.now();
+  recentSends = recentSends.filter((t) => now - t < SEND_WINDOW_MS);
+  if (recentSends.length >= MAX_SENDS_PER_WINDOW) {
+    return {
+      ok: false,
+      error: "A link was sent recently — check the ops inbox, or wait a few minutes.",
+    };
+  }
+  recentSends.push(now);
   const to = process.env.OPERATOR_EMAIL;
   const apiKey = process.env.RESEND_API_KEY;
   if (!to || !apiKey) {

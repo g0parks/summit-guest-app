@@ -21,6 +21,7 @@ import {
   type ServiceFlowConfig,
 } from "@/lib/serviceForm";
 import { canSms, recordSmsConsent } from "@/lib/consent";
+import { normalizePhone } from "@/lib/phone";
 import { parseVendorCostNote } from "@/lib/vendorNote";
 import { zonedDateTime } from "@/lib/dates";
 import { getStayPhase } from "@/lib/stayPhase";
@@ -218,7 +219,8 @@ export async function saveRequestDetails(
   const dateStr = String(formData.get("date") ?? "").trim();
   const timeStr = String(formData.get("time") ?? "").trim();
   const partyRaw = String(formData.get("partySize") ?? "").trim();
-  const notes = String(formData.get("notes") ?? "").trim() || null;
+  // Length caps mirror changes.ts — a hostile POST can't persist megabytes.
+  const notes = String(formData.get("notes") ?? "").trim().slice(0, 2000) || null;
 
   if (!finishLater && service.requiresDate && !dateStr) {
     return { ok: false, error: "Please choose a date." };
@@ -230,9 +232,12 @@ export async function saveRequestDetails(
     if (!Number.isNaN(d.getTime())) requestedFor = d;
   }
 
+  // Form-supplied party is clamped to what the wizard renders (1..MAX_PARTY):
+  // the charge and the per-person details must count the same heads — an
+  // unclamped 500 would bill 500× per-person with fittings collected for 8.
   const parsedParty = partyRaw ? Number.parseInt(partyRaw, 10) : NaN;
   const partySize = Number.isFinite(parsedParty)
-    ? parsedParty
+    ? clampParty(parsedParty)
     : request.partySize ?? stay.partySize ?? null;
 
   // ── Execution details, config-driven (src/lib/serviceForm.ts) ──
@@ -259,7 +264,9 @@ export async function saveRequestDetails(
         for (let p = 1; p <= clampParty(partySize); p++) {
           for (const sub of field.fields) {
             const name = perPersonName(field.name, p, sub.name);
-            const value = String(formData.get(`detail_${name}`) ?? "").trim();
+            const value = String(formData.get(`detail_${name}`) ?? "")
+              .trim()
+              .slice(0, 1000);
             if (!value && sub.required && !finishLater) {
               return {
                 ok: false,
@@ -278,7 +285,7 @@ export async function saveRequestDetails(
       } else if (field.kind === "checkboxes") {
         const picked = formData
           .getAll(`detail_${field.name}`)
-          .map((v) => String(v).trim())
+          .map((v) => String(v).trim().slice(0, 200))
           .filter(Boolean);
         if (picked.length > 0) {
           const joined = picked.join("; ");
@@ -286,7 +293,9 @@ export async function saveRequestDetails(
           answers[field.name] = joined;
         }
       } else {
-        const value = String(formData.get(`detail_${field.name}`) ?? "").trim();
+        const value = String(formData.get(`detail_${field.name}`) ?? "")
+          .trim()
+          .slice(0, 1000);
         if (!value && field.required && !finishLater) {
           return { ok: false, error: `Please fill in “${field.label}”.` };
         }
@@ -319,8 +328,9 @@ export async function saveRequestDetails(
   // sticks even if the flow turns out incomplete below — it was given.
   const needsTextGate = !canSms(stay.guest);
   if (!finishLater && needsTextGate) {
-    const coordPhone = String(formData.get("coordPhone") ?? "").trim();
-    if (coordPhone.replace(/\D/g, "").length < 10) {
+    // Normalized to E.164 at the consent moment (src/lib/phone.ts).
+    const coordPhone = normalizePhone(String(formData.get("coordPhone") ?? ""));
+    if (!coordPhone) {
       return {
         ok: false,
         error: "Add a mobile number so your concierge can coordinate your order.",
@@ -371,52 +381,61 @@ export async function saveRequestDetails(
   const confirmed = isFixedPrice(service.priceUnit, service.priceAmount);
   let chargedCents: number | null = null;
 
-  // Guarded transition — a double submit can't stack tab lines: only one
-  // updateMany wins the move out of the open statuses.
-  const moved = await prisma.serviceRequest.updateMany({
-    where: { id: request.id, status: { in: [...OPEN_FOR_EDITS] } },
-    data: {
-      status: confirmed ? "CONFIRMED" : "READY",
-      requestedFor,
-      partySize: partySize ?? undefined,
-      notes,
-      detailsJson: details.length > 0 ? details : undefined,
-    },
-  });
-  if (moved.count === 0) {
-    return { ok: false, error: "This one’s already being arranged — your concierge has it." };
-  }
-
-  if (isFixedPrice(service.priceUnit, service.priceAmount)) {
-    chargedCents = computeChargeCents(
-      service.priceUnit,
-      service.priceAmount,
-      partySize ?? 1,
-    );
-
-    await prisma.tabLineItem.create({
+  // Guarded transition + the money writes, ONE transaction: the updateMany
+  // wins the move out of the open statuses (a double submit can't stack tab
+  // lines), and a crash after the flip can no longer strand a CONFIRMED
+  // request with no tab line — the flip rolls back with its writes.
+  let moved = false;
+  await prisma.$transaction(async (tx) => {
+    const res = await tx.serviceRequest.updateMany({
+      where: { id: request.id, status: { in: [...OPEN_FOR_EDITS] } },
       data: {
-        stayId: stay.id,
-        serviceRequestId: request.id,
-        description: service.name,
-        amount: chargedCents,
-        currency: stay.currency,
-        status: "PENDING",
+        status: confirmed ? "CONFIRMED" : "READY",
+        requestedFor,
+        partySize: partySize ?? undefined,
+        notes,
+        detailsJson: details.length > 0 ? details : undefined,
       },
     });
+    if (res.count === 0) return;
+    moved = true;
 
-    // Confirmed + scheduled → it belongs on the trip timeline.
-    if (requestedFor) {
-      await prisma.itineraryItem.create({
-        data: confirmedRequestItineraryData({
+    if (confirmed && isFixedPrice(service.priceUnit, service.priceAmount)) {
+      // clampParty on the charge too: heads billed = heads the wizard
+      // collected details for, whatever the stored fallback party says.
+      chargedCents = computeChargeCents(
+        service.priceUnit,
+        service.priceAmount,
+        clampParty(partySize),
+      );
+
+      await tx.tabLineItem.create({
+        data: {
           stayId: stay.id,
-          requestId: request.id,
-          service,
-          notes,
-          startsAt: requestedFor,
-        }),
+          serviceRequestId: request.id,
+          description: service.name,
+          amount: chargedCents,
+          currency: stay.currency,
+          status: "PENDING",
+        },
       });
+
+      // Confirmed + scheduled → it belongs on the trip timeline.
+      if (requestedFor) {
+        await tx.itineraryItem.create({
+          data: confirmedRequestItineraryData({
+            stayId: stay.id,
+            requestId: request.id,
+            service,
+            notes,
+            startsAt: requestedFor,
+          }),
+        });
+      }
     }
+  });
+  if (!moved) {
+    return { ok: false, error: "This one’s already being arranged — your concierge has it." };
   }
 
   // Opted-into cross-attach siblings (e.g. a chef night) spawn here too.
@@ -504,44 +523,51 @@ export async function approveQuote(
   const amountCents = request.quotedAmount;
   const serviceName = request.service?.name ?? request.customTitle ?? "Concierge service";
 
-  // Guarded transition — a double tap can't stack tab lines: only one
-  // updateMany wins the move out of QUOTED.
-  const moved = await prisma.serviceRequest.updateMany({
-    where: { id: request.id, status: "QUOTED" },
-    data: { status: "CONFIRMED" },
-  });
-  if (moved.count === 0) {
-    return { ok: false, error: "Already confirmed — your concierge has it." };
-  }
-
+  // Guarded transition + the money writes, ONE transaction: the updateMany
+  // wins the move out of QUOTED (a double tap can't stack tab lines), and a
+  // crash after the flip can no longer strand a CONFIRMED request with no
+  // tab line — the approval rolls back whole.
   // Vendor cost captured at quote time rides the operator note (ops-only
   // surface) until this line exists — see src/lib/vendorNote.ts.
   const vendorCostCents = parseVendorCostNote(request.operatorNote);
-  await prisma.tabLineItem.create({
-    data: {
-      stayId: stay.id,
-      serviceRequestId: request.id,
-      description: serviceName,
-      amount: amountCents,
-      currency: stay.currency,
-      status: "PENDING",
-      vendorCostCents,
-      pmShareCents: vendorCostCents != null ? 0 : null, // Phase-2: real PM share
-      netCents: vendorCostCents != null ? amountCents - vendorCostCents : null,
-    },
-  });
-
-  // Confirmed + scheduled → it belongs on the trip timeline.
-  if (request.requestedFor && request.service) {
-    await prisma.itineraryItem.create({
-      data: confirmedRequestItineraryData({
-        stayId: stay.id,
-        requestId: request.id,
-        service: request.service,
-        notes: request.notes,
-        startsAt: request.requestedFor,
-      }),
+  let approved = false;
+  await prisma.$transaction(async (tx) => {
+    const moved = await tx.serviceRequest.updateMany({
+      where: { id: request.id, status: "QUOTED" },
+      data: { status: "CONFIRMED" },
     });
+    if (moved.count === 0) return;
+    approved = true;
+
+    await tx.tabLineItem.create({
+      data: {
+        stayId: stay.id,
+        serviceRequestId: request.id,
+        description: serviceName,
+        amount: amountCents,
+        currency: stay.currency,
+        status: "PENDING",
+        vendorCostCents,
+        pmShareCents: vendorCostCents != null ? 0 : null, // Phase-2: real PM share
+        netCents: vendorCostCents != null ? amountCents - vendorCostCents : null,
+      },
+    });
+
+    // Confirmed + scheduled → it belongs on the trip timeline.
+    if (request.requestedFor && request.service) {
+      await tx.itineraryItem.create({
+        data: confirmedRequestItineraryData({
+          stayId: stay.id,
+          requestId: request.id,
+          service: request.service,
+          notes: request.notes,
+          startsAt: request.requestedFor,
+        }),
+      });
+    }
+  });
+  if (!approved) {
+    return { ok: false, error: "Already confirmed — your concierge has it." };
   }
 
   // The approval IS the actionable moment — the operator books the vendor now.
@@ -591,7 +617,7 @@ export async function createRequestBox(
     return postStayError();
   }
 
-  const ask = String(formData.get("ask") ?? "").trim();
+  const ask = String(formData.get("ask") ?? "").trim().slice(0, 4000);
   if (!ask) {
     return { ok: false, error: "Tell us what you'd like us to arrange." };
   }

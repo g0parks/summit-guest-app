@@ -12,6 +12,17 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
  * The DB never stores the secret or the signature — only the id. Verifying
  * recomputes the HMAC and constant-time compares, then the id is resolved
  * server-side to the Stay. Editing the id (e.g. to swap stays) breaks the sig.
+ *
+ * DOMAIN SEPARATION (load-bearing convention): three token families share
+ * this one HMAC, told apart by payload shape —
+ *   guest access  → raw base64url id (the alphabet CANNOT contain ":")
+ *   unsubscribe   → "unsub:<guestId>"   (consent.ts)
+ *   ops magic     → "ops:<expiryMs>"    (opsAuth.ts)
+ * Every purpose-scoped verifier checks its own prefix, and resolveToken
+ * (session.ts) rejects any id containing ":" so a purposed token can never
+ * be replayed as a guest link. A NEW token purpose MUST take a "<purpose>:"
+ * prefix — never a bare payload. (The wire format is frozen: changing the
+ * MAC input would break every unsubscribe link already sitting in an inbox.)
  */
 
 function getSecret(): string {

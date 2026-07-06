@@ -108,22 +108,54 @@ export async function settleTab(): Promise<SettleResult> {
 
   const provider = getPaymentProvider();
   let total = 0;
+  let count = 0;
   for (const item of pending) {
-    const res = await provider.chargeService({
-      stayId: stay.id,
-      amountCents: item.amount,
-      currency: item.currency,
-      description: item.description,
-      paymentMethodExternalRef: card.externalRef,
+    // Claim each line BEFORE calling the provider (the guarded-updateMany
+    // money idiom, shared with ops chargeTabLine): a double-tapped Settle or
+    // a concurrent ops charge can't bill the same line twice. A line another
+    // charge already claimed is skipped, not an error.
+    const claimed = await prisma.tabLineItem.updateMany({
+      where: { id: item.id, status: "PENDING" },
+      data: { status: "CHARGED", paymentMethodId: card.id },
     });
-    await prisma.tabLineItem.update({
-      where: { id: item.id },
-      data: { status: "CHARGED", externalRef: res.externalRef, paymentMethodId: card.id },
-    });
+    if (claimed.count === 0) continue;
+
+    try {
+      const res = await provider.chargeService({
+        stayId: stay.id,
+        amountCents: item.amount,
+        currency: item.currency,
+        description: item.description,
+        paymentMethodExternalRef: card.externalRef,
+      });
+      await prisma.tabLineItem.update({
+        where: { id: item.id },
+        data: { externalRef: res.externalRef },
+      });
+    } catch (err) {
+      console.error("[tab] settle charge failed — releasing the claim:", err);
+      await prisma.tabLineItem
+        .updateMany({
+          where: { id: item.id, status: "CHARGED" },
+          data: { status: "PENDING", paymentMethodId: null, externalRef: null },
+        })
+        .catch(() => {});
+      revalidatePath("/tab");
+      revalidatePath("/");
+      return {
+        ok: false,
+        error:
+          count > 0
+            ? "A charge didn't go through — part of your tab is settled, the rest is still pending. Try again."
+            : "The charge didn't go through — your tab is untouched. Try again.",
+      };
+    }
     total += item.amount;
+    count += 1;
   }
+  if (count === 0) return { ok: false, error: "Nothing pending to settle." };
 
   revalidatePath("/tab");
   revalidatePath("/");
-  return { ok: true, count: pending.length, chargedCents: total };
+  return { ok: true, count, chargedCents: total };
 }
