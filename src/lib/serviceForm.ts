@@ -172,9 +172,41 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
             kind: "checkboxes",
             name: "luggage",
             label: "Riding along",
-            options: ["Ski or snowboard bags", "Extra luggage", "Child car seats"],
+            // Season-neutral on purpose: the flow config is static (no
+            // staySeason plumbing here), so the copy must read right in July
+            // and January alike.
+            options: ["Gear bags · skis, boards, bikes, clubs", "Extra luggage", "Child car seats"],
           },
         ],
+      },
+    ],
+    // The classic demand-capture attach: the transfer is the most-ordered
+    // entry service, and a stocked kitchen is the natural companion to an
+    // arrival. Two offers because showIf is equals-only (no OR, by design) —
+    // both arrival-bearing directions get the same question; a pure
+    // departure run gets neither ("when you walk in" would read wrong).
+    attaches: [
+      {
+        name: "kitchenArrival",
+        targetSlug: "grocery-pre-stock",
+        source: "transfer-attach",
+        showIf: { field: "direction", equals: "Airport → residence" },
+        eyebrow: "While we're at it",
+        question: "A stocked kitchen when you walk in?",
+        detail:
+          "Your list shopped and put away before you arrive. We'll take the details after this.",
+        cta: "Yes, stock the kitchen",
+      },
+      {
+        name: "kitchenRoundTrip",
+        targetSlug: "grocery-pre-stock",
+        source: "transfer-attach",
+        showIf: { field: "direction", equals: "Round trip" },
+        eyebrow: "While we're at it",
+        question: "A stocked kitchen when you walk in?",
+        detail:
+          "Your list shopped and put away before you arrive. We'll take the details after this.",
+        cta: "Yes, stock the kitchen",
       },
     ],
     notesPlaceholder: "Anything else about the drive…",

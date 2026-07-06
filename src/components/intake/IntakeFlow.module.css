@@ -57,6 +57,35 @@
   color: var(--ink-muted);
 }
 
+/* co-brand lockup (World A) — mirrors the welcome threshold's */
+.lockup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.brandLabel {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.brandLogo {
+  height: 22px;
+  width: auto;
+  align-self: flex-start;
+}
+
+.poweredBy {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
 /* ── top row: back + progress dots ───────────────────────── */
 .topRow {
   display: flex;

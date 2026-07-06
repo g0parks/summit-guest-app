@@ -1,6 +1,8 @@
 import { getActiveStay } from "@/lib/session";
+import { resolveBrand } from "@/lib/branding";
 import { getConciergeContact, intakeFollowupMessage } from "@/lib/concierge";
 import { formatDateRange } from "@/lib/dates";
+import { getRequestedServiceSlugs } from "@/lib/queries";
 import { getStayPhase, seasonForDate, staySeason } from "@/lib/stayPhase";
 import { intakeQuestionsFor, RENTAL_CAR_QUESTION } from "@/lib/intakeFlow";
 import IntakeFlow from "@/components/intake/IntakeFlow";
@@ -42,17 +44,30 @@ export default async function PlanPage({
     ? staySeason(active.stay, active.stay.property.timezone)
     : seasonForDate(new Date());
 
+  // Signal-awareness (World A): never ask about an essential the stay already
+  // has in motion or done — the guest who confirmed a transfer shouldn't be
+  // asked whether a car should be waiting. Declined/cancelled/expired demand
+  // stays askable (re-capture is legitimate).
+  let questions = intakeQuestionsFor(season);
+  if (active) {
+    const haveSlugs = await getRequestedServiceSlugs(active.stay.id);
+    questions = questions.filter((q) => !haveSlugs.has(q.serviceSlug));
+  }
+
   // The rental-car parameter writes to Stay.hasRentalCar, so we only ask it
   // for a known stay that's still ahead of / during the trip (World A,
-  // not departed). World B has no Stay to write to — captured at conversion.
+  // not departed) — and only when it hasn't been answered anywhere yet
+  // (the home card writes the same fact).
   const captureRentalCar =
     active != null &&
+    active.stay.hasRentalCar == null &&
     getStayPhase(active.stay, active.stay.property.timezone) !== "POST_STAY";
 
   return (
     <IntakeFlow
-      questions={intakeQuestionsFor(season)}
+      questions={questions}
       rentalCarQuestion={captureRentalCar ? RENTAL_CAR_QUESTION : null}
+      brand={active ? resolveBrand(active.stay.property) : null}
       knownStay={
         active
           ? {

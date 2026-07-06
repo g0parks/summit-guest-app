@@ -1,22 +1,28 @@
 import Link from "next/link";
 import { requireStay, type ActiveStay } from "@/lib/session";
 import { resolveBrand, type Brand } from "@/lib/branding";
-import { getOpenRequests, getTab, getTripHome } from "@/lib/queries";
+import {
+  getOpenRequests,
+  getTab,
+  getTripHome,
+  getUpcomingItinerary,
+} from "@/lib/queries";
 import { getConciergeContact, generalMessage } from "@/lib/concierge";
 import { getStayPhase, daysUntilArrival } from "@/lib/stayPhase";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import NextTripForm from "@/components/trip/NextTripForm";
 import RentalCarPrompt from "@/components/trip/RentalCarPrompt";
 import TextUpdatesPrompt from "@/components/trip/TextUpdatesPrompt";
-import { formatDateRange, formatTime, relativeDayWord } from "@/lib/dates";
+import { formatDateRange, formatDayLabel, formatTime, relativeDayWord } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
 /** Cross-attach sources — a sibling Summit started for the guest, not homework
- *  they opened. Labeled as "we're on it" so the spawned item never surprises. */
-const ATTACH_SOURCES = new Set(["grocery-upsell", "grocery-attach", "chef-attach"]);
+ *  they opened. Labeled as "we're on it" so the spawned item never surprises.
+ *  Keep in step with the `source` values in serviceForm.ts attach offers. */
+const ATTACH_SOURCES = new Set(["grocery-upsell", "transfer-attach"]);
 
 /** Checklist state line for an open request — shared by both home phases. */
 function requestChecklistLabel(
@@ -82,9 +88,10 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
   const { stay } = active;
   const { guest, property } = stay;
   const tz = property.timezone;
-  const [{ unclaimedPerk }, openRequests] = await Promise.all([
+  const [{ unclaimedPerk }, openRequests, arranged] = await Promise.all([
     getTripHome(stay.id, property.partnerId),
     getOpenRequests(stay.id),
+    getUpcomingItinerary(stay.id),
   ]);
   const concierge = getConciergeContact();
 
@@ -134,9 +141,31 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
         </Link>
       )}
 
-      {/* the resumption surface — every open signal, one tap from done */}
+      {/* the resumption surface — arranged things first (progress the guest
+          can SEE — the reassurance the itinerary tab alone doesn't give),
+          then every open signal, one tap from done */}
       <section className={`${styles.card} reveal reveal-3`}>
         <span className="eyebrow">Before you arrive</span>
+        {arranged.length > 0 && (
+          <ul className={styles.checklist}>
+            {arranged.map((item) => (
+              <li key={item.id}>
+                <Link href="/itinerary" className={styles.checkRow}>
+                  <span className={styles.checkBody}>
+                    <span className={styles.checkName}>{item.title}</span>
+                    <span className={styles.checkState}>
+                      Set · {formatDayLabel(item.startsAt, tz)}
+                      {!item.allDay && ` · ${formatTime(item.startsAt, tz)}`}
+                    </span>
+                  </span>
+                  <svg className={styles.checkChevron} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
         {openRequests.length > 0 ? (
           <ul className={styles.checklist}>
             {openRequests.map((req) => {
@@ -159,9 +188,11 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
             })}
           </ul>
         ) : (
-          <p className={styles.cardSolo}>
-            A little planning now, and your arrival takes care of itself.
-          </p>
+          arranged.length === 0 && (
+            <p className={styles.cardSolo}>
+              A little planning now, and your arrival takes care of itself.
+            </p>
+          )
         )}
       </section>
 
@@ -203,7 +234,7 @@ async function PreArrivalBody({ active, brand }: { active: ActiveStay; brand: Br
         <section className={`${styles.card} reveal reveal-5`}>
           <span className="eyebrow">Your concierge</span>
           <p className={styles.conciergeCopy}>
-            Dinner moved, powder-day plans, a question.{" "}
+            Dinner moved, plans changed, a question.{" "}
             {concierge.phone ? "Text us" : "Email us"} and consider it handled.
           </p>
           <ConciergeLinks
@@ -371,7 +402,7 @@ async function InStayBody({ active, brand }: { active: ActiveStay; brand: Brand 
         <section className={`${styles.card} reveal reveal-5`}>
           <span className="eyebrow">Your concierge</span>
           <p className={styles.conciergeCopy}>
-            Dinner moved, powder-day plans, a question.{" "}
+            Dinner moved, plans changed, a question.{" "}
             {concierge.phone ? "Text us" : "Email us"} and consider it handled.
           </p>
           <ConciergeLinks

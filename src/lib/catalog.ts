@@ -59,10 +59,18 @@ export function confirmedRequestItineraryData(input: {
     serviceRequestId: input.requestId,
     title: input.service.name,
     description: input.notes ?? input.service.shortDesc,
-    location: "In-residence",
+    // Only claim "In-residence" for categories that actually happen there —
+    // a transfer tagged "In-residence" reads wrong, and activities (guided
+    // fly-fishing) happen out in the world. Null just omits the tag.
+    location: inResidenceCategory(input.service.category) ? "In-residence" : null,
     category: serviceToItineraryCategory(input.service.category),
     startsAt: input.startsAt,
   };
+}
+
+/** Categories whose services are delivered in the residence itself. */
+function inResidenceCategory(c: ServiceCategory): boolean {
+  return c !== "TRANSPORT" && c !== "ACTIVITY";
 }
 
 /** When a request is confirmed, surface it on the itinerary under this category. */
