@@ -45,7 +45,7 @@ export default function IntakeFlow({
   questions: IntakeQuestion[];
   /** Stay-parameter capture (World A only); null = skip the screen entirely. */
   rentalCarQuestion: ParameterQuestion | null;
-  /** World A carries the stay's co-brand through /plan; null = Summit (World B). */
+  /** World A: the stay's own co-brand. World B: resolved from ?partner= if present. Null = Summit default. */
   brand: Brand | null;
   knownStay: KnownStay | null;
   utm: Record<string, string> | null;

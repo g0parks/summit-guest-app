@@ -1,3 +1,4 @@
+import { prisma } from "@/lib/db";
 import { getActiveStay } from "@/lib/session";
 import { resolveBrand } from "@/lib/branding";
 import { getConciergeContact, intakeFollowupMessage } from "@/lib/concierge";
@@ -20,6 +21,11 @@ export const metadata = {
  * token session exists (World A), the welcome personalizes and the contact
  * screen disappears — never ask what we already know.
  *
+ * ?partner=<slug> co-brands a World B (anonymous) visit — the same
+ * pre-created-only lookup /demo uses, read-only, never created from URL
+ * input. Unknown/inactive slug falls back to plain Summit branding quietly.
+ * World A (known-guest) still takes precedence via the stay's own partner.
+ *
  * UTM params ride along for attribution only — never access (CLAUDE.md rule).
  */
 export default async function PlanPage({
@@ -34,6 +40,7 @@ export default async function PlanPage({
     if (k.startsWith("utm_") && typeof v === "string") utm[k] = v;
   }
   const source = typeof params.src === "string" ? params.src : null;
+  const partnerSlug = typeof params.partner === "string" ? params.partner : null;
 
   const active = await getActiveStay();
   const concierge = getConciergeContact();
@@ -63,11 +70,25 @@ export default async function PlanPage({
     active.stay.hasRentalCar == null &&
     getStayPhase(active.stay, active.stay.property.timezone) !== "POST_STAY";
 
+  // World B co-brand: only looked up when there's no active stay to source
+  // one from (World A always wins — a real guest's own stay never gets
+  // second-guessed by a stray ?partner= param riding along on the link).
+  const worldBPartner =
+    !active && partnerSlug
+      ? await prisma.partner.findFirst({ where: { slug: partnerSlug, isActive: true } })
+      : null;
+
   return (
     <IntakeFlow
       questions={questions}
       rentalCarQuestion={captureRentalCar ? RENTAL_CAR_QUESTION : null}
-      brand={active ? resolveBrand(active.stay.property) : null}
+      brand={
+        active
+          ? resolveBrand(active.stay.property)
+          : worldBPartner
+            ? resolveBrand({ partner: worldBPartner })
+            : null
+      }
       knownStay={
         active
           ? {
