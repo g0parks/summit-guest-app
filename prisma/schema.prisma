@@ -240,6 +240,10 @@ model Stay {
   hasRentalCar    Boolean? // captured pre-arrival (/plan or in-app fallback); null = not yet asked. Re-prices the distance-activity menu in v2 — stored, not acted on in v1.
   welcomeSeenAt   DateTime? // the /welcome threshold was seen + dismissed; null = not yet shown. Gates the first-visit interstitial (one per stay).
   isDemo          Boolean          @default(false) // /demo sandbox — cleanup-eligible, [DEMO]-tagged notifications
+  // One Stripe Customer per stay, created lazily at the first card setup. Cards
+  // are attached to it, so every later off-session charge quotes it. Demo stays
+  // resolve to the MOCK provider and never get one.
+  stripeCustomerId String?
   accessTokens    AccessToken[]
   itineraryItems  ItineraryItem[]
   serviceRequests ServiceRequest[]
@@ -359,6 +363,14 @@ model TabLineItem {
   vendorCostCents  Int? // internal: what the vendor charges us
   pmShareCents     Int? // internal: PM rev-share (Phase-2; 0/null today)
   netCents         Int? // internal: amount - vendorCost - pmShare, computed on write
+  // Money path (2026-07-27 doctrine): charging is ALWAYS an operator tap.
+  // chargeDueAt is DISPLAY/SORT ONLY — it orders the ops charge list and never
+  // triggers anything. chargeAttempts is the idempotency-key counter
+  // (`<lineId>:<attempts>`), so a retry after a decline is a FRESH attempt
+  // instead of Stripe replaying the stored failure for 24h.
+  chargeDueAt      DateTime?
+  chargeFailedAt   DateTime? // last decline; cleared on success — ops badge
+  chargeAttempts   Int             @default(0)
   occurredAt       DateTime        @default(now())
   createdAt        DateTime        @default(now())
 }

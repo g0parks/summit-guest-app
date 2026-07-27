@@ -4,6 +4,7 @@ import { formatMoney } from "@/lib/money";
 import { formatDayLabel } from "@/lib/dates";
 import { generalMessage, getConciergeContact } from "@/lib/concierge";
 import { getStayPhase } from "@/lib/stayPhase";
+import { getPaymentProviderType } from "@/lib/payments";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import Wallet from "@/components/tab/Wallet";
 import styles from "./page.module.css";
@@ -48,6 +49,9 @@ export default async function TabPage() {
           pendingCents={pending}
           currency={stay.currency}
           cardEditable={getStayPhase(stay, tz) !== "POST_STAY"}
+          // Resolved server-side, per stay: a demo sandbox always gets the mock
+          // form, a real stay gets Stripe's Payment Element.
+          providerType={getPaymentProviderType(stay)}
         />
       </section>
 
