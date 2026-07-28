@@ -1,126 +1,51 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { loadStripe, type Appearance, type Stripe } from "@stripe/stripe-js";
-import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import {
   addPaymentMethod,
-  beginCardSetup,
-  completeCardSetup,
   settleTab,
   type AddCardResult,
   type SettleResult,
 } from "@/app/actions/payments";
-import type { ProviderType } from "@/lib/payments/types";
+import StripeCardForm from "@/components/payments/StripeCardForm";
+import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import { formatMoney } from "@/lib/money";
 import styles from "./Wallet.module.css";
 
 type Card = { brand: string; last4: string; expMonth: number; expYear: number };
 
+/**
+ * How the card on file resolves for THIS stay (src/lib/cardOnFile.ts), decided
+ * on the server:
+ *   stripe / mock → collect a card that way
+ *   mismatch      → a card exists but was saved under the other provider; it
+ *                   can't be charged, so the guest is asked to re-add
+ *   unavailable   → payments can't be taken at all: NO form is shown. Falling
+ *                   back to the demo's typed form here would invite a real
+ *                   guest to type a real card into something that stores a
+ *                   fake one.
+ */
+export type WalletMode = "stripe" | "mock" | "mismatch" | "unavailable";
+
 const pad = (n: number) => String(n).padStart(2, "0");
-
-/**
- * Stripe.js is loaded once per page, lazily — the module-scope promise is
- * Stripe's own requirement (re-loading it on every render remounts the iframe).
- */
-let stripePromise: Promise<Stripe | null> | null = null;
-function getStripe(): Promise<Stripe | null> {
-  if (!stripePromise) {
-    const pk = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-    stripePromise = pk ? loadStripe(pk) : Promise.resolve(null);
-  }
-  return stripePromise;
-}
-
-/**
- * Dress the Payment Element in the page's own tokens, so a co-branded stay's
- * card form carries the PARTNER's accent instead of Stripe blue (co-brand
- * doctrine: Summit stays quiet, the brand on screen is theirs).
- */
-function elementsAppearance(): Appearance {
-  const root = getComputedStyle(document.documentElement);
-  const v = (name: string, fallback: string) => root.getPropertyValue(name).trim() || fallback;
-  return {
-    theme: "stripe",
-    variables: {
-      colorPrimary: v("--accent", "#2f4b3c"),
-      colorText: v("--ink", "#211f1b"),
-      colorTextSecondary: v("--ink-muted", "#6b655c"),
-      colorTextPlaceholder: v("--ink-faint", "#9a9387"),
-      colorBackground: v("--bg", "#f7f3ec"),
-      borderRadius: v("--radius-md", "14px"),
-      fontSizeBase: "16px",
-      spacingUnit: "4px",
-    },
-  };
-}
-
-/**
- * The real card form. The number goes browser → Stripe; this app only ever
- * sees the SetupIntent id it hands back (PCI SAQ-A).
- */
-function StripeCardForm({ onSaved }: { onSaved: () => void }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  return (
-    <form
-      className={styles.form}
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (!stripe || !elements || saving) return;
-        setSaving(true);
-        setError(null);
-
-        const confirmed = await stripe.confirmSetup({
-          elements,
-          redirect: "if_required",
-        });
-        if (confirmed.error || !confirmed.setupIntent) {
-          setError(confirmed.error?.message ?? "That card didn't save — please try again.");
-          setSaving(false);
-          return;
-        }
-
-        const res = await completeCardSetup(confirmed.setupIntent.id);
-        if (!res.ok) {
-          setError(res.error);
-          setSaving(false);
-          return;
-        }
-        setSaving(false);
-        onSaved();
-      }}
-    >
-      <PaymentElement options={{ layout: "tabs" }} />
-      {error && <p className={styles.err}>{error}</p>}
-      <button type="submit" disabled={saving} className={styles.addBtn}>
-        {saving ? "Saving…" : "Save card"}
-      </button>
-      <p className={styles.stub}>
-        Saved securely with Stripe. Nothing is charged until your booking locks.
-      </p>
-    </form>
-  );
-}
 
 export default function Wallet({
   card,
   pendingCents,
   currency,
   cardEditable = true,
-  providerType,
+  mode,
+  concierge = null,
 }: {
   card: Card | null;
   pendingCents: number;
   currency: string;
   /** False post-stay — the card-setup guard's UI mirror. Settle stays. */
   cardEditable?: boolean;
-  /** Resolved per stay on the server: demo sandboxes are always MOCK. */
-  providerType: ProviderType;
+  mode: WalletMode;
+  /** Contact + prebuilt message for the hand-off (ConciergeLinks owns the hrefs). */
+  concierge?: { phone: string | null; email: string | null; message: string } | null;
 }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
@@ -130,15 +55,8 @@ export default function Wallet({
   );
   const [settleResult, setSettleResult] = useState<SettleResult | null>(null);
   const [settling, startSettle] = useTransition();
-
-  // Stripe path: one SetupIntent per opened form.
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [appearance, setAppearance] = useState<Appearance | null>(null);
-  const [setupError, setSetupError] = useState<string | null>(null);
-  const [, startSetup] = useTransition();
-  const requestedRef = useRef(false);
-  // Saved, waiting on the refreshed card row — keeps the form from reopening
-  // (and minting a second SetupIntent) in the gap.
+  // Saved, waiting on the refreshed card row — keeps the form from reopening in
+  // the gap (and from minting a second SetupIntent).
   const [justSaved, setJustSaved] = useState(false);
 
   // Close the mock form once a card has been saved.
@@ -146,50 +64,26 @@ export default function Wallet({
     if (addState?.ok) setShowForm(false);
   }, [addState]);
 
-  const isStripe = providerType === "STRIPE";
-  const formOpen = cardEditable && !justSaved && (showForm || !card);
+  // A mismatched card can't be charged, so it doesn't count as a card on file:
+  // the guest is shown the collect form, not a reassuring row.
+  const usableCard = mode === "mismatch" ? null : card;
+  // Payments unavailable → the wallet goes READ-ONLY: the card on file is still
+  // shown (it's a fact), but nothing that can't work is offered. A "Settle now"
+  // that refuses, or a Replace that can't save, is a broken promise.
+  const chargeable = mode !== "unavailable";
+  const formOpen =
+    cardEditable && chargeable && !justSaved && (showForm || !usableCard);
 
-  /**
-   * Mint the SetupIntent when the form opens — and only then: an untouched /tab
-   * visit shouldn't create Stripe objects. The ref (not the error/secret state)
-   * is the guard, so a failed setup shows its message instead of retrying in a
-   * loop.
-   */
-  const startCardSetup = useCallback(() => {
-    if (requestedRef.current) return;
-    requestedRef.current = true;
-    setSetupError(null);
-    setAppearance(elementsAppearance());
-    startSetup(async () => {
-      const res = await beginCardSetup();
-      if (!res.ok) {
-        setSetupError(res.error);
-        return;
-      }
-      if (res.setup.mode === "element") setClientSecret(res.setup.clientSecret);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (isStripe && formOpen) startCardSetup();
-  }, [isStripe, formOpen, startCardSetup]);
-
-  const closeForm = () => {
-    setShowForm(false);
-    setClientSecret(null);
-    setSetupError(null);
-    requestedRef.current = false;
-  };
-
-  const retrySetup = () => {
-    requestedRef.current = false;
-    setSetupError(null);
-    startCardSetup();
+  const closeForm = () => setShowForm(false);
+  const onSaved = () => {
+    setJustSaved(true);
+    closeForm();
+    router.refresh();
   };
 
   return (
     <div className={styles.wrap}>
-      {card && !showForm && (
+      {usableCard && !showForm && (
         <div className={styles.cardRow}>
           <div className={styles.cardInfo}>
             <span className={styles.cardGlyph} aria-hidden="true">
@@ -200,14 +94,14 @@ export default function Wallet({
             </span>
             <span>
               <span className={styles.cardBrand}>
-                {card.brand.toUpperCase()} ···· {card.last4}
+                {usableCard.brand.toUpperCase()} ···· {usableCard.last4}
               </span>
               <span className={styles.cardExp}>
-                Exp {pad(card.expMonth)}/{String(card.expYear).slice(-2)}
+                Exp {pad(usableCard.expMonth)}/{String(usableCard.expYear).slice(-2)}
               </span>
             </span>
           </div>
-          {cardEditable && (
+          {cardEditable && chargeable && (
             <button
               type="button"
               className={styles.linkBtn}
@@ -222,46 +116,52 @@ export default function Wallet({
         </div>
       )}
 
+      {/* Payments can't be taken — a calm hand-off, never a form that can't work. */}
+      {mode === "unavailable" && (
+        <div className={styles.form}>
+          <span className={styles.formTitle}>Your concierge has this</span>
+          <p className={styles.stub}>
+            We’ll set up your card with you directly — nothing to do here.
+          </p>
+          {concierge && (
+            <ConciergeLinks
+              phone={concierge.phone}
+              email={concierge.email}
+              message={concierge.message}
+              variant="card"
+              smsLabel="Text your concierge"
+              emailLabel="Email your concierge"
+            />
+          )}
+        </div>
+      )}
+
       {formOpen && (
         <div className={styles.form}>
           <div className={styles.formHead}>
-            <span className={styles.formTitle}>{card ? "Replace card" : "Add a card on file"}</span>
-            {card && (
+            <span className={styles.formTitle}>
+              {mode === "mismatch"
+                ? "Re-add your card"
+                : usableCard
+                  ? "Replace card"
+                  : "Add a card on file"}
+            </span>
+            {usableCard && (
               <button type="button" className={styles.linkBtn} onClick={closeForm}>
                 Cancel
               </button>
             )}
           </div>
 
-          {isStripe ? (
-            <>
-              {setupError && (
-                <>
-                  <p className={styles.err}>{setupError}</p>
-                  <button type="button" className={styles.linkBtn} onClick={retrySetup}>
-                    Try again
-                  </button>
-                </>
-              )}
-              {!setupError && !clientSecret && <p className={styles.stub}>Opening secure form…</p>}
-              {clientSecret && (
-                <Elements
-                  stripe={getStripe()}
-                  options={{ clientSecret, appearance: appearance ?? undefined }}
-                >
-                  <StripeCardForm
-                    onSaved={() => {
-                      setJustSaved(true);
-                      closeForm();
-                      router.refresh();
-                    }}
-                  />
-                </Elements>
-              )}
-            </>
-          ) : (
-            // Demo / rollback path: a typed card, no real money. Kept as a plain
-            // form action so it works with JS off.
+          {mode === "mismatch" && (
+            <p className={styles.stub}>
+              Please re-add your card — the one on file can no longer be charged.
+            </p>
+          )}
+
+          {mode === "mock" ? (
+            // Demo / sandbox: a typed card, no real money. Kept as a plain form
+            // action so it still works with JS off.
             <form action={addAction} className={styles.form}>
               <input
                 name="number"
@@ -290,11 +190,22 @@ export default function Wallet({
               </button>
               <p className={styles.stub}>Demo. No real card is stored or charged.</p>
             </form>
+          ) : (
+            <StripeCardForm
+              classes={{
+                form: styles.form,
+                button: styles.addBtn,
+                error: styles.err,
+                note: styles.stub,
+              }}
+              note="Saved securely with Stripe. Nothing is charged until your booking locks."
+              onSaved={onSaved}
+            />
           )}
         </div>
       )}
 
-      {card && !showForm && pendingCents > 0 && (
+      {usableCard && chargeable && !showForm && pendingCents > 0 && (
         <button
           type="button"
           disabled={settling}

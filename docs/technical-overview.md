@@ -91,8 +91,8 @@ SIGNALED → READY → QUOTED → CONFIRMED → SCHEDULED → COMPLETED
   1. **Fixed-price** — completion auto-confirms: tab line + itinerary entry, no waiting.
   2. **QUOTE** — parks at READY for the operator; pricing moves it to QUOTED; only the
      guest's in-app **approval tap** creates the tab line. Nothing ever lands on the tab
-     without the guest's explicit yes — and that tap is the seam where Stripe's
-     off-session card consent will live.
+     without the guest's explicit yes — and that tap now carries the card gate (Stripe
+     off-session consent), so nothing lands uncarded either.
   3. **FEE_STRUCTURE** (provisioning — grocery) — the cost isn't knowable until a human
      shops the order, so the guest consents to a *disclosed fee schedule* (cost +
      delivery + service % + derived rush) at completion; the operator prices the shopped
@@ -129,10 +129,28 @@ SIGNALED → READY → QUOTED → CONFIRMED → SCHEDULED → COMPLETED
     twice for one line;
   - operator lifecycle moves are guarded against the status they validated, so racing
     taps can't cancel a delivered service and void an owed bill.
-- **Payments are stubbed behind a real interface** (`PaymentProvider`): `saveCard` maps to
-  a Stripe SetupIntent, `chargeService` to an off-session PaymentIntent; `externalRef`
-  columns are reserved for Stripe ids, and a hold/capture path is planned for big-ticket
-  reservations. Swapping mock → Stripe changes one module, zero call sites.
+- **Payments are real, and nothing automated moves money.** Cards are captured in-app
+  through Stripe's Payment Element (browser → Stripe; no PAN ever reaches the server, PCI
+  SAQ-A) and every charge is an **operator tap** in `/ops` — no cron, no webhook, no
+  auto-charge. `TabLineItem.chargeDueAt` is display/sort only: it orders the charge queue
+  and triggers nothing. Four properties hold the money path together:
+  - **Resolution is per stay, with three answers** (`resolvePayments`): demo sandboxes are
+    always MOCK; a real stay is STRIPE only when configured with both keys; otherwise
+    payments are *unavailable* and the app **fails closed** — the guest gets the concierge
+    hand-off with their answers kept, `/ops` shows a banner, and nothing confirms uncarded.
+    There is deliberately no mock fallback for real stays: storing a card that can never be
+    charged is worse than visibly not taking one.
+  - **A card is asked for at the money-committing tap** (`CardGate`): the fixed-price
+    wizard confirm, a provisioning order, and the quote approval. Signals, "finish later",
+    and browsing stay ungated.
+  - **Idempotency keys are `<lineId>:<attempts>`, and the counter advances only on a
+    definitive decline.** Any ambiguous failure (timeout, lost response) keeps the key so a
+    retry replays Stripe's stored result instead of billing twice; a key conflict surfaces
+    as its own instruction rather than a stuck line.
+  - **A card is only used by the provider that saved it** (`resolveCardOnFile`): a
+    pre-Stripe MOCK row is never handed to Stripe, it's reported as "the guest needs to
+    re-add their card". Refunds are done in the Stripe dashboard; line metadata makes them
+    findable. `PAYMENTS_PROVIDER=mock` is the kill switch. Auth holds remain a seam.
 - **Per-line internal economics** (vendor cost / share / net) are captured ops-side on a
   separate query layer (`opsQueries`/`opsBook`, `server-only`) that guest queries
   physically cannot reach — the split between `queries.ts` (guest) and `opsQueries.ts`
@@ -250,15 +268,17 @@ prospects *outside* the sandbox so GC can't eat a warm lead.
   `npm run token`, `ops:link`, `partner:add` mint every credential a demo needs.
 - Fallback ladders make local dev zero-config: unset email keys print full emails to the
   console; unset concierge numbers remove their CTAs cleanly.
-- Migrations deploy in the Vercel build (`prisma migrate deploy && next build`) — schema
-  and code ship atomically on push to `main`.
+- Migrations deploy in the **production** Vercel build only (`scripts/migrate-if-prod.mjs`
+  gates on `VERCEL_ENV`) — schema and code ship atomically on push to `main`, and a branch
+  push can't migrate the production database from a preview build.
 - Strict TypeScript + ESLint gate every commit; docs are part of the codebase
   (`CLAUDE.md` doctrine, `docs/plans/` as-built records, `docs/reviews/` audit trail).
 
 ## 14 · What's next (already seamed)
 
-Stripe (SetupIntent/PaymentIntent behind `PaymentProvider`; the approval tap is the card
-consent moment), programmatic SMS with STOP handling behind `NotificationProvider`
+Automating the charge tap (the `chargeTabLine` seam is ready; a sweep drops in behind it
+once winter volume proves the rhythm), the bundled folio email, auth holds for big-ticket
+reservations, programmatic SMS with STOP handling behind `NotificationProvider`
 (A2P 10DLC registration is the long pole), a PMS feed calling the same
 `createStayWithToken` core the ops form uses, deposit/refund windows (per-service fields +
 hold/capture), and chef-designed execution schemas replacing the demo-level wizard config.

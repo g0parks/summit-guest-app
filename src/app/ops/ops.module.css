@@ -130,6 +130,19 @@
   background: #f1f1f1;
 }
 
+/* Payments-health banner — the operator's detection path for a Stripe
+   misconfiguration or a deliberate kill switch. Loud on purpose. */
+.alertBar {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #991b1b;
+  background: #fee2e2;
+  border: 1px solid #991b1b;
+  border-radius: 4px;
+}
+
 .badgeVoid {
   color: #991b1b;
   background: #fee2e2;

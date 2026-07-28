@@ -1,6 +1,7 @@
 import "server-only";
 import Stripe from "stripe";
 import {
+  PaymentConflictError,
   PaymentDeclinedError,
   type CardSetupIntent,
   type ChargeInput,
@@ -170,6 +171,16 @@ export const stripePaymentProvider: PaymentProvider = {
     } catch (err) {
       const declined = asDecline(err);
       if (declined) throw declined;
+      // Same key, different details: an earlier attempt on this line reached
+      // Stripe and the card has changed since. Refusing is correct — a fresh key
+      // could bill twice if that attempt succeeded — but say so plainly, or the
+      // line looks permanently stuck for no visible reason.
+      if (err instanceof Stripe.errors.StripeError && err.type === "StripeIdempotencyError") {
+        throw new PaymentConflictError(
+          "An earlier attempt on this line reached Stripe with a different card — " +
+            "check the Stripe dashboard for an existing payment before retrying.",
+        );
+      }
       throw err;
     }
   },

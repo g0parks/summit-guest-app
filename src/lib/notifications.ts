@@ -63,3 +63,20 @@ export function composeRequestNudge(input: {
     ? `Hi ${input.firstName}, your concierge here. ${input.what} is priced and ready. One tap to approve and it's done: ${input.link}`
     : `Hi ${input.firstName}, your concierge here. ${input.what} is nearly arranged. A few details and it's done: ${input.link}`;
 }
+
+/**
+ * The card didn't go through. Crook test: this serves the guest's own booking —
+ * their arrangement is at risk and only they can fix it — so it says what
+ * happened plainly, once, with the fix one tap away. No urgency theater, no
+ * amount (a number in an SMS reads like a demand), no mention of what breaks.
+ */
+export function composeCardUpdateNudge(input: {
+  firstName: string;
+  what: string;
+  link: string;
+}): string {
+  return (
+    `Hi ${input.firstName}, your concierge here. The card on file didn't go through ` +
+    `for ${input.what} — update it here and we'll take care of the rest: ${input.link}`
+  );
+}

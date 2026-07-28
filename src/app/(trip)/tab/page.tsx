@@ -4,7 +4,8 @@ import { formatMoney } from "@/lib/money";
 import { formatDayLabel } from "@/lib/dates";
 import { generalMessage, getConciergeContact } from "@/lib/concierge";
 import { getStayPhase } from "@/lib/stayPhase";
-import { getPaymentProviderType } from "@/lib/payments";
+import { resolveCardOnFile } from "@/lib/cardOnFile";
+import type { WalletMode } from "@/components/tab/Wallet";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import Wallet from "@/components/tab/Wallet";
 import styles from "./page.module.css";
@@ -16,6 +17,21 @@ export default async function TabPage() {
   const tz = stay.property.timezone;
   const { items, defaultCard, pending, charged, total } = await getTab(stay.id);
   const concierge = getConciergeContact();
+
+  // How (and whether) this stay can take a card — decided server-side.
+  const onFile = await resolveCardOnFile(stay);
+  const walletMode: WalletMode =
+    onFile.state === "unavailable"
+      ? "unavailable"
+      : onFile.state === "mismatch"
+        ? "mismatch"
+        : onFile.type === "STRIPE"
+          ? "stripe"
+          : "mock";
+  const conciergeMessage = generalMessage({
+    guestFirstName: stay.guest.firstName,
+    propertyName: stay.property.name,
+  });
 
   return (
     <main className={styles.page}>
@@ -49,9 +65,15 @@ export default async function TabPage() {
           pendingCents={pending}
           currency={stay.currency}
           cardEditable={getStayPhase(stay, tz) !== "POST_STAY"}
-          // Resolved server-side, per stay: a demo sandbox always gets the mock
-          // form, a real stay gets Stripe's Payment Element.
-          providerType={getPaymentProviderType(stay)}
+          // Resolved server-side, per stay: a demo sandbox gets the mock form, a
+          // real stay gets Stripe's Payment Element — and when payments can't be
+          // taken at all, no form (never the mock one) plus the concierge hatch.
+          mode={walletMode}
+          concierge={{
+            phone: concierge.phone,
+            email: concierge.email,
+            message: conciergeMessage,
+          }}
         />
       </section>
 

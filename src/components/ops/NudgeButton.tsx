@@ -13,9 +13,12 @@ import styles from "@/app/ops/ops.module.css";
 export default function NudgeButton({
   guestPhone,
   message,
+  label = "Nudge",
 }: {
   guestPhone: string | null;
   message: string;
+  /** What the draft is for — the charge queue sends a card-update draft. */
+  label?: string;
 }) {
   const [platform, setPlatform] = useState<SmsPlatform | null>(null);
   const [copied, setCopied] = useState(false);
@@ -27,7 +30,7 @@ export default function NudgeButton({
   if (sms) {
     return (
       <a href={sms} className={styles.btnLink}>
-        Nudge
+        {label}
       </a>
     );
   }
@@ -46,7 +49,7 @@ export default function NudgeButton({
           .catch(() => {});
       }}
     >
-      {copied ? "Copied" : "Copy nudge"}
+      {copied ? "Copied" : `Copy — ${label.toLowerCase()}`}
     </button>
   );
 }
