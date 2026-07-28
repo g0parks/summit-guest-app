@@ -339,7 +339,19 @@ export async function chargeTabLine(
       data: { externalRef: res.externalRef, chargeFailedAt: null },
     });
   } catch (err) {
-    console.error("[ops] charge failed — releasing the claim:", err);
+    // The attempt counter moves ONLY on a definitive card "no". A decline means
+    // the charge provably did not happen, so the next tap must be a fresh
+    // attempt (a reused key would replay Stripe's stored decline for 24h).
+    // Any other failure — timeout, network drop, a crash after Stripe accepted
+    // it — is AMBIGUOUS: the money may well have moved. Keeping the counter put
+    // means the retry sends the SAME idempotency key, and Stripe resolves it:
+    // it replays the original charge if there was one, or charges once if the
+    // first request never landed. Bumping here would bill the guest twice.
+    const declined = err instanceof PaymentDeclinedError;
+    console.error(
+      `[ops] charge ${declined ? "declined" : "failed (outcome unknown — keeping the idempotency key)"} — releasing the claim:`,
+      err,
+    );
     await prisma.tabLineItem
       .updateMany({
         where: { id: line.id, status: "CHARGED" },
@@ -348,7 +360,7 @@ export async function chargeTabLine(
           paymentMethodId: null,
           externalRef: null,
           chargeFailedAt: new Date(),
-          chargeAttempts: { increment: 1 },
+          ...(declined ? { chargeAttempts: { increment: 1 } } : {}),
         },
       })
       .catch(() => {});

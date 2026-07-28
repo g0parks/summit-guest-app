@@ -244,7 +244,16 @@ export async function settleTab(): Promise<SettleResult> {
         data: { externalRef: res.externalRef, chargeFailedAt: null },
       });
     } catch (err) {
-      console.error("[tab] settle charge failed — releasing the claim:", err);
+      // Bump the attempt counter ONLY on a definitive decline (the charge
+      // provably didn't happen, so the retry needs a fresh key). Every other
+      // failure is ambiguous — the money may have moved and we just didn't hear
+      // back — so the counter stays put and the retry replays the SAME key,
+      // letting Stripe settle it once. Same rule as ops chargeTabLine.
+      const declined = err instanceof PaymentDeclinedError;
+      console.error(
+        `[tab] settle charge ${declined ? "declined" : "failed (outcome unknown — keeping the idempotency key)"} — releasing the claim:`,
+        err,
+      );
       await prisma.tabLineItem
         .updateMany({
           where: { id: item.id, status: "CHARGED" },
@@ -253,7 +262,7 @@ export async function settleTab(): Promise<SettleResult> {
             paymentMethodId: null,
             externalRef: null,
             chargeFailedAt: new Date(),
-            chargeAttempts: { increment: 1 },
+            ...(declined ? { chargeAttempts: { increment: 1 } } : {}),
           },
         })
         .catch(() => {});
@@ -261,7 +270,7 @@ export async function settleTab(): Promise<SettleResult> {
       revalidatePath("/");
       // A decline message from the provider is guest-safe and more useful than
       // a generic failure ("your card was declined" vs "try again").
-      const why = err instanceof PaymentDeclinedError ? ` ${err.message}` : " Try again.";
+      const why = declined ? ` ${(err as PaymentDeclinedError).message}` : " Try again.";
       return {
         ok: false,
         error:
