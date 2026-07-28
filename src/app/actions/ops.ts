@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ItineraryCategory, type PerkClaimStatus, type RequestStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireOperator } from "@/lib/opsSession";
-import { getPaymentProvider } from "@/lib/payments";
+import { getPaymentProvider, PaymentDeclinedError } from "@/lib/payments";
 import { confirmedRequestItineraryData, isFixedPrice } from "@/lib/catalog";
 import { parseMoneyCents } from "@/lib/money";
 import { withVendorCostNote } from "@/lib/vendorNote";
@@ -277,7 +277,9 @@ export async function setRequestStatus(formData: FormData): Promise<void> {
 
 /**
  * Charge one PENDING line to the stay's card on file via the PaymentProvider
- * seam (mock today, Stripe later).
+ * seam. THE charge path: every charge is an operator tap here (money doctrine
+ * 2026-07-27) — no cron, no webhook, no auto-charge anywhere. The result comes
+ * back synchronously, so a decline is visible to the person who tapped.
  */
 export async function chargeTabLine(
   _prev: OpsResult | null,
@@ -286,7 +288,12 @@ export async function chargeTabLine(
   await requireOperator();
 
   const id = String(formData.get("tabLineItemId") ?? "");
-  const line = await prisma.tabLineItem.findUnique({ where: { id } });
+  // The stay rides along: it decides WHICH provider runs (demo → MOCK) and
+  // carries the Stripe customer + the receipt address.
+  const line = await prisma.tabLineItem.findUnique({
+    where: { id },
+    include: { stay: { include: { guest: true } } },
+  });
   if (!line) return { ok: false, error: "Line not found." };
   if (line.status !== "PENDING") {
     return { ok: false, error: "Only pending lines can be charged." };
@@ -312,26 +319,58 @@ export async function chargeTabLine(
   }
 
   try {
-    const res = await getPaymentProvider().chargeService({
+    const res = await getPaymentProvider(line.stay).chargeService({
       stayId: line.stayId,
       amountCents: line.amount,
       currency: line.currency,
       description: line.description,
       paymentMethodExternalRef: card.externalRef,
+      customerRef: line.stay.stripeCustomerId,
+      // The attempt counter in the key makes a deliberate retry a genuinely new
+      // attempt — Stripe otherwise replays a key's stored result (including the
+      // decline) for 24h — while a double-tap of the same attempt still can't
+      // double-charge.
+      idempotencyKey: `${line.id}:${line.chargeAttempts}`,
+      receiptEmail: line.stay.guest.email,
+      tabLineItemId: line.id,
     });
     await prisma.tabLineItem.update({
       where: { id: line.id },
-      data: { externalRef: res.externalRef },
+      data: { externalRef: res.externalRef, chargeFailedAt: null },
     });
   } catch (err) {
-    console.error("[ops] charge failed — releasing the claim:", err);
+    // The attempt counter moves ONLY on a definitive card "no". A decline means
+    // the charge provably did not happen, so the next tap must be a fresh
+    // attempt (a reused key would replay Stripe's stored decline for 24h).
+    // Any other failure — timeout, network drop, a crash after Stripe accepted
+    // it — is AMBIGUOUS: the money may well have moved. Keeping the counter put
+    // means the retry sends the SAME idempotency key, and Stripe resolves it:
+    // it replays the original charge if there was one, or charges once if the
+    // first request never landed. Bumping here would bill the guest twice.
+    const declined = err instanceof PaymentDeclinedError;
+    console.error(
+      `[ops] charge ${declined ? "declined" : "failed (outcome unknown — keeping the idempotency key)"} — releasing the claim:`,
+      err,
+    );
     await prisma.tabLineItem
       .updateMany({
         where: { id: line.id, status: "CHARGED" },
-        data: { status: "PENDING", paymentMethodId: null, externalRef: null },
+        data: {
+          status: "PENDING",
+          paymentMethodId: null,
+          externalRef: null,
+          chargeFailedAt: new Date(),
+          ...(declined ? { chargeAttempts: { increment: 1 } } : {}),
+        },
       })
       .catch(() => {});
-    return { ok: false, error: "Charge failed — the line is still pending. Try again." };
+    // A decline is the card's answer, not a bug: show the operator what Stripe
+    // said. Anything else stays generic (the detail is in the server log).
+    const why =
+      err instanceof PaymentDeclinedError
+        ? err.message
+        : "Charge failed — the line is still pending. Try again.";
+    return { ok: false, error: why };
   }
 
   revalidateSurfaces(line.stayId);
