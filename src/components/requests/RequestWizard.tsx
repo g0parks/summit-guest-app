@@ -19,6 +19,8 @@ import {
 import { computeChargeCents, isFixedPrice } from "@/lib/catalog";
 import { SMS_REASSURANCE } from "@/lib/consentCopy";
 import { formatMoney } from "@/lib/money";
+import CardGate, { type CardGateState } from "@/components/payments/CardGate";
+import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import styles from "./RequestWizard.module.css";
 
 /**
@@ -57,7 +59,7 @@ type Screen =
   | { key: string; kind: "fields"; step: WizardStep }
   | { key: string; kind: "person"; step: WizardStep; group: PerPersonField; person: number }
   | { key: string; kind: "attach"; attach: AttachOffer }
-  | { key: string; kind: "contact" }
+  | { key: string; kind: "confirm" }
   | { key: string; kind: "notes" };
 
 /** Field names referenced by any showIf — these selects drive conditional steps. */
@@ -77,6 +79,8 @@ export default function RequestWizard({
   seeds = {},
   feeStructure = null,
   textGate = null,
+  cardGate = null,
+  concierge = null,
 }: {
   requestId: string;
   service: WizardService;
@@ -99,6 +103,13 @@ export default function RequestWizard({
    *  delivery at the door). Non-null when the guest can't be texted yet;
    *  "Finish later" stays ungated (graceful exit always). */
   textGate?: { defaultPhone: string } | null;
+  /** The card gate (money doctrine 2026-07-27): a completion that commits money
+   *  needs a card on file. Null when this order commits nothing yet (QUOTE
+   *  services get their gate at the approval tap instead). Shares ONE calm
+   *  confirm screen with the text gate above. */
+  cardGate?: CardGateState | null;
+  /** Contact + prebuilt message for the card gate's unavailable hand-off. */
+  concierge?: { phone: string | null; email: string | null; message: string } | null;
 }) {
   const flow = useMemo(() => serviceFlow(service.slug), [service.slug]);
   const needsSchedule =
@@ -108,6 +119,9 @@ export default function RequestWizard({
   const [idx, setIdx] = useState(0);
   const [coordPhone, setCoordPhone] = useState(textGate?.defaultPhone ?? "");
   const [coordError, setCoordError] = useState<string | null>(null);
+  // The card the guest just saved through the gate — the server's snapshot in
+  // `cardGate` is from page load, so this is what makes the screen advance.
+  const [savedCard, setSavedCard] = useState<{ brand: string; last4: string } | null>(null);
   const [state, formAction, pending] = useActionState<WizardResult | null, FormData>(
     saveRequestDetails,
     null,
@@ -158,25 +172,36 @@ export default function RequestWizard({
         list.push({ key: `attach:${attach.name}`, kind: "attach", attach });
       }
     }
-    if (textGate) list.push({ key: "contact", kind: "contact" });
+    // ONE confirm screen carries both gates (a number to coordinate on, a card
+    // to hold the booking) — two separate friction screens would read as an
+    // interrogation. It shows if either gate is open.
+    if (textGate || cardGate) list.push({ key: "confirm", kind: "confirm" });
     list.push({ key: "notes", kind: "notes" });
     return list;
-  }, [flow, needsSchedule, party, controls, textGate]);
+  }, [flow, needsSchedule, party, controls, textGate, cardGate]);
 
   // Party can shrink the screen list mid-flow — never strand the index.
   const current = Math.min(idx, screens.length - 1);
   const next = () => setIdx(Math.min(current + 1, screens.length - 1));
   const back = () => setIdx(Math.max(current - 1, 0));
 
-  // The contact screen's Continue holds until there's a dialable number —
-  // the one client-side gate (the server enforces the same on complete).
+  /** The card gate as it stands NOW — a save this session beats the page load. */
+  const gate: CardGateState | null = savedCard
+    ? { state: "usable", brand: savedCard.brand, last4: savedCard.last4 }
+    : cardGate;
+  const cardOutstanding = gate != null && gate.state !== "usable";
+  const paymentsDown = gate?.state === "unavailable";
+
+  // The confirm screen's Continue holds until there's a dialable number and a
+  // card on file — the client-side gates (the server enforces both on complete).
   const advance = (screen: Screen) => {
-    if (screen.kind === "contact") {
-      if (coordPhone.replace(/\D/g, "").length < 10) {
+    if (screen.kind === "confirm") {
+      if (textGate && coordPhone.replace(/\D/g, "").length < 10) {
         setCoordError("Add a mobile number so your concierge can reach you.");
         return;
       }
       setCoordError(null);
+      if (cardOutstanding) return;
     }
     next();
   };
@@ -192,7 +217,16 @@ export default function RequestWizard({
   // "You're all set", not the standard "Consider it underway".
   if (state?.ok) {
     const close =
-      feeStructure && state.outcome === "ready"
+      // Payments couldn't be taken: the answers are kept and a human finishes
+      // it. Never "confirmed" — we don't promise what we can't bill for.
+      state.outcome === "concierge"
+        ? {
+            headline: "We’ll finish this with your concierge.",
+            detail:
+              "Everything you told us is saved. One text and they’ll set it up from here.",
+            links: [{ href: "/", label: "Back to your trip" }],
+          }
+        : feeStructure && state.outcome === "ready"
         ? {
             headline: "You're all set.",
             detail: feeStructure.closeDetail,
@@ -237,6 +271,16 @@ export default function RequestWizard({
             <span className="eyebrow">{service.name}</span>
             <h1 className={styles.headline}>{close.headline}</h1>
             <p className={styles.detail}>{close.detail}</p>
+            {state.outcome === "concierge" && concierge && (
+              <ConciergeLinks
+                phone={concierge.phone}
+                email={concierge.email}
+                message={concierge.message}
+                variant="card"
+                smsLabel="Text your concierge"
+                emailLabel="Email your concierge"
+              />
+            )}
             {attachNote && <p className={styles.detail}>{attachNote}</p>}
             <div className={styles.doneLinks}>
               {close.links.map((l) => (
@@ -415,35 +459,56 @@ export default function RequestWizard({
                   </>
                 )}
 
-                {screen.kind === "contact" && (
+                {screen.kind === "confirm" && (
                   <>
-                    <span className="eyebrow">Staying in touch</span>
-                    <h1 className={styles.question}>Where should updates go?</h1>
-                    <p className={styles.detail}>
-                      Your concierge coordinates by text. The driver on the way,
-                      the delivery at the door, a question about timing.
-                    </p>
-                    <div className={styles.fields}>
-                      <label className={styles.fieldLabel}>
-                        <span>Mobile number</span>
-                        <input
-                          type="tel"
-                          name="coordPhone"
-                          inputMode="tel"
-                          autoComplete="tel"
-                          value={coordPhone}
-                          onChange={(e) => setCoordPhone(e.target.value)}
-                          placeholder="(435) 555-0100"
-                          className={styles.input}
-                        />
-                      </label>
-                      {/* The versioned disclosure (consentCopy.ts) — continuing
-                          with a number here IS the express consent moment. */}
-                      <p className={styles.consentLine}>
-                        {SMS_REASSURANCE} By continuing, you agree we may text
-                        this number about your stay.
+                    <span className="eyebrow">
+                      {paymentsDown ? "One last thing" : "Confirming your booking"}
+                    </span>
+                    <h1 className={styles.question}>
+                      {paymentsDown
+                        ? "We’ll finish this together."
+                        : textGate
+                          ? "Where should updates go?"
+                          : "Ready when you are."}
+                    </h1>
+                    {textGate && !paymentsDown && (
+                      <p className={styles.detail}>
+                        Your concierge coordinates by text. The driver on the way,
+                        the delivery at the door, a question about timing.
                       </p>
-                      {coordError && <p className={styles.error}>{coordError}</p>}
+                    )}
+                    <div className={styles.fields}>
+                      {textGate && (
+                        <>
+                          <label className={styles.fieldLabel}>
+                            <span>Mobile number</span>
+                            <input
+                              type="tel"
+                              name="coordPhone"
+                              inputMode="tel"
+                              autoComplete="tel"
+                              value={coordPhone}
+                              onChange={(e) => setCoordPhone(e.target.value)}
+                              placeholder="(435) 555-0100"
+                              className={styles.input}
+                            />
+                          </label>
+                          {/* The versioned disclosure (consentCopy.ts) — continuing
+                              with a number here IS the express consent moment. */}
+                          <p className={styles.consentLine}>
+                            {SMS_REASSURANCE} By continuing, you agree we may text
+                            this number about your stay.
+                          </p>
+                          {coordError && <p className={styles.error}>{coordError}</p>}
+                        </>
+                      )}
+                      {gate && (
+                        <CardGate
+                          gate={gate}
+                          concierge={concierge}
+                          onCardSaved={(saved) => setSavedCard(saved)}
+                        />
+                      )}
                     </div>
                   </>
                 )}
@@ -514,9 +579,14 @@ export default function RequestWizard({
                             : "Send to your concierge"}
                     </button>
                   </>
+                ) : screen.kind === "confirm" && paymentsDown ? (
+                  // Nothing to continue to: the concierge hand-off inside the
+                  // gate IS the action, and "Finish later" keeps the answers.
+                  null
                 ) : (
                   <button
                     type="button"
+                    disabled={screen.kind === "confirm" && cardOutstanding}
                     className={styles.primaryBtn}
                     onClick={() => advance(screen)}
                   >

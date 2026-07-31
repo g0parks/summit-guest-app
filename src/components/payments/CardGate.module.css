@@ -1,0 +1,112 @@
+/* The card gate — hosted inside the wizard's confirm screen and the quote
+   approval panel, so it stays visually quiet: no card of its own, no second
+   primary button. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.headline {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.reassure {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+/* ── card already on file ─────────────────────────────────── */
+.onFile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  background: var(--surface-sunk);
+  border-radius: var(--radius-md);
+}
+
+.brand {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+/* ── collect a card ──────────────────────────────────────── */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 12px 13px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 11px;
+}
+
+.saveBtn {
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+}
+
+/* ── the unavailable hand-off ────────────────────────────── */
+.hatchBtn {
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  text-decoration: none;
+}
+
+.note {
+  font-size: 12px;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+.error {
+  font-size: 13.5px;
+  color: #9a4a3c;
+}

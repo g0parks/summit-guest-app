@@ -21,6 +21,42 @@ export type ChangeWindows = { canMove: boolean; canCancel: boolean };
 
 const HOUR = 60 * 60 * 1000;
 
+/**
+ * The lock window for a service with no cancel cutoff of its own: how long
+ * before the service we consider the booking committed. ONE constant for two
+ * jobs, so they can never disagree — it sets when a tab line becomes due to
+ * charge (chargeDueAtFor below) and, in the booking floor, how close to the
+ * service the app will still take a booking at all.
+ */
+export const DEFAULT_LOCK_HOURS = 24;
+
+/**
+ * When does this line become chargeable? DISPLAY/SORT ONLY — it orders the ops
+ * charge queue and never triggers anything (money doctrine 2026-07-27: a human
+ * taps every charge).
+ *
+ * Total by design — always returns a date, so no line can silently rot with no
+ * due date. Dated work is due when it locks (its cancel cutoff, or the 24h
+ * default); everything undated — an ops-priced grocery order, a custom-request
+ * approval, a manual line — is due now, because the work is already happening.
+ * Never earlier than `now`: a booking made inside its own lock window is due
+ * immediately, not backdated.
+ *
+ * `requestedFor` is an absolute instant, so this is plain instant math — no
+ * timezone conversion belongs here.
+ */
+export function chargeDueAtFor(input: {
+  requestedFor: Date | null | undefined;
+  cancelCutoffHours: number | null | undefined;
+  now?: Date;
+}): Date {
+  const now = input.now ?? new Date();
+  if (!input.requestedFor) return now;
+  const lockHours = input.cancelCutoffHours ?? DEFAULT_LOCK_HOURS;
+  const locksAt = input.requestedFor.getTime() - lockHours * HOUR;
+  return locksAt > now.getTime() ? new Date(locksAt) : now;
+}
+
 /** The request states a guest can still change in-app: booked, not delivered. */
 const CHANGEABLE_STATUSES: RequestStatus[] = ["CONFIRMED", "SCHEDULED"];
 

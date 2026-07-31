@@ -5,11 +5,12 @@ import { prisma } from "@/lib/db";
 import { getActiveStay, type ActiveStay } from "@/lib/session";
 import { notifyOperator } from "@/lib/notify";
 import {
-  getPaymentProvider,
+  resolvePayments,
   PaymentDeclinedError,
   type CardSetupIntent,
   type SavedCard,
 } from "@/lib/payments";
+import { resolveCardOnFile } from "@/lib/cardOnFile";
 import { getStayPhase } from "@/lib/stayPhase";
 
 type Stay = ActiveStay["stay"];
@@ -25,6 +26,13 @@ function postStayClosed(stay: Stay): boolean {
 
 const POST_STAY_ERROR =
   "Your stay has wrapped — text your concierge and we'll take care of next time.";
+
+/**
+ * Guest-facing copy when payments can't be taken at all. Never names Stripe and
+ * never says "misconfigured" — the guest hears a person, not a stack trace.
+ */
+const UNAVAILABLE_ERROR =
+  "We can't take a card here right now — text your concierge and they'll take care of it.";
 
 /**
  * One default card on file, plus the operator ping. Shared by both capture
@@ -84,8 +92,11 @@ export async function beginCardSetup(): Promise<BeginCardSetupResult> {
   const { stay } = active;
   if (postStayClosed(stay)) return { ok: false, error: POST_STAY_ERROR };
 
+  const payments = resolvePayments(stay);
+  if (!payments.available) return { ok: false, error: UNAVAILABLE_ERROR };
+
   try {
-    const setup = await getPaymentProvider(stay).createCardSetup({
+    const setup = await payments.provider.createCardSetup({
       stayId: stay.id,
       customerRef: stay.stripeCustomerId,
       email: stay.guest.email,
@@ -123,9 +134,12 @@ export async function completeCardSetup(setupIntentId: string): Promise<AddCardR
   const id = typeof setupIntentId === "string" ? setupIntentId.trim() : "";
   if (!id) return { ok: false, error: "That card didn't save — please try again." };
 
+  const payments = resolvePayments(stay);
+  if (!payments.available) return { ok: false, error: UNAVAILABLE_ERROR };
+
   let saved: SavedCard;
   try {
-    saved = await getPaymentProvider(stay).finalizeCardSetup({
+    saved = await payments.provider.finalizeCardSetup({
       stayId: stay.id,
       customerRef: stay.stripeCustomerId,
       completion: { mode: "element", setupIntentId: id },
@@ -160,7 +174,9 @@ export async function addPaymentMethod(
   const { stay } = active;
   if (postStayClosed(stay)) return { ok: false, error: POST_STAY_ERROR };
 
-  const provider = getPaymentProvider(stay);
+  const payments = resolvePayments(stay);
+  if (!payments.available) return { ok: false, error: UNAVAILABLE_ERROR };
+  const provider = payments.provider;
   if (provider.type !== "MOCK") {
     return { ok: false, error: "Please use the secure card form above." };
   }
@@ -200,17 +216,25 @@ export async function settleTab(): Promise<SettleResult> {
   if (!active) return { ok: false, error: "Your session has expired — please reopen your link." };
   const { stay } = active;
 
-  const card =
-    (await prisma.paymentMethod.findFirst({ where: { stayId: stay.id, isDefault: true } })) ??
-    (await prisma.paymentMethod.findFirst({ where: { stayId: stay.id } }));
-  if (!card) return { ok: false, error: "Add a card before settling." };
+  // Same resolution the gates and the ops charge use: a card saved under the
+  // other provider can't be charged, so the guest is asked to re-add rather
+  // than watching a settle fail against Stripe.
+  const onFile = await resolveCardOnFile(stay);
+  if (onFile.state === "unavailable") return { ok: false, error: UNAVAILABLE_ERROR };
+  if (onFile.state === "mismatch") {
+    return { ok: false, error: "Please re-add your card to settle your tab." };
+  }
+  if (onFile.state !== "usable") return { ok: false, error: "Add a card before settling." };
+  const card = onFile.card;
 
   const pending = await prisma.tabLineItem.findMany({
     where: { stayId: stay.id, status: "PENDING" },
   });
   if (pending.length === 0) return { ok: false, error: "Nothing pending to settle." };
 
-  const provider = getPaymentProvider(stay);
+  const payments = resolvePayments(stay);
+  if (!payments.available) return { ok: false, error: UNAVAILABLE_ERROR };
+  const provider = payments.provider;
   let total = 0;
   let count = 0;
   for (const item of pending) {

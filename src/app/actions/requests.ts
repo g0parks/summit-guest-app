@@ -22,6 +22,8 @@ import {
 } from "@/lib/serviceForm";
 import { canSms, recordSmsConsent } from "@/lib/consent";
 import { normalizePhone } from "@/lib/phone";
+import { resolveCardOnFile } from "@/lib/cardOnFile";
+import { newTabLineFields } from "@/lib/tabLine";
 import { parseVendorCostNote } from "@/lib/vendorNote";
 import { zonedDateTime } from "@/lib/dates";
 import { getStayPhase } from "@/lib/stayPhase";
@@ -118,7 +120,13 @@ export async function createSignal(
 export type WizardResult =
   | {
       ok: true;
-      outcome: "confirmed" | "ready" | "saved";
+      /**
+       * "concierge" = we could NOT take a card (payments unavailable), so the
+       * order deliberately stopped short of confirmed: the guest's answers are
+       * kept, the request stays open as demand, and the close screen hands them
+       * to the concierge line. Never confirm uncarded.
+       */
+      outcome: "confirmed" | "ready" | "saved" | "concierge";
       serviceName: string;
       chargedCents: number | null;
       /** Sibling services just spawned from a cross-attach opt-in (e.g. a chef night). */
@@ -348,9 +356,9 @@ export async function saveRequestDetails(
     isFlowComplete(flow, details, clampParty(partySize), seeds) &&
     (!service.requiresDate || requestedFor !== null);
 
-  // ── Graceful exit: store progress, stay SIGNALED ──
-  if (!complete) {
-    await prisma.serviceRequest.update({
+  /** Store whatever's filled without advancing the status — the graceful exit. */
+  const saveProgress = () =>
+    prisma.serviceRequest.update({
       where: { id: request.id },
       data: {
         requestedFor,
@@ -359,6 +367,10 @@ export async function saveRequestDetails(
         detailsJson: details.length > 0 ? details : undefined,
       },
     });
+
+  // ── Graceful exit: store progress, stay SIGNALED ──
+  if (!complete) {
+    await saveProgress();
     // Intent captured mid-flow still spawns its sibling — a chef night ticked
     // before "finish later" is too valuable a signal to drop.
     const attached = await spawnAttachments(
@@ -380,6 +392,50 @@ export async function saveRequestDetails(
   // ── Complete: the two pricing paths ──
   const confirmed = isFixedPrice(service.priceUnit, service.priceAmount);
   let chargedCents: number | null = null;
+
+  // ── The card gate (money doctrine 2026-07-27) ────────────────────────────
+  // A completion that commits money needs a card on file first: fixed-price
+  // auto-confirms onto the tab, and a fee-structure order sends Summit shopping
+  // before there's a total. QUOTE-priced work is NOT gated here — it parks at
+  // READY and gets its gate at the guest's approveQuote tap.
+  if (confirmed || isFee) {
+    const card = await resolveCardOnFile(stay);
+    if (card.state === "unavailable") {
+      // Fail closed, gracefully: keep the answers (the demand is real and the
+      // book records it), leave the request open, and hand the guest to the
+      // concierge line. Never confirm work we can't be paid for.
+      await saveProgress();
+      const attached = await spawnAttachments(
+        flow,
+        formData,
+        details,
+        { id: stay.id, partySize: partySize ?? null },
+        seeds,
+      );
+      console.error(
+        `[requests] payments ${card.reason} — request ${request.id} stopped short of ` +
+          `confirmed and routed to the concierge line`,
+      );
+      return {
+        ok: true,
+        outcome: "concierge",
+        serviceName: service.name,
+        chargedCents: null,
+        attached,
+      };
+    }
+    if (card.state !== "usable") {
+      // The client gate collects the card before submitting, so this is the
+      // belt: a no-JS or stale submit gets a calm ask, not a silent booking.
+      return {
+        ok: false,
+        error:
+          card.state === "mismatch"
+            ? "Please re-add your card to confirm this one."
+            : "Add a card to confirm this — you won’t be charged until your booking locks.",
+      };
+    }
+  }
 
   // Guarded transition + the money writes, ONE transaction: the updateMany
   // wins the move out of the open statuses (a double submit can't stack tab
@@ -417,6 +473,14 @@ export async function saveRequestDetails(
           amount: chargedCents,
           currency: stay.currency,
           status: "PENDING",
+          // Due when the booking locks (the service's cancel cutoff, or 24h) —
+          // display/sort only for the ops charge queue, never a trigger.
+          ...newTabLineFields({
+            amountCents: chargedCents,
+            stay,
+            requestedFor,
+            cancelCutoffHours: service.cancelCutoffHours,
+          }),
         },
       });
 
@@ -478,7 +542,9 @@ export async function saveRequestDetails(
 
 export type ApproveResult =
   | { ok: true; serviceName: string; amountCents: number }
-  | { ok: false; error: string };
+  /** Payments unavailable — the approval can't be taken in-app; hand off warmly. */
+  | { ok: false; hatch: true; error: string }
+  | { ok: false; hatch?: false; error: string };
 
 /**
  * The guest's approval tap on a QUOTED request: QUOTED → CONFIRMED, and the
@@ -523,6 +589,30 @@ export async function approveQuote(
   const amountCents = request.quotedAmount;
   const serviceName = request.service?.name ?? request.customTitle ?? "Concierge service";
 
+  // The card gate: this tap IS the money moment (it creates the tab line), so a
+  // card must be on file before it lands. Payments unavailable → the warm
+  // hand-off, never a confirmed-but-uncarded approval.
+  const card = await resolveCardOnFile(stay);
+  if (card.state === "unavailable") {
+    console.error(
+      `[requests] payments ${card.reason} — approval for ${request.id} routed to the concierge line`,
+    );
+    return {
+      ok: false,
+      hatch: true,
+      error: "We’ll finish this with your concierge — one text and it’s done.",
+    };
+  }
+  if (card.state !== "usable") {
+    return {
+      ok: false,
+      error:
+        card.state === "mismatch"
+          ? "Please re-add your card to approve this."
+          : "Add a card to approve this — you won’t be charged until your booking locks.",
+    };
+  }
+
   // Guarded transition + the money writes, ONE transaction: the updateMany
   // wins the move out of QUOTED (a double tap can't stack tab lines), and a
   // crash after the flip can no longer strand a CONFIRMED request with no
@@ -547,9 +637,13 @@ export async function approveQuote(
         amount: amountCents,
         currency: stay.currency,
         status: "PENDING",
-        vendorCostCents,
-        pmShareCents: vendorCostCents != null ? 0 : null, // Phase-2: real PM share
-        netCents: vendorCostCents != null ? amountCents - vendorCostCents : null,
+        ...newTabLineFields({
+          amountCents,
+          vendorCostCents,
+          stay,
+          requestedFor: request.requestedFor,
+          cancelCutoffHours: request.service?.cancelCutoffHours ?? null,
+        }),
       },
     });
 

@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { ItineraryCategory, type PerkClaimStatus, type RequestStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireOperator } from "@/lib/opsSession";
-import { getPaymentProvider, PaymentDeclinedError } from "@/lib/payments";
+import { resolvePayments, PaymentConflictError, PaymentDeclinedError } from "@/lib/payments";
+import { chargeBlockedReason, resolveCardOnFile } from "@/lib/cardOnFile";
+import { newTabLineFields } from "@/lib/tabLine";
 import { confirmedRequestItineraryData, isFixedPrice } from "@/lib/catalog";
 import { parseMoneyCents } from "@/lib/money";
 import { withVendorCostNote } from "@/lib/vendorNote";
@@ -145,7 +147,17 @@ export async function priceProvisioningOrder(
 
   const request = await prisma.serviceRequest.findUnique({
     where: { id: requestId },
-    include: { service: true, stay: { select: { currency: true } } },
+    include: {
+      service: true,
+      // isDemo + partnerId decide the line's PM share (src/lib/tabLine.ts).
+      stay: {
+        select: {
+          currency: true,
+          isDemo: true,
+          property: { select: { partnerId: true } },
+        },
+      },
+    },
   });
   if (!request) return { ok: false, error: "Request not found." };
   const service = request.service;
@@ -185,10 +197,14 @@ export async function priceProvisioningOrder(
         amount: amountCents,
         currency: request.stay.currency,
         status: "PENDING",
-        // Pass-through cost IS the vendor cost; the fees are the net.
-        vendorCostCents: costCents,
-        pmShareCents: 0,
-        netCents: computeNetCents(amountCents, costCents, 0),
+        // Pass-through cost IS the vendor cost; the fees are the net. The order
+        // has already been shopped by the time it's priced, so it's due NOW —
+        // newTabLineFields lands there via the dateless branch.
+        ...newTabLineFields({
+          amountCents,
+          vendorCostCents: costCents,
+          stay: request.stay,
+        }),
       },
     });
 
@@ -299,12 +315,20 @@ export async function chargeTabLine(
     return { ok: false, error: "Only pending lines can be charged." };
   }
 
-  const card =
-    (await prisma.paymentMethod.findFirst({
-      where: { stayId: line.stayId, isDefault: true },
-    })) ??
-    (await prisma.paymentMethod.findFirst({ where: { stayId: line.stayId } }));
-  if (!card) return { ok: false, error: "No card on file for this stay." };
+  // Resolve the card BEFORE claiming the line: a knowable refusal (no card, a
+  // card saved under the other provider, payments switched off) must not claim
+  // and release a line, and must never reach the provider. A mock_pm_… ref
+  // handed to Stripe is a guaranteed failure at the worst possible moment.
+  const onFile = await resolveCardOnFile(line.stay);
+  const blocked = chargeBlockedReason(onFile);
+  if (blocked || onFile.state !== "usable") {
+    return { ok: false, error: blocked ?? "No chargeable card on file for this stay." };
+  }
+  const card = onFile.card;
+  const payments = resolvePayments(line.stay);
+  if (!payments.available) {
+    return { ok: false, error: "Payments are unavailable — no charge attempted." };
+  }
 
   // Claim the line BEFORE calling the provider (the guarded-updateMany money
   // idiom): of two racing submits only one flips PENDING→CHARGED, so the
@@ -319,7 +343,7 @@ export async function chargeTabLine(
   }
 
   try {
-    const res = await getPaymentProvider(line.stay).chargeService({
+    const res = await payments.provider.chargeService({
       stayId: line.stayId,
       amountCents: line.amount,
       currency: line.currency,
@@ -365,9 +389,10 @@ export async function chargeTabLine(
       })
       .catch(() => {});
     // A decline is the card's answer, not a bug: show the operator what Stripe
-    // said. Anything else stays generic (the detail is in the server log).
+    // said. A key conflict needs its own instruction (go look in the dashboard).
+    // Anything else stays generic — the detail is in the server log.
     const why =
-      err instanceof PaymentDeclinedError
+      err instanceof PaymentDeclinedError || err instanceof PaymentConflictError
         ? err.message
         : "Charge failed — the line is still pending. Try again.";
     return { ok: false, error: why };
@@ -731,7 +756,10 @@ export async function addManualTabLine(formData: FormData): Promise<void> {
   if (!stayId || !description || amountCents == null || amountCents === 0) return;
   if (vendorRaw && vendorCostCents == null) return;
 
-  const stay = await prisma.stay.findUnique({ where: { id: stayId } });
+  const stay = await prisma.stay.findUnique({
+    where: { id: stayId },
+    include: { property: { select: { partnerId: true } } },
+  });
   if (!stay) return;
 
   await prisma.tabLineItem.create({
@@ -741,12 +769,8 @@ export async function addManualTabLine(formData: FormData): Promise<void> {
       amount: amountCents,
       currency: stay.currency,
       status: "PENDING",
-      vendorCostCents,
-      pmShareCents: vendorCostCents != null ? 0 : null,
-      netCents:
-        vendorCostCents != null
-          ? computeNetCents(amountCents, vendorCostCents, 0)
-          : null,
+      // A manual line is work already done or being done — due now.
+      ...newTabLineFields({ amountCents, vendorCostCents, stay }),
     },
   });
 

@@ -205,6 +205,12 @@ export async function createDemoStay(
     },
   });
 
+  // Already-settled theater. chargeDueAt is set to when each line occurred so
+  // the invariant holds — every line created since the money path shipped
+  // carries a due date, none can silently rot with a null. pmShareCents stays 0:
+  // sandbox money is nobody's revenue (src/lib/tabLine.ts).
+  const transferAt = new Date(now.getTime() - 2 * DAY + 15 * HOUR);
+  const groceryAt = new Date(now.getTime() - 2 * DAY - 4 * HOUR);
   await prisma.tabLineItem.createMany({
     data: [
       {
@@ -213,7 +219,9 @@ export async function createDemoStay(
         amount: 38000,
         status: "CHARGED",
         paymentMethodId: card.id,
-        occurredAt: new Date(now.getTime() - 2 * DAY + 15 * HOUR),
+        occurredAt: transferAt,
+        chargeDueAt: transferAt,
+        pmShareCents: 0,
       },
       {
         stayId: stay.id,
@@ -221,7 +229,9 @@ export async function createDemoStay(
         amount: 28500,
         status: "CHARGED",
         paymentMethodId: card.id,
-        occurredAt: new Date(now.getTime() - 2 * DAY - 4 * HOUR),
+        occurredAt: groceryAt,
+        chargeDueAt: groceryAt,
+        pmShareCents: 0,
       },
     ],
   });

@@ -5,7 +5,7 @@ import {
   getRecentActivity,
   getRecentIntakes,
   getRecentLeads,
-  getRecentlyDeparted,
+  liveTokenId,
 } from "@/lib/opsQueries";
 import {
   applyChangeCancel,
@@ -14,7 +14,8 @@ import {
 } from "@/app/actions/ops";
 import { buildToken } from "@/lib/tokens";
 import { requireOperator } from "@/lib/opsSession";
-import { composeRequestNudge } from "@/lib/notifications";
+import { composeCardUpdateNudge, composeRequestNudge } from "@/lib/notifications";
+import ChargeButton from "@/components/ops/ChargeButton";
 import { formatMoney } from "@/lib/money";
 import {
   dayKey,
@@ -105,30 +106,18 @@ function missingFor(r: QueueRequest): string {
   );
 }
 
-/** First token that still resolves — what the nudge deep link rides on. */
-function liveTokenId(
-  tokens: { id: string; revokedAt: Date | null; expiresAt: Date | null }[],
-): string | null {
-  const now = Date.now();
-  return (
-    tokens.find((t) => !t.revokedAt && (!t.expiresAt || t.expiresAt.getTime() > now))
-      ?.id ?? null
-  );
-}
-
 export default async function OpsOverviewPage() {
   // Page-level gate, not just the layout's: Next.js layouts don't re-render on
   // soft navigation and aren't a safe sole auth boundary — every /ops page
   // checks for itself (matches the every-action-re-checks rule).
   await requireOperator();
 
-  const [queues, stays, activity, intakes, leads, departed] = await Promise.all([
+  const [queues, stays, activity, intakes, leads] = await Promise.all([
     getOpsQueues(),
     getOpsStays(),
     getRecentActivity(),
     getRecentIntakes(),
     getRecentLeads(),
-    getRecentlyDeparted(),
   ]);
 
   const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
@@ -468,62 +457,105 @@ export default async function OpsOverviewPage() {
         )}
       </section>
 
-      {/* ── 6 · To settle — delivered or departed, money still pending ── */}
+      {/* ── 6 · Charges — every pending line, due first. ONE action: Charge.
+              Nothing here fires on its own (money doctrine 2026-07-27): the
+              due date sorts and badges, a human taps. ── */}
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>To settle</h2>
-        {queues.toSettle.length === 0 && departed.length === 0 ? (
+        <h2 className={styles.sectionTitle}>Charges — due &amp; pending</h2>
+        {queues.chargesDue.length === 0 ? (
           <p className={styles.empty}>All squared away.</p>
         ) : (
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>What</th>
+                <th>Due</th>
                 <th>Item</th>
                 <th>Guest</th>
-                <th className={styles.num}>Pending</th>
+                <th className={styles.num}>Amount</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {queues.toSettle.map((r) => (
-                <tr key={`req-${r.id}`}>
-                  <td>
-                    <span className={`${styles.badge} ${styles.badgeAction}`}>
-                      COMPLETED
-                    </span>
-                  </td>
-                  <td>{requestTitle(r)}</td>
-                  <GuestCell stay={r.stay} />
-                  <td className={styles.num}>
-                    {formatMoney(
-                      r.tabLineItems.reduce((sum, l) => sum + l.amount, 0),
-                      r.stay.currency,
-                    )}
-                  </td>
-                  <td>
-                    <Link href={`/ops/stays/${r.stayId}`} className={styles.link}>
-                      open
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-              {departed.map((s) => (
-                <tr key={`stay-${s.id}`}>
-                  <td>
-                    <span className={`${styles.badge} ${styles.badgeNeutral}`}>
-                      DEPARTED
-                    </span>
-                  </td>
-                  <td>Close out the stay</td>
-                  <GuestCell stay={s} />
-                  <td className={styles.num}>{formatMoney(s.pendingCents, s.currency)}</td>
-                  <td>
-                    <Link href={`/ops/stays/${s.id}`} className={styles.link}>
-                      open
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {queues.chargesDue.map((line) => {
+                const tz = line.stay.property.timezone;
+                const what =
+                  line.serviceRequest?.service?.name ??
+                  line.serviceRequest?.customTitle ??
+                  line.description;
+                const failed = line.chargeFailedAt != null;
+                // The card-update draft: only when a charge has actually failed
+                // — the guest hears from us about their own booking, not on spec.
+                const tokenId = failed ? liveTokenId(line.stay.accessTokens) : null;
+                const cardMessage = tokenId
+                  ? composeCardUpdateNudge({
+                      firstName: line.stay.guest.firstName,
+                      what,
+                      link: `${base}/t/${buildToken(tokenId)}?next=${encodeURIComponent("/tab")}`,
+                    })
+                  : null;
+                return (
+                  <tr key={line.id}>
+                    <td className={styles.small} style={{ whiteSpace: "nowrap" }}>
+                      {failed ? (
+                        <span className={`${styles.badge} ${styles.badgeVoid}`}>FAILED</span>
+                      ) : line.due ? (
+                        <span className={`${styles.badge} ${styles.badgeAction}`}>DUE</span>
+                      ) : (
+                        formatDayLabel(line.effectiveDueAt, tz)
+                      )}
+                      {line.departed && (
+                        <>
+                          {" "}
+                          <span className={`${styles.badge} ${styles.badgeNeutral}`}>
+                            DEPARTED
+                          </span>
+                        </>
+                      )}
+                      {line.legacy && (
+                        <>
+                          {" "}
+                          <span className={`${styles.badge} ${styles.badgeNeutral}`}>
+                            NO DUE DATE
+                          </span>
+                        </>
+                      )}
+                    </td>
+                    <td>
+                      {line.description}
+                      {line.serviceRequest?.status === "COMPLETED" && (
+                        <>
+                          {" "}
+                          <span className={`${styles.badge} ${styles.badgeOk}`}>
+                            DELIVERED
+                          </span>
+                        </>
+                      )}
+                    </td>
+                    <GuestCell stay={line.stay} />
+                    <td className={styles.num}>
+                      {formatMoney(line.amount, line.currency)}
+                    </td>
+                    <td>
+                      <div className={styles.actionsRow}>
+                        <ChargeButton
+                          tabLineItemId={line.id}
+                          label={failed ? "Retry" : "Charge"}
+                        />
+                        {cardMessage && (
+                          <NudgeButton
+                            guestPhone={line.stay.guest.phone}
+                            message={cardMessage}
+                            label="Text — update card"
+                          />
+                        )}
+                        <Link href={`/ops/stays/${line.stayId}`} className={styles.link}>
+                          open
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

@@ -15,9 +15,27 @@ import {
 } from "@/lib/provisioningPricing";
 import { dayKey, timeValue } from "@/lib/dates";
 import { getStayPhase } from "@/lib/stayPhase";
+import { isFixedPrice } from "@/lib/catalog";
+import { resolveCardOnFile, type CardOnFile } from "@/lib/cardOnFile";
+import { generalMessage, getConciergeContact } from "@/lib/concierge";
+import type { CardGateState } from "@/components/payments/CardGate";
 import RequestWizard from "@/components/requests/RequestWizard";
 import ApproveQuote from "@/components/requests/ApproveQuote";
 import styles from "./page.module.css";
+
+/** The server's card snapshot → what the gate component needs to render. */
+function toGateState(onFile: CardOnFile): CardGateState {
+  switch (onFile.state) {
+    case "usable":
+      return { state: "usable", brand: onFile.card.brand, last4: onFile.card.last4 };
+    case "none":
+      return { state: "none", type: onFile.type };
+    case "mismatch":
+      return { state: "mismatch", type: onFile.type };
+    case "unavailable":
+      return { state: "unavailable" };
+  }
+}
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +61,17 @@ export default async function RequestPage({
   const title = service?.name ?? request.customTitle ?? "Your request";
   const tz = stay.property.timezone;
   const postStay = getStayPhase(stay, tz) === "POST_STAY";
+
+  // The card gate's contact hand-off, for the payments-unavailable case.
+  const contact = getConciergeContact();
+  const concierge = {
+    phone: contact.phone,
+    email: contact.email,
+    message: generalMessage({
+      guestFirstName: stay.guest.firstName,
+      propertyName: stay.property.name,
+    }),
+  };
 
   if (!postStay && service && (request.status === "SIGNALED" || request.status === "READY")) {
     const details: Record<string, string> = {};
@@ -78,6 +107,13 @@ export default async function RequestPage({
       };
     }
 
+    // The card gate applies to completions that COMMIT money: fixed-price
+    // auto-confirms onto the tab, and a fee-structure order sends Summit
+    // shopping. QUOTE-priced work parks at READY and gets its gate at the
+    // guest's approval tap instead, so no card is asked for here.
+    const commitsMoney = isFixedPrice(service.priceUnit, service.priceAmount) || isFee;
+    const cardGate = commitsMoney ? toGateState(await resolveCardOnFile(stay)) : null;
+
     return (
       <RequestWizard
         requestId={request.id}
@@ -104,6 +140,8 @@ export default async function RequestPage({
         textGate={
           canSms(stay.guest) ? null : { defaultPhone: stay.guest.phone ?? "" }
         }
+        cardGate={cardGate}
+        concierge={concierge}
       />
     );
   }
@@ -117,6 +155,8 @@ export default async function RequestPage({
         serviceName={title}
         amountCents={request.quotedAmount}
         currency={stay.currency}
+        cardGate={toGateState(await resolveCardOnFile(stay))}
+        concierge={concierge}
       />
     );
   }

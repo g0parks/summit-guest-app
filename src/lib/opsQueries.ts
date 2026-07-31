@@ -68,7 +68,7 @@ export async function getOpsQueues() {
     stay: { include: { guest: true, property: true } },
   } as const;
 
-  const [newSignals, awaitingGuest, readyToRoute, scheduled, changes, toSettle, perkClaims] =
+  const [newSignals, awaitingGuest, readyToRoute, scheduled, changes, pendingLines, perkClaims] =
     await Promise.all([
       // 1 — New signals: tapped in the last 24h; the guest is likely still
       //     filling the wizard. Watch, don't chase.
@@ -119,15 +119,16 @@ export async function getOpsQueues() {
         },
         orderBy: { createdAt: "asc" },
       }),
-      // 6 — To settle: delivered but not charged.
-      prisma.serviceRequest.findMany({
-        where: { status: "COMPLETED", tabLineItems: { some: { status: "PENDING" } } },
+      // 6 — Charges: every PENDING line, due-first. The one action is the
+      //     Charge tap (money doctrine 2026-07-27: a human taps every charge),
+      //     so the guest's phone + a live token ride along for the card-update
+      //     draft when a card fails.
+      prisma.tabLineItem.findMany({
+        where: { status: "PENDING" },
         include: {
-          service: true,
-          stay: { include: { guest: true, property: true } },
-          tabLineItems: { where: { status: "PENDING" } },
+          stay: { include: { guest: true, property: true, accessTokens: true } },
+          serviceRequest: { include: { service: { select: { name: true } } } },
         },
-        orderBy: { updatedAt: "asc" },
       }),
       prisma.perkClaim.findMany({
         where: { status: "CLAIMED" },
@@ -136,13 +137,38 @@ export async function getOpsQueues() {
       }),
     ]);
 
+  /**
+   * Due-first ranking. `chargeDueAt` is null on every line created before the
+   * money path shipped, and a null would sort last in SQL — exactly where an
+   * unpaid line must NOT go. So each line gets an effective date: its own due
+   * date, or (for legacy rows) the stay's departure once departed, else the
+   * line's creation. Departed stays' unpaid lines and legacy rows both land in
+   * the past and float to the top as overdue, which is the truth.
+   */
+  const chargesDue = pendingLines
+    .map((line) => {
+      const departed =
+        getStayPhase(line.stay, line.stay.property.timezone) === "POST_STAY";
+      const effectiveDueAt =
+        line.chargeDueAt ?? (departed ? line.stay.departureDate : line.createdAt);
+      return {
+        ...line,
+        departed,
+        effectiveDueAt,
+        due: effectiveDueAt.getTime() <= now.getTime(),
+        /** No due date of its own — created before the money path. */
+        legacy: line.chargeDueAt == null,
+      };
+    })
+    .sort((a, b) => a.effectiveDueAt.getTime() - b.effectiveDueAt.getTime());
+
   return {
     newSignals,
     awaitingGuest,
     readyToRoute,
     scheduled,
     changes,
-    toSettle,
+    chargesDue,
     perkClaims,
   };
 }
@@ -179,30 +205,17 @@ export async function getOpsStays() {
 }
 
 /**
- * Departed in the last 14 days with PENDING tab lines — unsettled money that
- * used to vanish when the stays table filtered to departureDate >= now.
- * The close-out action is the existing ChargeButton on stay detail.
+ * First token that still resolves — what an operator nudge deep-links on.
+ * Shared by the Awaiting-guest queue and the charge queue's card-update draft.
  */
-export async function getRecentlyDeparted() {
-  const now = new Date();
-  const cutoff = new Date(now.getTime() - 14 * 24 * HOUR);
-  const stays = await prisma.stay.findMany({
-    where: {
-      departureDate: { lt: now, gte: cutoff },
-      tabLineItems: { some: { status: "PENDING" } },
-    },
-    include: {
-      guest: true,
-      property: true,
-      tabLineItems: { where: { status: "PENDING" } },
-    },
-    orderBy: { departureDate: "desc" },
-  });
-
-  return stays.map((s) => ({
-    ...s,
-    pendingCents: s.tabLineItems.reduce((sum, l) => sum + l.amount, 0),
-  }));
+export function liveTokenId(
+  tokens: { id: string; revokedAt: Date | null; expiresAt: Date | null }[],
+): string | null {
+  const now = Date.now();
+  return (
+    tokens.find((t) => !t.revokedAt && (!t.expiresAt || t.expiresAt.getTime() > now))
+      ?.id ?? null
+  );
 }
 
 export type ActivityEntry = {

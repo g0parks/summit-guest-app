@@ -88,6 +88,21 @@ export class PaymentDeclinedError extends Error {
   }
 }
 
+/**
+ * The idempotency key was already used for this line with DIFFERENT details —
+ * i.e. an earlier attempt reached Stripe and the card has changed since. Stripe
+ * refuses the retry, which is the safe answer (a fresh key could double-charge
+ * if that earlier attempt actually succeeded), but a human has to look: the
+ * payment may already exist in the dashboard. Deliberately NOT a decline, so it
+ * never advances the attempt counter.
+ */
+export class PaymentConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PaymentConflictError";
+  }
+}
+
 /** visa / mastercard / amex / discover from the leading digits (MOCK only). */
 export function detectBrand(rawNumber: string): string {
   const n = rawNumber.replace(/\D/g, "");
