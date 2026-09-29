@@ -130,6 +130,10 @@ export type ServiceFlowConfig = {
 
 const MAX_PARTY = 8;
 
+// The option value IS the pricing input (catalog.transferLegs reads it), so
+// the string lives in one place.
+import { ROUND_TRIP } from "./catalog";
+
 const FLOWS: Record<string, ServiceFlowConfig> = {
   "airport-transfer-slc": {
     steps: [
@@ -142,7 +146,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
             kind: "select",
             name: "direction",
             label: "Direction",
-            options: ["Airport → residence", "Residence → airport", "Round trip"],
+            options: ["Airport → residence", "Residence → airport", ROUND_TRIP],
             required: true,
           },
         ],
@@ -158,6 +162,29 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
             name: "flightNumber",
             label: "Flight number",
             placeholder: "DL 920",
+            required: true,
+          },
+        ],
+      },
+      {
+        key: "return",
+        eyebrow: "The way back",
+        question: "And the ride home?",
+        detail: "Two drives, two fares — so the return is booked as exactly as the arrival.",
+        showIf: { field: "direction", equals: ROUND_TRIP },
+        fields: [
+          {
+            kind: "text",
+            name: "returnDate",
+            label: "Departure date",
+            placeholder: "Feb 17",
+            required: true,
+          },
+          {
+            kind: "text",
+            name: "returnFlight",
+            label: "Return flight number",
+            placeholder: "DL 921",
             required: true,
           },
         ],
@@ -201,7 +228,7 @@ const FLOWS: Record<string, ServiceFlowConfig> = {
         name: "kitchenRoundTrip",
         targetSlug: "grocery-pre-stock",
         source: "transfer-attach",
-        showIf: { field: "direction", equals: "Round trip" },
+        showIf: { field: "direction", equals: ROUND_TRIP },
         eyebrow: "While we're at it",
         question: "A stocked kitchen when you walk in?",
         detail:

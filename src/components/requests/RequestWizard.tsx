@@ -16,7 +16,7 @@ import {
   type SubField,
   type WizardStep,
 } from "@/lib/serviceForm";
-import { computeChargeCents, isFixedPrice } from "@/lib/catalog";
+import { computeChargeCents, isFixedPrice, transferLegs } from "@/lib/catalog";
 import { SMS_REASSURANCE } from "@/lib/consentCopy";
 import { formatMoney } from "@/lib/money";
 import CardGate, { type CardGateState } from "@/components/payments/CardGate";
@@ -207,8 +207,15 @@ export default function RequestWizard({
   };
 
   const fixed = isFixedPrice(service.priceUnit, service.priceAmount);
+  // `controls` carries the showIf controllers, `direction` among them - so a
+  // round trip previews as two fares, matching what the server will bill.
   const previewCents = fixed
-    ? computeChargeCents(service.priceUnit, service.priceAmount as number, party)
+    ? computeChargeCents(
+        service.priceUnit,
+        service.priceAmount as number,
+        party,
+        transferLegs(controls),
+      )
     : null;
 
   // ── The close — one calm screen each ──────────────────────────────────

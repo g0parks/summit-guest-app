@@ -33,13 +33,35 @@ export function isFixedPrice(unit: PriceUnit, amount: number | null): amount is 
   return unit !== "QUOTE" && unit !== "FEE_STRUCTURE" && amount != null;
 }
 
-/** Charge for an auto-confirmed request (per-person scales by party size). */
+/**
+ * The transfer direction that bills two legs. The vendor charges per movement
+ * (Snow Country: $275 each way), so a round trip is two fares - keeping this
+ * as the literal wizard option value means the answer IS the price input.
+ */
+export const ROUND_TRIP = "Round trip";
+
+/**
+ * How many vendor legs a request bills. Only transfers can be >1 today: a
+ * round trip is two separate drives on two dates, each costing us a full net
+ * fare. Anything without a `direction` answer bills one leg.
+ */
+export function transferLegs(answers: Record<string, string>): number {
+  return answers.direction?.trim() === ROUND_TRIP ? 2 : 1;
+}
+
+/**
+ * Charge for an auto-confirmed request. PER_PERSON scales by party size;
+ * `legs` scales by vendor movements (round-trip transfers). Both multiply -
+ * a per-person service with two legs would bill both, which is correct.
+ */
 export function computeChargeCents(
   unit: PriceUnit,
   amountCents: number,
   partySize: number,
+  legs = 1,
 ): number {
-  return unit === "PER_PERSON" ? amountCents * Math.max(1, partySize) : amountCents;
+  const base = unit === "PER_PERSON" ? amountCents * Math.max(1, partySize) : amountCents;
+  return base * Math.max(1, legs);
 }
 
 /**

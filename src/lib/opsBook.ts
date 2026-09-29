@@ -110,6 +110,9 @@ export async function getDemandBook(): Promise<DemandRow[]> {
       ) {
         // A signal on a fixed-price dish has a knowable value — count it as
         // maturing pipeline, not committed money.
+        // Legs stay 1 here on purpose: an open signal hasn't answered
+        // direction yet, so a round trip is worth 2x this once the wizard
+        // runs. Pipeline estimate, never money.
         row.awaitingYesCents += computeChargeCents(
           r.service.priceUnit,
           r.service.priceAmount,
