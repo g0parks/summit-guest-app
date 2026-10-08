@@ -125,6 +125,11 @@ export default async function RequestPage({
           requiresDate: service.requiresDate,
           requiresTime: service.requiresTime,
           requiresPartySize: service.requiresPartySize,
+          // Notice floor for the picker; the server re-checks on complete.
+          minDate: dayKey(
+            new Date(Date.now() + (isFee ? 0 : service.leadTimeHours) * 60 * 60 * 1000),
+            tz,
+          ),
         }}
         currency={stay.currency}
         backHref={`/services/${service.slug}`}

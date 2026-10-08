@@ -105,8 +105,8 @@ export default async function TabPage() {
       </section>
 
       <p className={`${styles.reassure} reveal reveal-4`}>
-        Everything you request lands here. No checkout, no wallet. Settle anytime,
-        or we’ll close it out at departure.
+        Everything you request lands here. No checkout, no wallet.
+        {pending > 0 ? " Settle anytime, or we’ll close it out at departure." : ""}
       </p>
 
       {(concierge.phone || concierge.email) && (

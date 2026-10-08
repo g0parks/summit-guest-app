@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireStay } from "@/lib/session";
 import { getStayPhase } from "@/lib/stayPhase";
+import { dayKey } from "@/lib/dates";
 import RequestBox from "@/components/requests/RequestBox";
 import styles from "@/components/requests/RequestWizard.module.css";
 
@@ -37,5 +38,5 @@ export default async function AskPage() {
     );
   }
 
-  return <RequestBox />;
+  return <RequestBox minDate={dayKey(new Date(), stay.property.timezone)} />;
 }

@@ -57,6 +57,31 @@ export function chargeDueAtFor(input: {
   return locksAt > now.getTime() ? new Date(locksAt) : now;
 }
 
+/**
+ * The booking floor: the service page promises "N days notice" off
+ * `leadTimeHours`; this is the server-side gate that keeps that promise (the
+ * vendor portals behind us enforce their own lead times — a booking inside
+ * them is one we can't fulfil). Fee-structure services (grocery, bar) are
+ * exempt: their timing is the rush/same-day logic in provisioningPricing.ts,
+ * so they only refuse days already gone.
+ */
+export function meetsNotice(
+  requestedFor: Date,
+  leadTimeHours: number,
+  now: Date = new Date(),
+): boolean {
+  return requestedFor.getTime() >= now.getTime() + leadTimeHours * HOUR;
+}
+
+/** "2 days notice" / "12h notice" — one label for the page and the error. */
+export function noticeLabel(leadTimeHours: number): string {
+  if (leadTimeHours >= 24) {
+    const days = Math.round(leadTimeHours / 24);
+    return `${days} day${days === 1 ? "" : "s"} notice`;
+  }
+  return `${leadTimeHours}h notice`;
+}
+
 /** The request states a guest can still change in-app: booked, not delivered. */
 const CHANGEABLE_STATUSES: RequestStatus[] = ["CONFIRMED", "SCHEDULED"];
 

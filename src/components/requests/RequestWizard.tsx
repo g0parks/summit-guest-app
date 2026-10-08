@@ -41,6 +41,8 @@ type WizardService = {
   requiresDate: boolean;
   requiresTime: boolean;
   requiresPartySize: boolean;
+  /** Earliest pickable date (YYYY-MM-DD, property tz) — the notice floor. */
+  minDate?: string;
 };
 
 type WizardDefaults = {
@@ -345,6 +347,7 @@ export default function RequestWizard({
                           <input
                             type="date"
                             name="date"
+                            min={service.minDate}
                             defaultValue={defaults.date ?? ""}
                             className={styles.input}
                           />

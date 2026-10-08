@@ -25,7 +25,8 @@ import { normalizePhone } from "@/lib/phone";
 import { resolveCardOnFile } from "@/lib/cardOnFile";
 import { newTabLineFields } from "@/lib/tabLine";
 import { parseVendorCostNote } from "@/lib/vendorNote";
-import { zonedDateTime } from "@/lib/dates";
+import { dayKey, zonedDateTime } from "@/lib/dates";
+import { meetsNotice, noticeLabel } from "@/lib/changePolicy";
 import { getStayPhase } from "@/lib/stayPhase";
 import { getBarSeeds } from "@/lib/queries";
 import {
@@ -259,6 +260,27 @@ export async function saveRequestDetails(
   // specific (grocery has no phase-gated steps); the rush derivation below
   // covers both fee-structure services.
   const isFee = isFeeStructureService(service.priceUnit);
+
+  // ── The booking floor (audit 2026-10): the service page promises "N days
+  // notice"; enforce it here, not just in copy. A date-only request is judged
+  // by the END of that day (no time = "sometime that day"), so picking the
+  // first allowed date in the picker always passes. Fee-structure services
+  // only refuse days already gone — their timing is the rush logic below.
+  // Binds mode=complete only; "finish later" stays the graceful exit.
+  if (!finishLater && requestedFor) {
+    const tz = stay.property.timezone;
+    const judgedAt = timeStr ? requestedFor : zonedDateTime(dateStr, "23:59", tz);
+    if (dayKey(requestedFor, tz) < dayKey(new Date(), tz)) {
+      return { ok: false, error: "That date has already passed — please pick another." };
+    }
+    if (!isFee && !meetsNotice(judgedAt, service.leadTimeHours)) {
+      return {
+        ok: false,
+        error: `${service.name} needs ${noticeLabel(service.leadTimeHours)}. Pick a later time, or text your concierge and we'll see what we can do.`,
+      };
+    }
+  }
+
   const seeds =
     service.slug === BAR_STOCKING_SLUG ? getBarSeeds(stay, stay.property.timezone) : {};
 
@@ -723,8 +745,16 @@ export async function createRequestBox(
   const dateStr = String(formData.get("date") ?? "").trim();
   let requestedFor: Date | null = null;
   if (dateStr) {
-    const d = zonedDateTime(dateStr, "12:00", stay.property.timezone);
-    if (!Number.isNaN(d.getTime())) requestedFor = d;
+    const tz = stay.property.timezone;
+    const d = zonedDateTime(dateStr, "12:00", tz);
+    // A date the guest typed must survive — never silently drop it.
+    if (Number.isNaN(d.getTime())) {
+      return { ok: false, error: "That date didn’t come through — please pick it again." };
+    }
+    if (dayKey(d, tz) < dayKey(new Date(), tz)) {
+      return { ok: false, error: "That date has already passed — please pick another." };
+    }
+    requestedFor = d;
   }
 
   const request = await prisma.serviceRequest.create({

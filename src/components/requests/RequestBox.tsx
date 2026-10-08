@@ -12,7 +12,7 @@ import styles from "./RequestWizard.module.css";
  * fee posture is disclosed here, never quoted on the spot — milk, not meat.
  * Shares the wizard's styling so it reads as one experience.
  */
-export default function RequestBox() {
+export default function RequestBox({ minDate }: { minDate?: string } = {}) {
   const [state, action, pending] = useActionState<RequestBoxResult | null, FormData>(
     createRequestBox,
     null,
@@ -69,7 +69,7 @@ export default function RequestBox() {
                 <span>
                   Any particular day? <span className={styles.optional}>optional</span>
                 </span>
-                <input type="date" name="date" className={styles.input} />
+                <input type="date" name="date" min={minDate} className={styles.input} />
               </label>
             </div>
             <p className={styles.detail}>

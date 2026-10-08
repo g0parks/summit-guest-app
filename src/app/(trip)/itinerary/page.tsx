@@ -6,6 +6,7 @@ import {
   dayKey,
   formatDateRange,
   formatDayLabel,
+  formatMonthDay,
   formatTime,
   relativeDayWord,
 } from "@/lib/dates";
@@ -62,7 +63,12 @@ export default async function ItineraryPage() {
         >
           <div className={styles.dayHead}>
             <span className={styles.dayWord}>{relativeDayWord(group.date, tz)}</span>
-            <span className={styles.dayDate}>{formatDayLabel(group.date, tz)}</span>
+            {/* "Today · Tue, Sep 29" keeps the weekday; "Tuesday" already said it. */}
+            <span className={styles.dayDate}>
+              {["Today", "Tomorrow"].includes(relativeDayWord(group.date, tz))
+                ? formatDayLabel(group.date, tz)
+                : formatMonthDay(group.date, tz)}
+            </span>
           </div>
 
           <ol className={styles.timeline}>

@@ -49,6 +49,12 @@ export function formatDayLabel(d: Date, tz = DEFAULT_TZ): string {
   return `${p.weekday}, ${p.month} ${p.day}`;
 }
 
+/** "Mar 14" — for when the weekday is already said alongside. */
+export function formatMonthDay(d: Date, tz = DEFAULT_TZ): string {
+  const p = parts(d, tz);
+  return `${p.month} ${p.day}`;
+}
+
 /** "7:00 PM" */
 export function formatTime(d: Date, tz = DEFAULT_TZ): string {
   return new Intl.DateTimeFormat("en-US", {

@@ -6,6 +6,7 @@ import { formatPriceLabel } from "@/lib/money";
 import { CATEGORY_LABEL } from "@/lib/catalog";
 import { generalMessage, getConciergeContact } from "@/lib/concierge";
 import { getStayPhase } from "@/lib/stayPhase";
+import { noticeLabel } from "@/lib/changePolicy";
 import ConciergeLinks from "@/components/concierge/ConciergeLinks";
 import ArrangeButton from "@/components/services/ArrangeButton";
 import styles from "./page.module.css";
@@ -31,11 +32,7 @@ export default async function ServiceDetail({
     ? null
     : (await getOpenRequests(stay.id)).find((r) => r.serviceId === service.id) ?? null;
 
-  const leadDays = Math.round(service.leadTimeHours / 24);
-  const leadLabel =
-    service.leadTimeHours >= 24
-      ? `${leadDays} day${leadDays === 1 ? "" : "s"} notice`
-      : `${service.leadTimeHours}h notice`;
+  const leadLabel = noticeLabel(service.leadTimeHours);
 
   return (
     <main className={styles.page}>
