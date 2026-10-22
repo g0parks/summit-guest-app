@@ -53,6 +53,19 @@ co-brand, from `GUEST_EMAIL_FROM`.
 - **Button:** Pick it back up *(lands on /plan)*
 - **Closing:** Whenever you're ready. No rush.
 
+## Sender identity (rung-2 doctrine, 2026-07-27)
+- **From name:** {PM Name} Concierge *(the PM's trust opens the email; display-name format on GUEST_EMAIL_FROM)*
+- **From address:** concierge@summitluxurylogistics.com
+- **Footer brand line:** {PM Name} Concierge, powered by Aerie
+
+## Card confirm step (NEW with the Stripe build — the checkout moment; voice-passable)
+- **Eyebrow:** Confirming your booking
+- **Line above the card field:** A card completes it. You won't be charged until your booking locks, and changes are free until then.
+- **After save (returning bookings):** Card ending {last4} on file. One tap and it's done.
+- **Tab page wallet line:** Your card is held securely by Stripe. Charges post as bookings lock, so your wallet stays in your pocket in Park City.
+- **Booking floor (inside the cutoff, wizard can't take it):** For anything inside {24} hours, text your concierge and we'll see what we can do.
+- **Charge receipt note:** *(Stripe sends its own receipt automatically; no custom email in v1.)*
+
 ## Compliance footer (every email, small + quiet)
 - **Line:** Unsubscribe · Summit Luxury Logistics LLC · 7533 S Center View Ct, Ste N · West Jordan, UT 84084
 

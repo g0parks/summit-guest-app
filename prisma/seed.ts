@@ -38,16 +38,23 @@ const CATALOG = [
     name: "Airport Transfer — SLC",
     category: "TRANSPORT" as const,
     shortDesc: "Private black-car transfer between Salt Lake City and your residence.",
-    priceAmount: 38000,
+    // Snow Country Meet & Greet SUV, SLC<->Park City rack (2026 tour-operator
+    // sheet: $275 rack / $229.07 net). Priced AT rack by doctrine - Summit's
+    // margin is the net spread, never a markup the guest could discover.
+    // Curbside ($229/$209.92) is deliberately not offered: 8.3% spread vs
+    // 16.7%, and the worse arrival. Round trip bills 2 legs (see catalog.ts
+    // transferLegs). Parties of 6+ need the Luxury Van ($399) - separate
+    // service, follow-up PR.
+    priceAmount: 27500,
     priceUnit: "FLAT" as const,
     priceNote: null,
-    leadTimeHours: 12,
+    leadTimeHours: 24,
     season: "ALL_YEAR" as const,
     moveCutoffHours: 24,
     cancelCutoffHours: 24,
     requiresDate: true,
     requiresTime: true,
-    requiresPartySize: true, // vehicle sizing — we pick the car, never the guest
+    requiresPartySize: true, // vehicle sizing - we pick the car, never the guest
     sortOrder: 10,
   },
   {
@@ -60,10 +67,10 @@ const CATALOG = [
     priceAmount: 8500,
     priceUnit: "PER_PERSON" as const,
     priceNote: "per day",
-    leadTimeHours: 48,
+    leadTimeHours: 24,
     season: "WINTER" as const,
-    moveCutoffHours: 48,
-    cancelCutoffHours: 48,
+    moveCutoffHours: 24,
+    cancelCutoffHours: 24,
     requiresDate: true,
     requiresTime: false,
     requiresPartySize: true,

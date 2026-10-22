@@ -1,9 +1,9 @@
 import "server-only";
 import { prisma } from "./db";
-import { computeChargeCents, isFixedPrice } from "./catalog";
+import { computeChargeCents, isFixedPrice, transferLegs } from "./catalog";
 import { formatDayLabel, formatTime } from "./dates";
 import { formatMoney } from "./money";
-import { clampParty, parseRequestDetails } from "./serviceForm";
+import { clampParty, flowAnswers, parseRequestDetails } from "./serviceForm";
 
 /**
  * Operator notification seam. Fulfillment is manual: when a guest acts, the
@@ -322,6 +322,7 @@ async function buildEmail(
             request.service.priceUnit,
             request.service.priceAmount,
             clampParty(request.partySize),
+            transferLegs(flowAnswers(details)),
           ),
           request.stay.currency,
         )}${

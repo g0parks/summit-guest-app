@@ -8,6 +8,7 @@ import {
   computeChargeCents,
   confirmedRequestItineraryData,
   isFixedPrice,
+  transferLegs,
 } from "@/lib/catalog";
 import {
   attachVisible,
@@ -463,6 +464,10 @@ export async function saveRequestDetails(
         service.priceUnit,
         service.priceAmount,
         clampParty(partySize),
+        // A round-trip transfer is two vendor fares, not one - the wizard
+        // preview computes the same way, so the number the guest approved
+        // is the number that lands on the tab.
+        transferLegs(flowAnswers(details)),
       );
 
       await tx.tabLineItem.create({
